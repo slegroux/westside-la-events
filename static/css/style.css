@@ -77,13 +77,42 @@ header::before {
     z-index: 1;
 }
 
+.header-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.header-logo-left {
+    font-size: 4rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+
+.header-logo-right {
+    height: 4rem !important;
+    width: auto !important;
+    max-height: 4rem;
+    max-width: 4rem;
+    object-fit: contain;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
 h1 {
     font-size: 3rem;
     font-weight: 800;
     color: white;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     letter-spacing: -0.025em;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0;
+}
+
+.header-title {
+    margin-bottom: 0;
 }
 
 .header-subtitle {
@@ -300,14 +329,47 @@ h1 {
     border: 2px solid var(--border-color);
 }
 
+.filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
 .filter-section-label {
     font-size: 0.875rem;
     font-weight: 700;
-    margin-bottom: 1rem;
     color: var(--text-color);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     display: block;
+}
+
+.filter-toggle-btn {
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.filter-toggle-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: rgba(99, 102, 241, 0.05);
+}
+
+.filter-toggle-btn.expanded {
+    background: var(--bg-gradient);
+    color: white;
+    border-color: transparent;
 }
 
 .category-checkboxes {
@@ -562,6 +624,15 @@ h1 {
     color: white;
     border-color: var(--success-color);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.price-note {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    font-size: 0.8rem;
+    font-style: italic;
 }
 
 .date-night-badge {
@@ -990,8 +1061,22 @@ footer p {
 
 /* Responsive Design - Mobile First Improvements */
 @media (max-width: 768px) {
+    .header-title-row {
+        gap: 0.75rem;
+    }
+
+    .header-logo-left {
+        font-size: 2.5rem;
+    }
+
+    .header-logo-right {
+        height: 2.5rem !important;
+        max-height: 2.5rem;
+        max-width: 2.5rem;
+    }
+
     h1 {
-        font-size: 2rem;
+        font-size: 1.5rem;
         line-height: 1.2;
     }
 

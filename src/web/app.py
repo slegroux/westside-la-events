@@ -150,22 +150,7 @@ def page_head(title: str, description: Optional[str] = None):
         # Leaflet MarkerCluster JS
         Script(src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js', defer=True),
         # Application JavaScript - defer to load after Leaflet
-        Script(src='/static/js/map.js', defer=True),
-        # Inline script for calendar picker toggle (needs to be available immediately)
-        Script('''
-            function toggleCalendarPicker(value) {
-                const datePicker = document.getElementById('date-picker');
-                const datePickerLabel = document.getElementById('date-picker-label');
-
-                if (value === 'specific_date') {
-                    if (datePicker) datePicker.style.display = 'block';
-                    if (datePickerLabel) datePickerLabel.style.display = 'block';
-                } else {
-                    if (datePicker) datePicker.style.display = 'none';
-                    if (datePickerLabel) datePickerLabel.style.display = 'none';
-                }
-            }
-        ''')
+        Script(src='/static/js/map.js', defer=True)
     )
 
 
@@ -212,6 +197,9 @@ def event_card(event: Event):
         price_display = Span('FREE', cls='event-price free-badge')
     elif event.price:
         price_display = Span(f'${event.price:.2f}', cls='event-price')
+    elif event.price_note:
+        # Show price note for events where pricing isn't available
+        price_display = Span(event.price_note, cls='event-price price-note')
 
     # Date Night badge
     date_night_badge = None
@@ -219,14 +207,27 @@ def event_card(event: Event):
         date_night_badge = Span('💕 DATE NIGHT', cls='event-badge date-night-badge')
 
     return Div(
-        Img(src=event.image_url, alt=event.title, cls='event-image') if event.image_url else None,
+        # Make image clickable
+        A(
+            Img(src=event.image_url, alt=event.title, cls='event-image'),
+            href=f'/event/{event.id}'
+        ) if event.image_url else None,
         Div(
+            # Make title clickable
             Div(
-                H2(event.title, cls='event-title'),
+                A(
+                    H2(event.title, cls='event-title'),
+                    href=f'/event/{event.id}',
+                    style='text-decoration: none; color: inherit;'
+                ),
                 price_display,
                 date_night_badge,
                 cls='event-header'
-            ) if (price_display or date_night_badge) else H2(event.title, cls='event-title'),
+            ) if (price_display or date_night_badge) else A(
+                H2(event.title, cls='event-title'),
+                href=f'/event/{event.id}',
+                style='text-decoration: none; color: inherit;'
+            ),
             Div(f'📅 {event_date_str}', cls='event-date'),
             Div(f'📍 {event.venue_name}', cls='event-location') if event.venue_name else None,
             P(event.description, cls='event-description') if event.description else None,
@@ -297,6 +298,259 @@ def home_page():
     )
 
 
+def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = ''):
+    """
+    Get category and source tallies based on current filters.
+
+    This function calculates the count of events for each category and source,
+    taking into account the current date, category, source, and free_only filters.
+    When filtering by category, source counts reflect only those categories.
+    When filtering by source, category counts reflect only those sources.
+    """
+    available_sources = []
+    available_categories = {}
+
+    try:
+        with state.db.get_connection() as conn:
+            # Build WHERE clause based on filters
+            conditions = []
+            params = []
+
+            # Always filter out NULL sources and categories
+            base_conditions = ["source IS NOT NULL", "category IS NOT NULL"]
+
+            # Date filter
+            if date_filter == 'specific_date' and specific_date:
+                from datetime import datetime, timedelta
+                try:
+                    date_obj = datetime.strptime(specific_date, '%Y-%m-%d')
+                    end_date = date_obj + timedelta(days=1)
+                    conditions.append("event_date >= ? AND event_date < ?")
+                    params.extend([date_obj, end_date])
+                except ValueError:
+                    # Fall back to upcoming if date parsing fails
+                    conditions.append("event_date >= datetime('now')")
+            elif date_filter == 'today':
+                conditions.append("date(event_date) = date('now')")
+            elif date_filter == 'this_week':
+                conditions.append("event_date >= date('now') AND event_date < date('now', 'weekday 0', '+7 days')")
+            elif date_filter == 'this_weekend':
+                conditions.append("date(event_date) IN (date('now', 'weekday 6'), date('now', 'weekday 0', '+7 days'))")
+            elif date_filter == 'this_month':
+                conditions.append("strftime('%Y-%m', event_date) = strftime('%Y-%m', 'now')")
+            else:  # upcoming or default
+                conditions.append("event_date >= datetime('now')")
+
+            # Free events filter
+            if free_only == 'true':
+                conditions.append("is_free = 1")
+
+            # Build full WHERE clause
+            where_clause = " AND ".join(base_conditions + conditions)
+
+            # Get category counts (filtered by source if sources are selected)
+            category_conditions = list(conditions)  # Copy date and free filters
+            if source and len(source) > 0:
+                placeholders = ','.join('?' * len(source))
+                category_conditions.append(f"source IN ({placeholders})")
+                category_params = params + list(source)
+            else:
+                category_params = params
+
+            category_where = " AND ".join(base_conditions + category_conditions)
+            cursor = conn.execute(f"""
+                SELECT category, COUNT(*) as count
+                FROM events
+                WHERE {category_where}
+                GROUP BY category
+                ORDER BY category
+            """, category_params)
+            available_categories = {row[0]: row[1] for row in cursor.fetchall()}
+
+            # Get source counts (filtered by category if categories are selected)
+            source_conditions = list(conditions)  # Copy date and free filters
+            if category and len(category) > 0:
+                placeholders = ','.join('?' * len(category))
+                source_conditions.append(f"category IN ({placeholders})")
+                source_params = params + list(category)
+            else:
+                source_params = params
+
+            source_where = " AND ".join(base_conditions + source_conditions)
+            cursor = conn.execute(f"""
+                SELECT source, COUNT(*) as count
+                FROM events
+                WHERE {source_where}
+                GROUP BY source
+                ORDER BY source
+            """, source_params)
+            available_sources = [(row[0], row[1]) for row in cursor.fetchall()]
+
+            # Get free events count (filtered by category and source, but NOT by free_only)
+            free_conditions = []
+            free_params = []
+
+            # Date filter (reuse the same logic)
+            if date_filter == 'specific_date' and specific_date:
+                from datetime import datetime, timedelta
+                try:
+                    date_obj = datetime.strptime(specific_date, '%Y-%m-%d')
+                    end_date = date_obj + timedelta(days=1)
+                    free_conditions.append("event_date >= ? AND event_date < ?")
+                    free_params.extend([date_obj, end_date])
+                except ValueError:
+                    free_conditions.append("event_date >= datetime('now')")
+            elif date_filter == 'today':
+                free_conditions.append("date(event_date) = date('now')")
+            elif date_filter == 'this_week':
+                free_conditions.append("event_date >= date('now') AND event_date < date('now', 'weekday 0', '+7 days')")
+            elif date_filter == 'this_weekend':
+                free_conditions.append("date(event_date) IN (date('now', 'weekday 6'), date('now', 'weekday 0', '+7 days'))")
+            elif date_filter == 'this_month':
+                free_conditions.append("strftime('%Y-%m', event_date) = strftime('%Y-%m', 'now')")
+            else:
+                free_conditions.append("event_date >= datetime('now')")
+
+            # Add category filter if selected
+            if category and len(category) > 0:
+                placeholders = ','.join('?' * len(category))
+                free_conditions.append(f"category IN ({placeholders})")
+                free_params.extend(list(category))
+
+            # Add source filter if selected
+            if source and len(source) > 0:
+                placeholders = ','.join('?' * len(source))
+                free_conditions.append(f"source IN ({placeholders})")
+                free_params.extend(list(source))
+
+            # Add is_free condition
+            free_conditions.append("is_free = 1")
+
+            free_where = " AND ".join(base_conditions + free_conditions)
+            cursor = conn.execute(f"""
+                SELECT COUNT(*) as count
+                FROM events
+                WHERE {free_where}
+            """, free_params)
+            result = cursor.fetchone()
+            free_events_count = result[0] if result else 0
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error getting filter tallies: {e}", exc_info=True)
+        # If we can't get sources/categories, just use empty lists
+        free_events_count = 0
+        pass
+
+    return available_categories, available_sources, free_events_count
+
+
+def filter_section_collapsible(section_id: str, label: str, checkboxes_content, expanded: bool = False):
+    """Render a collapsible filter section with HTMX."""
+    return Div(
+        Div(
+            Label(label, cls='filter-section-label', style='margin: 0;'),
+            Button(
+                '▲ Hide' if expanded else '▼ Show',
+                type='button',
+                cls=f'filter-toggle-btn{" expanded" if expanded else ""}',
+                hx_get=f'/filters/toggle/{section_id}?expanded={not expanded}',
+                hx_target=f'#filter-section-{section_id}',
+                hx_swap='outerHTML',
+                hx_include='[name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="specific_date"]'
+            ),
+            cls='filter-header'
+        ),
+        Div(
+            *checkboxes_content,
+            cls='category-checkboxes',
+            style='display: flex;' if expanded else 'display: none;'
+        ),
+        cls='filter-group category-filter-group',
+        id=f'filter-section-{section_id}'
+    )
+
+
+def filter_tallies_section(date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', categories_expanded: bool = False, sources_expanded: bool = False):
+    """Render the category and source filter checkboxes with counts."""
+    available_categories, available_sources, free_events_count = _get_filter_tallies(date_filter, category, source, free_only, specific_date)
+
+    # For HTMX requests that update tallies, we also need to preserve the checked state
+    # We'll use the provided category/source lists to determine which boxes should be checked
+    checked_categories = set(category) if category else set()
+    checked_sources = set(source) if source else set()
+
+    # Build category checkboxes
+    category_checkboxes = [
+        Label(
+            Input(
+                type='checkbox',
+                name='category',
+                value=cat,
+                checked=True if cat in checked_categories else False,
+                hx_get='/events/list, /filters/tallies',
+                hx_target='#events-container, #filter-tallies',
+                hx_trigger='change',
+                hx_include='[name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="specific_date"]',
+                hx_swap='innerHTML'
+            ),
+            f' {cat} ({available_categories.get(cat, 0)})',
+            cls='category-checkbox-label'
+        )
+        for cat in config.CATEGORIES
+    ]
+
+    # Build source checkboxes
+    source_checkboxes = [
+        Label(
+            Input(
+                type='checkbox',
+                name='source',
+                value=source_name,
+                checked=True if source_name in checked_sources else False,
+                hx_get='/events/list, /filters/tallies',
+                hx_target='#events-container, #filter-tallies',
+                hx_trigger='change',
+                hx_include='[name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="specific_date"]',
+                hx_swap='innerHTML'
+            ),
+            f' {source_name} ({count})',
+            cls='category-checkbox-label'
+        )
+        for source_name, count in available_sources
+    ] if available_sources else []
+
+    return Div(
+        # Categories filter with toggle
+        filter_section_collapsible('categories', 'Categories', category_checkboxes, categories_expanded),
+        # Sources filter with toggle
+        filter_section_collapsible('sources', 'Sources', source_checkboxes, sources_expanded) if source_checkboxes else None,
+        # Free events checkbox with tally
+        Div(
+            Label(
+                Input(
+                    type='checkbox',
+                    id='free-only-checkbox',
+                    name='free_only',
+                    value='true',
+                    checked=True if free_only == 'true' else False,
+                    hx_get='/events/list, /filters/tallies',
+                    hx_target='#events-container, #filter-tallies',
+                    hx_trigger='change',
+                    hx_include='this, [name="q"], [name="date_filter"], [name="category"], [name="source"], [name="specific_date"]',
+                    hx_swap='innerHTML'
+                ),
+                f' Free Events Only ({free_events_count})',
+                for_='free-only-checkbox',
+                cls='checkbox-label'
+            ),
+            cls='filter-group checkbox-filter',
+            style='margin-top: 1rem;'
+        ),
+        id='filter-tallies'
+    )
+
+
 def search_section():
     """Search and filter section component."""
     return Form(
@@ -310,9 +564,9 @@ def search_section():
                 hx_get='/events/list',
                 hx_target='#events-container',
                 hx_trigger='keyup changed delay:500ms, search',
-                hx_include='[name="date_filter"], [name="category"], [name="free_only"], [name="specific_date"]'
+                hx_include='[name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="specific_date"]'
             ),
-            Button('Search', type='submit', hx_get='/events/list', hx_target='#events-container', hx_include='[name="q"], [name="date_filter"], [name="category"], [name="free_only"], [name="specific_date"]'),
+            Button('Search', type='submit', hx_get='/events/list', hx_target='#events-container', hx_include='[name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="specific_date"]'),
             cls='search-box'
         ),
         Div(
@@ -327,73 +581,18 @@ def search_section():
                     Option('Specific Date', value='specific_date'),
                     id='date-filter',
                     name='date_filter',
-                    hx_get='/events/list',
-                    hx_target='#events-container',
+                    hx_get='/events/list, /filters/tallies, /filters/date-picker',
+                    hx_target='#events-container, #filter-tallies, #date-picker-container',
                     hx_trigger='change',
-                    hx_include='this, [name="q"], [name="category"], [name="free_only"], [name="specific_date"]',
-                    hx_swap='innerHTML',
-                    onchange='toggleCalendarPicker(this.value)'
+                    hx_include='this, [name="q"], [name="category"], [name="source"], [name="free_only"], [name="specific_date"]',
+                    hx_swap='innerHTML'
                 ),
                 cls='filter-group'
             ),
-            Div(
-                Label('Pick a Date', for_='date-picker', id='date-picker-label', style='display: none;'),
-                Input(
-                    type='date',
-                    id='date-picker',
-                    name='specific_date',
-                    hx_get='/events/list',
-                    hx_target='#events-container',
-                    hx_trigger='change',
-                    hx_include='this, [name="q"], [name="date_filter"], [name="category"], [name="free_only"]',
-                    hx_swap='innerHTML',
-                    style='display: none;'
-                ),
-                cls='filter-group calendar-filter'
-            ),
-            Div(
-                Label('Categories', cls='filter-section-label'),
-                Div(
-                    *[
-                        Label(
-                            Input(
-                                type='checkbox',
-                                name='category',
-                                value=cat,
-                                hx_get='/events/list',
-                                hx_target='#events-container',
-                                hx_trigger='change',
-                                hx_include='[name="q"], [name="date_filter"], [name="category"], [name="free_only"], [name="specific_date"]',
-                                hx_swap='innerHTML'
-                            ),
-                            ' ' + cat,
-                            cls='category-checkbox-label'
-                        )
-                        for cat in config.CATEGORIES
-                    ],
-                    cls='category-checkboxes'
-                ),
-                cls='filter-group category-filter-group'
-            ),
-            Div(
-                Label(
-                    Input(
-                        type='checkbox',
-                        id='free-only-checkbox',
-                        name='free_only',
-                        value='true',
-                        hx_get='/events/list',
-                        hx_target='#events-container',
-                        hx_trigger='change',
-                        hx_include='this, [name="q"], [name="date_filter"], [name="category"], [name="specific_date"]',
-                        hx_swap='innerHTML'
-                    ),
-                    ' Free Events Only',
-                    for_='free-only-checkbox',
-                    cls='checkbox-label'
-                ),
-                cls='filter-group checkbox-filter'
-            ),
+            # Date picker container - populated dynamically by HTMX
+            Div(id='date-picker-container', cls='filter-group calendar-filter'),
+            # Filter tallies section that will be dynamically updated
+            filter_tallies_section(),
             cls='filters'
         ),
         cls='search-section',
@@ -403,7 +602,7 @@ def search_section():
     )
 
 
-def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, free_only: str = '', specific_date: str = '', limit: int = 100) -> List[Event]:
+def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', limit: int = 100) -> List[Event]:
     """
     Helper function to fetch events with consistent filter-building logic.
 
@@ -411,6 +610,7 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str
         q: Search query string
         date_filter: Date filter (upcoming, today, this_week, etc.)
         category: List of category filters (from multiple checkboxes)
+        source: List of source filters (from multiple checkboxes)
         free_only: Free events filter ('true' or empty string)
         specific_date: Specific date in YYYY-MM-DD format (when date_filter is 'specific_date')
         limit: Maximum number of events to return
@@ -420,6 +620,9 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str
     """
     # Handle category filtering - if no categories selected, show all
     categories = category if category and len(category) > 0 else None
+
+    # Handle source filtering - if no sources selected, show all
+    sources = source if source and len(source) > 0 else None
 
     # Convert free_only to boolean
     is_free = True if free_only == 'true' else None
@@ -438,6 +641,7 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str
                 start_date=start,
                 end_date=end,
                 categories=categories,
+                sources=sources,
                 is_free=is_free,
                 limit=limit
             )
@@ -449,25 +653,130 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str
         query=q if q else None,
         date_filter=date_filter if date_filter != 'specific_date' else 'upcoming',
         categories=categories,
+        sources=sources,
         is_free=is_free,
         limit=limit
     )
 
 
 @rt('/events/list')
-def get_events_list(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, free_only: str = '', specific_date: str = ''):
+def get_events_list(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = ''):
     """HTMX endpoint to get events list HTML fragment."""
     from starlette.responses import HTMLResponse
-    events = _fetch_events(q, date_filter, category, free_only, specific_date)
+    events = _fetch_events(q, date_filter, category, source, free_only, specific_date)
     # Return just the HTML fragment without full page wrapper
     result = events_list(events)
     return HTMLResponse(str(result))
 
 
+@rt('/filters/tallies')
+def get_filter_tallies(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', categories_expanded: str = 'false', sources_expanded: str = 'false'):
+    """HTMX endpoint to get updated filter tallies HTML fragment."""
+    from starlette.responses import HTMLResponse
+    result = filter_tallies_section(
+        date_filter,
+        category,
+        source,
+        free_only,
+        specific_date,
+        categories_expanded == 'true',
+        sources_expanded == 'true'
+    )
+    return HTMLResponse(str(result))
+
+
+@rt('/filters/date-picker')
+def get_date_picker(date_filter: str = 'upcoming'):
+    """HTMX endpoint to show/hide date picker based on filter selection."""
+    from starlette.responses import HTMLResponse
+
+    if date_filter == 'specific_date':
+        result = Div(
+            Label('Pick a Date', for_='date-picker'),
+            Input(
+                type='date',
+                id='date-picker',
+                name='specific_date',
+                hx_get='/events/list, /filters/tallies',
+                hx_target='#events-container, #filter-tallies',
+                hx_trigger='change',
+                hx_include='this, [name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"]',
+                hx_swap='innerHTML'
+            ),
+            id='date-picker-container',
+            cls='filter-group calendar-filter'
+        )
+    else:
+        # Return empty container when not specific_date
+        result = Div(id='date-picker-container', cls='filter-group calendar-filter')
+
+    return HTMLResponse(str(result))
+
+
+@rt('/filters/toggle/{section_id}')
+def toggle_filter_section(section_id: str, expanded: str = 'false', q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = ''):
+    """HTMX endpoint to toggle a filter section."""
+    from starlette.responses import HTMLResponse
+
+    # Get the current filter data
+    available_categories, available_sources, _ = _get_filter_tallies(date_filter, category, source, free_only, specific_date)
+    checked_categories = set(category) if category else set()
+    checked_sources = set(source) if source else set()
+
+    is_expanded = expanded == 'true'
+
+    if section_id == 'categories':
+        # Build category checkboxes
+        checkboxes = [
+            Label(
+                Input(
+                    type='checkbox',
+                    name='category',
+                    value=cat,
+                    checked=True if cat in checked_categories else False,
+                    hx_get='/events/list, /filters/tallies',
+                    hx_target='#events-container, #filter-tallies',
+                    hx_trigger='change',
+                    hx_include='[name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="specific_date"]',
+                    hx_swap='innerHTML'
+                ),
+                f' {cat} ({available_categories.get(cat, 0)})',
+                cls='category-checkbox-label'
+            )
+            for cat in config.CATEGORIES
+        ]
+        result = filter_section_collapsible('categories', 'Categories', checkboxes, is_expanded)
+    elif section_id == 'sources':
+        # Build source checkboxes
+        checkboxes = [
+            Label(
+                Input(
+                    type='checkbox',
+                    name='source',
+                    value=source_name,
+                    checked=True if source_name in checked_sources else False,
+                    hx_get='/events/list, /filters/tallies',
+                    hx_target='#events-container, #filter-tallies',
+                    hx_trigger='change',
+                    hx_include='[name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="specific_date"]',
+                    hx_swap='innerHTML'
+                ),
+                f' {source_name} ({count})',
+                cls='category-checkbox-label'
+            )
+            for source_name, count in available_sources
+        ]
+        result = filter_section_collapsible('sources', 'Sources', checkboxes, is_expanded)
+    else:
+        return HTMLResponse('Invalid section', status_code=400)
+
+    return HTMLResponse(str(result))
+
+
 @rt('/api/events')
-def get_events_json(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, free_only: str = '', specific_date: str = ''):
+def get_events_json(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = ''):
     """API endpoint to get events as JSON."""
-    events = _fetch_events(q, date_filter, category, free_only, specific_date)
+    events = _fetch_events(q, date_filter, category, source, free_only, specific_date)
 
     from starlette.responses import JSONResponse
     return JSONResponse([event.to_dict() for event in events])
@@ -583,7 +892,9 @@ def event_detail_page(event_id: int):
                             Span(f'📍 {event.venue_name}', cls='event-detail-venue') if event.venue_name else '',
                             # Price display
                             Span('FREE', cls='event-price free-badge', style='margin-left: 1rem;') if event.is_free else (
-                                Span(f'${event.price:.2f}', cls='event-price', style='margin-left: 1rem;') if event.price else None
+                                Span(f'${event.price:.2f}', cls='event-price', style='margin-left: 1rem;') if event.price else (
+                                    Span(event.price_note, cls='event-price price-note', style='margin-left: 1rem;') if event.price_note else None
+                                )
                             ),
                             # Date Night badge
                             Span('💕 DATE NIGHT', cls='event-badge date-night-badge', style='margin-left: 0.5rem;') if event.category == 'Date Night' else None,

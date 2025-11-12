@@ -3,6 +3,7 @@ Scraper for Timeout LA events.
 Source: https://www.timeout.com/los-angeles/things-to-do
 """
 import json
+import re
 from datetime import datetime
 from typing import List, Optional, Dict
 from dateutil import parser as date_parser
@@ -187,6 +188,70 @@ class TimeoutScraper(BaseScraper):
             is_free=is_free
         )
 
+    def _extract_price_from_html(self, soup) -> Optional[Dict]:
+        """
+        Extract price information from HTML detail page.
+
+        Looks for price in definition lists (<dt>Price:</dt><dd>value</dd>)
+        and other common patterns.
+
+        Args:
+            soup: BeautifulSoup object of detail page
+
+        Returns:
+            Dict with 'price' (float or None) and 'is_free' (bool)
+        """
+        price = None
+        is_free = False
+
+        # Strategy 1: Look for definition list with "Price:" label
+        dt_elements = soup.find_all('dt')
+        for dt in dt_elements:
+            dt_text = self.clean_text(dt.get_text()).lower()
+            if 'price' in dt_text:
+                # Found price label, get the corresponding value
+                dd = dt.find_next_sibling('dd')
+                if dd:
+                    price_text = self.clean_text(dd.get_text())
+
+                    # Check if free
+                    if 'free' in price_text.lower():
+                        is_free = True
+                        price = 0.0
+                    else:
+                        # Try to extract numeric price
+                        # Look for patterns like "$15", "$15.00", "15", etc.
+                        price_match = re.search(r'\$?\s*(\d+(?:\.\d{2})?)', price_text)
+                        if price_match:
+                            try:
+                                price = float(price_match.group(1))
+                            except ValueError:
+                                pass
+                    break
+
+        # Strategy 2: Look for any element containing "Price:" text
+        if price is None:
+            # Search for text containing "price:"
+            for text_elem in soup.find_all(text=lambda t: t and 'price:' in t.lower()):
+                parent = text_elem.parent
+                if parent:
+                    text_content = self.clean_text(parent.get_text())
+
+                    if 'free' in text_content.lower():
+                        is_free = True
+                        price = 0.0
+                    else:
+                        # Extract price after "price:" label
+                        price_match = re.search(r'price:\s*\$?\s*(\d+(?:\.\d{2})?)', text_content, re.IGNORECASE)
+                        if price_match:
+                            try:
+                                price = float(price_match.group(1))
+                            except ValueError:
+                                pass
+                    break
+
+        return {'price': price, 'is_free': is_free} if (price is not None or is_free) else None
+
     def _parse_from_html(self, detail_soup, card, url: str) -> Event:
         """Fallback: Parse event from HTML when structured data not available."""
         # Extract title from card
@@ -230,6 +295,14 @@ class TimeoutScraper(BaseScraper):
         img_elem = detail_soup.find('meta', property='og:image')
         image_url = img_elem.get('content', '') if img_elem else ""
 
+        # Extract price information from detail page
+        price = None
+        is_free = False
+        price_info = self._extract_price_from_html(detail_soup)
+        if price_info:
+            price = price_info.get('price')
+            is_free = price_info.get('is_free', False)
+
         return self.create_event(
             title=title,
             description=description,
@@ -238,5 +311,7 @@ class TimeoutScraper(BaseScraper):
             event_date=event_date,
             end_date=end_date,
             url=url,
-            image_url=image_url
+            image_url=image_url,
+            price=price,
+            is_free=is_free
         )

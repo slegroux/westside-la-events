@@ -119,6 +119,11 @@ class Database:
             except sqlite3.OperationalError:
                 pass  # Column already exists
 
+            try:
+                cursor.execute("ALTER TABLE events ADD COLUMN price_note TEXT DEFAULT ''")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
             # Create indexes for common queries
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_event_date
@@ -232,13 +237,13 @@ class Database:
                     title, description, venue_name, address,
                     latitude, longitude, event_date, end_date,
                     category, source, url, image_url, source_logo_url,
-                    price, is_free
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    price, is_free, price_note
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 event.title, event.description, event.venue_name, event.address,
                 event.latitude, event.longitude, event.event_date, event.end_date,
                 event.category, event.source, event.url, event.image_url, event.source_logo_url,
-                event.price, event.is_free
+                event.price, event.is_free, event.price_note
             ))
             return cursor.lastrowid, False
 
@@ -254,14 +259,14 @@ class Database:
                     title = ?, description = ?, venue_name = ?, address = ?,
                     latitude = ?, longitude = ?, event_date = ?, end_date = ?,
                     category = ?, source = ?, url = ?, image_url = ?, source_logo_url = ?,
-                    price = ?, is_free = ?,
+                    price = ?, is_free = ?, price_note = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             """, (
                 event.title, event.description, event.venue_name, event.address,
                 event.latitude, event.longitude, event.event_date, event.end_date,
                 event.category, event.source, event.url, event.image_url, event.source_logo_url,
-                event.price, event.is_free,
+                event.price, event.is_free, event.price_note,
                 event.id
             ))
             return cursor.rowcount > 0
@@ -339,11 +344,12 @@ class Database:
                 params.append(1 if is_free else 0)
 
             # Geographic bounds
+            # Note: Allow events with NULL coordinates to pass through (they can't be geographically filtered)
             if min_lat is not None and max_lat is not None:
-                conditions.append("latitude BETWEEN ? AND ?")
+                conditions.append("(latitude IS NULL OR latitude BETWEEN ? AND ?)")
                 params.extend([min_lat, max_lat])
             if min_lng is not None and max_lng is not None:
-                conditions.append("longitude BETWEEN ? AND ?")
+                conditions.append("(longitude IS NULL OR longitude BETWEEN ? AND ?)")
                 params.extend([min_lng, max_lng])
 
             # Build query
@@ -504,6 +510,7 @@ class Database:
             source_logo_url=safe_get('source_logo_url', ''),
             price=safe_get('price'),
             is_free=bool(safe_get('is_free', 0)),
+            price_note=safe_get('price_note', ''),
             created_at=datetime.fromisoformat(row['created_at']) if row['created_at'] else None,
             updated_at=datetime.fromisoformat(row['updated_at']) if row['updated_at'] else None
         )

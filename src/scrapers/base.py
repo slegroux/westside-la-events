@@ -210,7 +210,8 @@ class BaseScraper(ABC):
         image_url: str = "",
         category: str = "",
         price: Optional[float] = None,
-        is_free: bool = False
+        is_free: bool = False,
+        price_note: str = ""
     ) -> Optional[Event]:
         """
         Create an Event object with geocoding, categorization, and location filtering.
@@ -227,6 +228,7 @@ class BaseScraper(ABC):
             category: Event category (auto-classified if not provided)
             price: Event price (optional)
             is_free: Whether event is free (default False)
+            price_note: Additional pricing information (e.g. "Check website for pricing")
 
         Returns:
             Event object if in coverage area, None otherwise
@@ -269,7 +271,8 @@ class BaseScraper(ABC):
             image_url=image_url.strip() if image_url else "",
             source_logo_url=self.source_logo_url or "",
             price=price,
-            is_free=is_free
+            is_free=is_free,
+            price_note=price_note.strip() if price_note else ""
         )
 
     def clean_text(self, text: Optional[str]) -> str:

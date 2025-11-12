@@ -3,7 +3,8 @@ Scraper for The Venice West venue events.
 Source: https://www.thevenicewest.com/calendar
 
 Note: Tixr event pages use DataDome anti-bot protection which prevents automated
-price extraction. Manual price overrides can be added to venice_west_pricing.json.
+price extraction. Automatic Tixr scraping is DISABLED. Manual price overrides
+must be added to venice_west_pricing.json for Tixr events.
 """
 from datetime import datetime
 from typing import List, Optional
@@ -146,6 +147,7 @@ class VeniceWestScraper(BaseScraper):
         # Check if it's a free event (RSVP button visible)
         is_free = False
         price = None
+        price_note = ""
         rsvp_button = item.find('a', class_='button short')
         buy_button = item.find('a', class_='button short white')
 
@@ -163,7 +165,8 @@ class VeniceWestScraper(BaseScraper):
                 except ValueError:
                     pass
 
-        # If we have a Tixr URL and no price yet, try manual override first, then Tixr extraction
+        # If we have a Tixr URL and no price yet, check manual override only
+        # Note: Tixr extraction is disabled due to DataDome anti-bot protection
         if not price and 'tixr.com' in event_url:
                 # Extract event ID from URL (handle both short /e/ and long /events/ formats)
                 import re
@@ -175,19 +178,13 @@ class VeniceWestScraper(BaseScraper):
                     if event_id in self.pricing_overrides:
                         override = self.pricing_overrides[event_id]
                         price = override.get('min_price')
+                        price_note = "Manually verified pricing"
                         self.log(f"Using manual pricing override: ${price}")
                     else:
-                        # Try to extract from Tixr
-                        # Note: Tixr uses DataDome anti-bot protection which is very difficult to bypass
-                        self.log(f"Attempting to extract pricing from Tixr: {event_url}")
-                        pricing_info = self._extract_tixr_pricing(event_url)
-                        if pricing_info['min_price']:
-                            price = pricing_info['min_price']
-                            self.log(f"Extracted price from Tixr: ${price}")
-                        else:
-                            # Tixr extraction failed (likely due to anti-bot protection)
-                            # Leave price as None but we'll note it in the description
-                            self.log(f"Could not extract pricing from Tixr (anti-bot protection)")
+                        # Tixr extraction is disabled due to anti-bot protection
+                        # Set a clear price note for the user
+                        price_note = "Check website for pricing"
+                        self.log(f"Tixr URL detected - manual pricing override needed for event ID: {event_id}")
 
         # Build description from available info
         description_parts = []
@@ -207,14 +204,11 @@ class VeniceWestScraper(BaseScraper):
             date_str = event_date.strftime("%A, %B %d at %I:%M %p")
             description_parts.append(f"on {date_str}")
 
-        # Add pricing info
+        # Add pricing info to description (only if free or has price)
         if is_free:
             description_parts.append("Free event with RSVP")
         elif price:
             description_parts.append(f"Tickets from ${price:.2f}")
-        elif 'tixr.com' in event_url:
-            # Event has Tixr tickets but pricing couldn't be extracted
-            description_parts.append("Tickets available (see event page for pricing)")
 
         # Add all tags if multiple
         if len(category_tags) > 1:
@@ -233,7 +227,8 @@ class VeniceWestScraper(BaseScraper):
             image_url=image_url,
             category=category,
             price=price,
-            is_free=is_free
+            is_free=is_free,
+            price_note=price_note
         )
 
     def _extract_tixr_pricing(self, tixr_url: str) -> dict:

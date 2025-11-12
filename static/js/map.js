@@ -34,20 +34,35 @@ async function loadMapEvents() {
         // Guard for missing DOM elements - use safe defaults
         const searchInput = document.getElementById('search-input');
         const dateFilterEl = document.getElementById('date-filter');
-        const categoryFilterEl = document.getElementById('category-filter');
         const datePickerEl = document.getElementById('date-picker');
+        const freeOnlyCheckbox = document.querySelector('input[name="free_only"]');
 
         const query = searchInput ? searchInput.value : '';
         const dateFilter = dateFilterEl ? dateFilterEl.value : '';
-        const categoryFilter = categoryFilterEl ? categoryFilterEl.value : '';
         const specificDate = datePickerEl ? datePickerEl.value : '';
 
         // Build query parameters
         const params = new URLSearchParams();
         if (query) params.append('q', query);
         if (dateFilter) params.append('date_filter', dateFilter);
-        if (categoryFilter && categoryFilter !== 'All Categories') params.append('category', categoryFilter);
         if (specificDate && dateFilter === 'specific_date') params.append('specific_date', specificDate);
+
+        // Get all checked category checkboxes
+        const categoryCheckboxes = document.querySelectorAll('input[name="category"]:checked');
+        categoryCheckboxes.forEach(checkbox => {
+            params.append('category', checkbox.value);
+        });
+
+        // Get all checked source checkboxes
+        const sourceCheckboxes = document.querySelectorAll('input[name="source"]:checked');
+        sourceCheckboxes.forEach(checkbox => {
+            params.append('source', checkbox.value);
+        });
+
+        // Add free_only filter if checked
+        if (freeOnlyCheckbox && freeOnlyCheckbox.checked) {
+            params.append('free_only', 'true');
+        }
 
         // Fetch events with error handling
         const response = await fetch('/api/events?' + params.toString());
@@ -180,20 +195,6 @@ function formatDate(dateStr) {
         hour: 'numeric',
         minute: '2-digit'
     });
-}
-
-// Toggle calendar picker visibility
-function toggleCalendarPicker(dateFilterValue) {
-    const datePicker = document.getElementById('date-picker');
-    const datePickerLabel = document.getElementById('date-picker-label');
-
-    if (dateFilterValue === 'specific_date') {
-        if (datePicker) datePicker.style.display = 'block';
-        if (datePickerLabel) datePickerLabel.style.display = 'block';
-    } else {
-        if (datePicker) datePicker.style.display = 'none';
-        if (datePickerLabel) datePickerLabel.style.display = 'none';
-    }
 }
 
 // Listen for htmx events to refresh map when filters change

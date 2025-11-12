@@ -30,7 +30,8 @@ WESTSIDE_NEIGHBORHOODS = {
     'westwood', 'sawtelle', 'pacific palisades', 'beverly hills',
     'west hollywood', 'weho', 'century city', 'inglewood', 'malibu',
     'topanga', 'topanga beach', 'el matador', 'zuma beach',
-    'point dume', 'carbon beach', 'surfrider beach'
+    'point dume', 'carbon beach', 'surfrider beach',
+    'ucla', 'ucla campus'  # UCLA campus is in Westwood
 }
 
 # Zip codes for Westside and Malibu

@@ -48,14 +48,14 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 # Westside LA Geographic Bounds
 # Approximate boundaries for filtering events
-# Includes: Santa Monica, Venice, Westwood, Brentwood, Pacific Palisades,
+# Includes: Santa Monica, Venice, Westwood, Brentwood, Pacific Palisades, Malibu
 #           West LA, Culver City, Marina del Rey, Playa Vista, Mar Vista
 #           Inglewood (SoFi Stadium, Intuit Dome, Kia Forum)
 # Excludes: Downtown LA, Echo Park, Silver Lake, Koreatown, Hollywood
 WESTSIDE_BOUNDS = {
     'min_lat': 33.93,   # South boundary (includes Inglewood venues)
-    'max_lat': 34.10,   # North boundary (Santa Monica Mountains)
-    'min_lng': -118.52, # West boundary (Pacific coast)
+    'max_lat': 34.15,   # North boundary (Santa Monica Mountains, includes Malibu)
+    'min_lng': -118.75, # West boundary (Pacific coast, includes Malibu)
     'max_lng': -118.33  # East boundary (west of La Cienega, excludes Downtown/Echo Park)
 }
 
@@ -204,6 +204,41 @@ EVENT_SOURCES = {
         'enabled': False,  # Blocked by Cloudflare CAPTCHA protection
         'uses_api': False,
         'note': 'Leading electronic music platform. Currently blocked by Cloudflare CAPTCHA - requires CAPTCHA bypass solutions to work.'
+    },
+    'iic_la': {
+        'name': 'IIC Los Angeles',
+        'url': 'https://iiclosangeles.esteri.it/en/gli_eventi/calendario/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Italian Cultural Institute of Los Angeles - cultural events, film screenings, exhibitions, and Italian language classes'
+    },
+    'afdela': {
+        'name': 'Alliance Française de Los Angeles',
+        'url': 'https://www.afdela.org/events/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'French cultural center offering film screenings, cultural events, workshops, and French language classes'
+    },
+    'raymond_kabbaz': {
+        'name': 'Théâtre Raymond Kabbaz',
+        'url': 'https://www.theatreraymondkabbaz.com/upcoming-events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Cultural theater venue on Pico Boulevard featuring music, film, dance, and theatrical performances'
+    },
+    'ucla_botanical': {
+        'name': 'UCLA Mathias Botanical Garden',
+        'url': 'https://www.botgard.ucla.edu/garden-events-news/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'UCLA botanical garden featuring workshops, classes, tours, plant sales, and educational events'
+    },
+    'parks_ca': {
+        'name': 'California State Parks',
+        'url': 'https://www.parks.ca.gov/Events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'California State Parks events in Angeles District (Malibu Creek SP, Malibu Lagoon SB, Santa Monica Mountains, etc.)'
     },
     'venice_beach': {
         'name': 'Venice Beach Events',

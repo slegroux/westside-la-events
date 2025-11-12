@@ -26,6 +26,7 @@ class Event:
         source_logo_url: str = "",
         price: Optional[float] = None,
         is_free: bool = False,
+        price_note: str = "",
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None
     ):
@@ -45,6 +46,7 @@ class Event:
         self.source_logo_url = source_logo_url
         self.price = price
         self.is_free = is_free
+        self.price_note = price_note
         self.created_at = created_at or datetime.now()
         self.updated_at = updated_at or datetime.now()
 
@@ -67,6 +69,7 @@ class Event:
             'source_logo_url': self.source_logo_url,
             'price': self.price,
             'is_free': self.is_free,
+            'price_note': self.price_note,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -91,6 +94,7 @@ class Event:
             source_logo_url=data.get('source_logo_url', ''),
             price=data.get('price'),
             is_free=data.get('is_free', False),
+            price_note=data.get('price_note', ''),
             created_at=datetime.fromisoformat(data['created_at']) if data.get('created_at') else None,
             updated_at=datetime.fromisoformat(data['updated_at']) if data.get('updated_at') else None
         )

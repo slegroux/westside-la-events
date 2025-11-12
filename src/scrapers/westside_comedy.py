@@ -1,13 +1,17 @@
 """
 Scraper for M.I.'s Westside Comedy Theater events.
-Source: https://westsidecomedy.com/tickets/
+Sources:
+- https://westsidecomedy.com/ (current/near-term events)
+- https://www.eventbrite.com/o/mis-westside-comedy-theater-107617136371 (far-future events)
 
-The venue uses WordPress For Events & Activities (WFEA) plugin for displaying events.
-Event data is rendered server-side with structured HTML classes.
+Scrapes both the main website and Eventbrite to get complete event coverage.
 """
+import json
+import re
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List, Optional, Dict
 from dateutil import parser as date_parser
+from bs4 import BeautifulSoup
 
 from .base import BaseScraper
 from src.data.models import Event
@@ -18,210 +22,477 @@ class WestsideComedyScraper(BaseScraper):
 
     def __init__(self):
         super().__init__("M.I.'s Westside Comedy Theater")
-        self.base_url = 'https://westsidecomedy.com'
-        self.tickets_url = f'{self.base_url}/tickets/'
+        self.website_url = 'https://westsidecomedy.com/'
+        self.eventbrite_url = 'https://www.eventbrite.com/o/mis-westside-comedy-theater-107617136371'
         self.venue_name = "M.I.'s Westside Comedy Theater"
         self.venue_address = '1323-A 3rd St Promenade, Santa Monica, CA 90401'
 
     def scrape(self) -> List[Event]:
         """
-        Scrape events from Westside Comedy tickets page.
+        Scrape events from both westsidecomedy.com and Eventbrite.
+
+        Returns:
+            List of Event objects from both sources
+        """
+        events = []
+
+        # Scrape current events from main website
+        website_events = self._scrape_website()
+        events.extend(website_events)
+
+        # Scrape future events from Eventbrite
+        eventbrite_events = self._scrape_eventbrite()
+        events.extend(eventbrite_events)
+
+        self.log(f"Total: {len(events)} events ({len(website_events)} from website, {len(eventbrite_events)} from Eventbrite)")
+        return events
+
+    def _scrape_website(self) -> List[Event]:
+        """
+        Scrape events from westsidecomedy.com homepage.
+
+        The website embeds Eventbrite events, so we extract event IDs and fetch
+        them directly from Eventbrite API which is faster and more reliable.
 
         Returns:
             List of Event objects
         """
-        self.log("Starting scrape...")
+        self.log("Starting scrape from westsidecomedy.com...")
         events = []
 
         try:
-            # Fetch the tickets page
-            html = self.fetch_page(self.tickets_url)
+            html = self.fetch_page(self.website_url)
             if not html:
-                self.log("Failed to fetch tickets page")
+                self.log("Failed to fetch website page")
                 return events
 
-            soup = self.parse_html(html)
+            # Extract event IDs from URLs in the HTML
+            # Format: https://westsidecomedy.com/single-event/e/1799258694189
+            # These are Eventbrite event IDs
+            event_ids = set(re.findall(r'single-event/e/(\d+)', html))
+            self.log(f"Found {len(event_ids)} unique event IDs on website")
 
-            # Find all event items using WFEA plugin classes
-            event_items = soup.find_all('article', class_='wfea-card-list-item')
-            self.log(f"Found {len(event_items)} events on tickets page")
-
-            for i, item in enumerate(event_items, 1):
+            for i, event_id in enumerate(sorted(event_ids), 1):
                 try:
-                    event = self._parse_event(item)
+                    # Fetch directly from Eventbrite using the event ID
+                    # This gives us westsidecomedy.com URL but Eventbrite data
+                    event = self._fetch_eventbrite_event_by_id(event_id)
                     if event:
                         events.append(event)
-                        self.log(f"Event {i}/{len(event_items)}: {event.title}")
+                        self.log(f"Website event {i}/{len(event_ids)}: {event.title}")
                 except Exception as e:
-                    self.log(f"Error parsing event {i}: {e}")
+                    self.log(f"Error fetching event {event_id}: {e}")
                     continue
 
-            self.log(f"Successfully scraped {len(events)} events")
-
         except Exception as e:
-            self.log(f"Error during scrape: {e}")
+            self.log(f"Error during website scrape: {e}")
 
         return events
 
-    def _extract_time_from_event_page(self, url: str) -> str:
+    def _fetch_eventbrite_event_by_id(self, event_id: str) -> Optional[Event]:
         """
-        Fetch individual event page and extract time information.
+        Fetch event details from Eventbrite using event ID.
 
         Args:
-            url: URL of the individual event page
-
-        Returns:
-            Time string (e.g., "8:00 PM") or empty string if not found
-        """
-        try:
-            html = self.fetch_page(url)
-            if not html:
-                return ''
-
-            soup = self.parse_html(html)
-
-            # Look for time in various formats using regex
-            import re
-            text = soup.get_text()
-
-            # Match patterns like "8:00 pm", "8:00 PM", "8:00pm"
-            time_match = re.search(r'\b(\d{1,2}:\d{2}\s*[AP]M)\b', text, re.IGNORECASE)
-            if time_match:
-                time_str = time_match.group(1)
-                # Normalize spacing (e.g., "8:00pm" -> "8:00 PM")
-                time_str = re.sub(r'(\d{1,2}:\d{2})\s*([AP]M)', r'\1 \2', time_str, flags=re.IGNORECASE)
-                self.log(f"Found time on event page: {time_str}")
-                return time_str
-
-        except Exception as e:
-            self.log(f"Error extracting time from {url}: {e}")
-
-        return ''
-
-    def _parse_event(self, item) -> Optional[Event]:
-        """
-        Parse a single event from an event card.
-
-        Args:
-            item: BeautifulSoup element containing event data
+            event_id: Eventbrite event ID (numeric string)
 
         Returns:
             Event object or None if parsing fails
         """
-        # Extract title from h3 in content block
-        title_elem = item.find('h3')
-        if not title_elem:
-            return None
+        try:
+            # Construct Eventbrite event URL
+            eventbrite_url = f'https://www.eventbrite.com/e/{event_id}'
 
-        title_link = title_elem.find('a')
-        title = self.clean_text(title_link.get_text() if title_link else title_elem.get_text())
-        if not title:
-            return None
+            # Fetch the page
+            html = self.fetch_page(eventbrite_url)
+            if not html:
+                return None
 
-        # Extract event URL from title link
-        event_url = self.tickets_url  # Default to tickets page
-        if title_link and title_link.get('href'):
-            href = title_link.get('href')
-            # Check if it's an external link (Eventbrite, etc.)
-            if href.startswith('http'):
-                event_url = href
-            else:
-                event_url = self.normalize_url(href, self.base_url)
+            # Extract event data from embedded JSON
+            event_data = self._extract_eventbrite_event_data(html)
+            if event_data:
+                # Parse using Eventbrite parser but use westsidecomedy.com URL
+                event = self._parse_eventbrite_event(event_data)
+                if event:
+                    # Override URL to point to westsidecomedy.com
+                    event.url = f'https://westsidecomedy.com/single-event/e/{event_id}/'
+                    return event
 
-        # Extract date from calendar date section
-        event_date = None
-        date_section = item.find('div', class_='eaw-calendar-date')
-        if date_section:
-            month_elem = date_section.find('div', class_='eaw-calendar-date-month')
-            day_elem = date_section.find('div', class_='eaw-calendar-date-day')
+        except Exception as e:
+            self.log(f"Error fetching Eventbrite event {event_id}: {e}")
 
-            if month_elem and day_elem:
-                month_text = self.clean_text(month_elem.get_text())
-                day_text = self.clean_text(day_elem.get_text())
+        return None
 
-                # Also look for time information on listing page
-                time_elem = item.find('div', class_='eaw-time')
-                time_text = self.clean_text(time_elem.get_text()) if time_elem else ''
+    def _extract_eventbrite_event_data(self, html: str) -> Optional[Dict]:
+        """
+        Extract single event data from Eventbrite event page.
 
-                # If no time on listing page, try to fetch from individual event page
-                if not time_text and event_url and event_url != self.tickets_url:
-                    time_text = self._extract_time_from_event_page(event_url)
+        Args:
+            html: HTML content of Eventbrite event page
 
-                # Combine date parts into parseable string
-                # Format: "Nov 15 2025 8:00 PM"
-                date_string = f"{month_text} {day_text} {datetime.now().year}"
-                if time_text:
-                    date_string += f" {time_text}"
+        Returns:
+            Dictionary containing event data or None if not found
+        """
+        try:
+            # Look for __NEXT_DATA__ which contains event information
+            next_data_pattern = r'<script\s+id="__NEXT_DATA__"[^>]*>(.*?)</script>'
+            match = re.search(next_data_pattern, html, re.DOTALL)
 
+            if match:
+                data = json.loads(match.group(1))
+                # Navigate to event data
+                event_data = data.get('props', {}).get('pageProps', {}).get('event')
+                if event_data:
+                    return event_data
+
+            # Fallback: Try window.__SERVER_DATA__ if __NEXT_DATA__ not found
+            server_data = self._extract_server_data(html)
+            if server_data:
+                return server_data.get('event')
+
+        except Exception as e:
+            self.log(f"Error extracting event data: {e}")
+
+        return None
+
+    def _fetch_website_event_details(self, event_url: str) -> Optional[Event]:
+        """
+        Fetch and parse a single event from westsidecomedy.com event page.
+
+        Uses Playwright since the pages are JavaScript-rendered.
+
+        Args:
+            event_url: URL to the event detail page
+
+        Returns:
+            Event object or None if parsing fails
+        """
+        try:
+            # Use Playwright to fetch JavaScript-rendered content
+            html = self.fetch_page_js(event_url, wait_selector='h1', timeout=10000)
+            if not html:
+                self.log(f"Failed to fetch {event_url}")
+                return None
+
+            soup = BeautifulSoup(html, 'html.parser')
+
+            # Extract title (may be in different elements)
+            title = None
+            title_elem = soup.find('h1')
+            if title_elem:
+                title = title_elem.get_text(strip=True)
+
+            if not title:
+                self.log(f"No title found for {event_url}")
+                return None
+
+            # Extract date/time from various possible locations
+            event_date = None
+            end_date = None
+
+            # Try meta tags first
+            start_meta = soup.find('meta', {'property': 'event:start_date'})
+            end_meta = soup.find('meta', {'property': 'event:end_date'})
+
+            if start_meta and start_meta.get('content'):
                 try:
-                    event_date = date_parser.parse(date_string, fuzzy=True)
-
-                    # If parsed date is more than 30 days in the past, assume it's next year
-                    if event_date < (datetime.now() - timedelta(days=30)):
-                        date_string = f"{month_text} {day_text} {datetime.now().year + 1}"
-                        if time_text:
-                            date_string += f" {time_text}"
-                        event_date = date_parser.parse(date_string, fuzzy=True)
-
+                    event_date = date_parser.parse(start_meta['content'])
                 except Exception as e:
-                    self.log(f"Could not parse date '{date_string}': {e}")
+                    self.log(f"Error parsing start date from meta: {e}")
 
-        # Extract image URL from thumbnail
-        image_url = ''
-        thumb_wrap = item.find('div', class_='eaw-thumb-wrap')
-        if thumb_wrap:
-            img = thumb_wrap.find('img')
-            if img and img.get('src'):
-                src = img.get('src')
-                # Skip placeholder images
-                if not src.startswith('data:image'):
-                    image_url = self.normalize_url(src, self.base_url)
-            # Also check for data-src (lazy loading)
-            elif img and img.get('data-src'):
-                data_src = img.get('data-src')
-                if not data_src.startswith('data:image'):
-                    image_url = self.normalize_url(data_src, self.base_url)
-
-        # Extract description from content block
-        description = f"Comedy show at {self.venue_name}"
-        content_block = item.find('div', class_='eaw-content-block')
-        if content_block:
-            # Look for description paragraphs (exclude title and time)
-            for p in content_block.find_all('p'):
-                if 'eaw-time' not in p.get('class', []):
-                    desc_text = self.clean_text(p.get_text())
-                    if desc_text and desc_text not in description:
-                        description = desc_text
-
-        # Check for ticket/booking link to extract price info if available
-        is_free = False
-        price = None
-        book_button = item.find('a', class_='eaw-booknow')
-        if book_button:
-            button_text = self.clean_text(book_button.get_text()).lower()
-            if 'free' in button_text or 'rsvp' in button_text:
-                is_free = True
-            # Try to extract price from button text
-            # e.g., "Buy Tickets - $15"
-            if '$' in button_text:
+            if end_meta and end_meta.get('content'):
                 try:
-                    import re
-                    price_match = re.search(r'\$(\d+(?:\.\d{2})?)', button_text)
+                    end_date = date_parser.parse(end_meta['content'])
+                except Exception as e:
+                    self.log(f"Error parsing end date from meta: {e}")
+
+            # If no meta tags, try finding date in text
+            if not event_date:
+                # Look for date patterns in the page
+                date_patterns = [
+                    r'([A-Z][a-z]+day,\s+[A-Z][a-z]+\s+\d+,\s+\d{4}\s+at\s+\d+:\d+\s+[AP]M)',
+                    r'([A-Z][a-z]+\s+\d+,\s+\d{4}\s+@\s+\d+:\d+\s+[ap]m)'
+                ]
+                for pattern in date_patterns:
+                    match = re.search(pattern, html)
+                    if match:
+                        try:
+                            event_date = date_parser.parse(match.group(1))
+                            break
+                        except:
+                            continue
+
+            # Extract description from page content
+            description = ''
+
+            # Try to find description in common locations
+            desc_selectors = [
+                ('div', {'class': 'tribe-events-single-event-description'}),
+                ('div', {'class': 'event-description'}),
+                ('div', {'class': 'description'}),
+                ('p', {})
+            ]
+
+            for tag, attrs in desc_selectors:
+                desc_elem = soup.find(tag, attrs)
+                if desc_elem:
+                    paragraphs = desc_elem.find_all('p') if tag == 'div' else [desc_elem]
+                    desc_parts = [p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)]
+                    if desc_parts:
+                        description = ' '.join(desc_parts)
+                        break
+
+            if not description:
+                description = f"Comedy show at {self.venue_name}"
+
+            # Truncate long descriptions
+            if len(description) > 500:
+                description = description[:497] + "..."
+
+            # Extract image URL
+            image_url = ''
+            # Try Open Graph image first
+            og_image = soup.find('meta', {'property': 'og:image'})
+            if og_image and og_image.get('content'):
+                image_url = og_image['content']
+            else:
+                # Try finding first image in content
+                img = soup.find('img')
+                if img and img.get('src'):
+                    image_url = img['src']
+
+            return self.create_event(
+                title=title,
+                description=description,
+                venue_name=self.venue_name,
+                address=self.venue_address,
+                event_date=event_date,
+                end_date=end_date,
+                url=event_url,
+                image_url=image_url,
+                category='entertainment'
+            )
+
+        except Exception as e:
+            self.log(f"Error parsing event page {event_url}: {e}")
+            return None
+
+    def _scrape_eventbrite(self) -> List[Event]:
+        """
+        Scrape events from Eventbrite organizer page.
+
+        Returns:
+            List of Event objects
+        """
+        self.log("Starting scrape from Eventbrite...")
+        events = []
+
+        try:
+            # Fetch the Eventbrite organizer page
+            html = self.fetch_page(self.eventbrite_url)
+            if not html:
+                self.log("Failed to fetch Eventbrite page")
+                return events
+
+            # Extract embedded JSON data from JavaScript
+            event_data = self._extract_server_data(html)
+            if not event_data:
+                self.log("Failed to extract event data from page")
+                return events
+
+            # Get future events list
+            future_events = event_data.get('view_data', {}).get('events', {}).get('future_events', [])
+            self.log(f"Found {len(future_events)} future events on Eventbrite")
+
+            for i, event_json in enumerate(future_events, 1):
+                try:
+                    event = self._parse_eventbrite_event(event_json)
+                    if event:
+                        events.append(event)
+                        self.log(f"Eventbrite event {i}/{len(future_events)}: {event.title}")
+                except Exception as e:
+                    self.log(f"Error parsing Eventbrite event {i}: {e}")
+                    continue
+
+        except Exception as e:
+            self.log(f"Error during Eventbrite scrape: {e}")
+
+        return events
+
+    def _extract_server_data(self, html: str) -> Optional[Dict]:
+        """
+        Extract window.__SERVER_DATA__ JSON object from Eventbrite page.
+
+        Args:
+            html: Page HTML content
+
+        Returns:
+            Dictionary containing server data or None if not found
+        """
+        try:
+            # Find the start of the server data
+            start_marker = 'window.__SERVER_DATA__ = '
+            start_pos = html.find(start_marker)
+            if start_pos == -1:
+                self.log("Could not find window.__SERVER_DATA__ in page")
+                return None
+
+            # Move past the marker
+            start_pos += len(start_marker)
+
+            # Find the end - look for the closing script tag
+            # We need to balance braces to find the correct end
+            brace_count = 0
+            in_string = False
+            escape_next = False
+            end_pos = start_pos
+
+            for i in range(start_pos, len(html)):
+                char = html[i]
+
+                if escape_next:
+                    escape_next = False
+                    continue
+
+                if char == '\\':
+                    escape_next = True
+                    continue
+
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+
+                if not in_string:
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end_pos = i + 1
+                            break
+
+            if end_pos == start_pos:
+                self.log("Could not find end of JSON data")
+                return None
+
+            json_str = html[start_pos:end_pos]
+            data = json.loads(json_str)
+            return data
+
+        except Exception as e:
+            self.log(f"Error extracting server data: {e}")
+        return None
+
+    def _parse_eventbrite_event(self, event_data: Dict) -> Optional[Event]:
+        """
+        Parse event from Eventbrite JSON data structure.
+
+        Args:
+            event_data: Event dictionary from Eventbrite's embedded data
+
+        Returns:
+            Event object or None if parsing fails
+        """
+        try:
+            # Extract basic info - name can be a string or dict
+            name_field = event_data.get('name', '')
+            if isinstance(name_field, dict):
+                title = name_field.get('text', '')
+            else:
+                title = name_field
+
+            if not title:
+                return None
+
+            # Event URL
+            event_url = event_data.get('url', '')
+
+            # Parse dates
+            event_date = None
+            end_date = None
+            start_data = event_data.get('start', {})
+            end_data = event_data.get('end', {})
+
+            if start_data.get('local'):
+                try:
+                    event_date = date_parser.parse(start_data['local'])
+                except Exception as e:
+                    self.log(f"Error parsing start date: {e}")
+
+            if end_data.get('local'):
+                try:
+                    end_date = date_parser.parse(end_data['local'])
+                except Exception as e:
+                    self.log(f"Error parsing end date: {e}")
+
+            # Extract price information
+            price = None
+            is_free = False
+            price_range = event_data.get('price_range', '')
+
+            if price_range:
+                if 'free' in price_range.lower():
+                    is_free = True
+                    price = 0.0
+                else:
+                    # Extract minimum price from range like "$14.82 - $25" or "$15"
+                    price_match = re.search(r'\$(\d+(?:\.\d{2})?)', price_range)
                     if price_match:
                         price = float(price_match.group(1))
-                except Exception:
-                    pass
 
-        return self.create_event(
-            title=title,
-            description=description,
-            venue_name=self.venue_name,
-            address=self.venue_address,
-            event_date=event_date,
-            end_date=None,
-            url=event_url,
-            image_url=image_url,
-            category='entertainment',  # Comedy is categorized as entertainment
-            price=price,
-            is_free=is_free
-        )
+            # Extract description
+            description = event_data.get('summary', '') or event_data.get('description', {}).get('text', '')
+            if not description:
+                description = f"Comedy show at {self.venue_name}"
+
+            # Truncate long descriptions
+            if len(description) > 500:
+                description = description[:497] + "..."
+
+            # Extract image URL (Eventbrite uses 'logo' field)
+            image_url = ''
+            logo_data = event_data.get('logo', {})
+            if isinstance(logo_data, dict):
+                # Try various image size keys
+                for key in ['url', 'original', 'large', 'medium']:
+                    if logo_data.get(key):
+                        image_url = logo_data[key]
+                        break
+            elif isinstance(logo_data, str):
+                image_url = logo_data
+
+            # Venue information (use defaults if not in data)
+            venue_name = self.venue_name
+            address = self.venue_address
+
+            # Try to get venue from data if available
+            venue_data = event_data.get('venue', {})
+            if venue_data:
+                venue_name = venue_data.get('name', self.venue_name)
+                venue_address = venue_data.get('address', {})
+                if venue_address:
+                    address_parts = [
+                        venue_address.get('address_1', ''),
+                        venue_address.get('city', ''),
+                        venue_address.get('region', ''),
+                        venue_address.get('postal_code', '')
+                    ]
+                    address = ', '.join([p for p in address_parts if p]) or self.venue_address
+
+            return self.create_event(
+                title=title,
+                description=description,
+                venue_name=venue_name,
+                address=address,
+                event_date=event_date,
+                end_date=end_date,
+                url=event_url,
+                image_url=image_url,
+                category='entertainment',  # Comedy is categorized as entertainment
+                price=price,
+                is_free=is_free
+            )
+
+        except Exception as e:
+            self.log(f"Error parsing event from JSON: {e}")
+            return None

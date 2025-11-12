@@ -108,9 +108,13 @@ class EventSearch:
             end_date = start_date + timedelta(days=1)
 
         elif date_filter == 'this_week':
-            # Start from today, end in 7 days
+            # Start from today, end at the end of the current week (Sunday)
+            # Calculate days until Sunday (weekday 6)
+            days_until_sunday = (6 - now.weekday()) % 7
             start_date = today_start
-            end_date = today_start + timedelta(days=7)
+            # If today is Sunday, include today + 1 day to capture the full day
+            # Otherwise, go to the end of the upcoming Sunday
+            end_date = today_start + timedelta(days=days_until_sunday + 1)
 
         elif date_filter == 'this_weekend':
             # Find next Saturday and Sunday
