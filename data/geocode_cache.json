@@ -1,0 +1,438 @@
+{
+  "downtown, los angeles, ca": {
+    "lat": 34.047996,
+    "lng": -118.2521002
+  },
+  "westwood, los angeles, ca": {
+    "lat": 34.0668947,
+    "lng": -118.439944
+  },
+  "hollywood, los angeles, ca": {
+    "lat": 34.0980031,
+    "lng": -118.329523
+  },
+  "santa monica, los angeles, ca": {
+    "lat": 34.0194704,
+    "lng": -118.491227
+  },
+  "westside, los angeles, ca": {
+    "lat": 34.0053474,
+    "lng": -118.411396
+  },
+  "usc/exposition park, los angeles, ca": {
+    "lat": 34.0182377,
+    "lng": -118.2856994
+  },
+  "little tokyo, los angeles, ca": {
+    "lat": 34.0485055,
+    "lng": -118.2398899
+  },
+  "griffith park, los angeles, ca": {
+    "lat": 34.1344267,
+    "lng": -118.3050915
+  },
+  "los angeles, ca": {
+    "lat": 34.0536909,
+    "lng": -118.242766
+  },
+  "the echo, los angeles, ca": {
+    "lat": 34.0844345,
+    "lng": -118.2600776
+  },
+  "the bellwether, los angeles, ca": {
+    "lat": 34.0562378,
+    "lng": -118.2584445
+  },
+  "hollywood palladium, hollywood, ca": {
+    "lat": 34.0984937,
+    "lng": -118.3242932
+  },
+  "vidiots, los angeles, ca": {
+    "lat": 34.1348871,
+    "lng": -118.2150941
+  },
+  "bob baker marionette theater, los angeles, ca": {
+    "lat": 34.0619856,
+    "lng": -118.2590477
+  },
+  "dolby theatre, los angeles, ca": {
+    "lat": 34.1026902,
+    "lng": -118.3404676
+  },
+  "re/creation cafe, los angeles, ca": null,
+  "the wiltern, los angeles, ca": {
+    "lat": 34.0614963,
+    "lng": -118.308908
+  },
+  "kia forum, inglewood, ca": {
+    "lat": 33.9582157,
+    "lng": -118.341972
+  },
+  "shrine auditorium, los angeles, ca": {
+    "lat": 34.0234369,
+    "lng": -118.2814016
+  },
+  "pappy & harriet's, pioneertown, ca": {
+    "lat": 34.1564001,
+    "lng": -116.4930469
+  },
+  "center theatre group, los angeles, ca": null,
+  "mira costa high school, manhattan beach, ca": {
+    "lat": 33.8742887,
+    "lng": -118.3895412
+  },
+  "hollywood bowl, los angeles, ca": {
+    "lat": 34.1121836,
+    "lng": -118.3392774
+  },
+  "sounds like la, los angeles, ca": null,
+  "youtube theater, inglewood, ca": {
+    "lat": 33.9517558,
+    "lng": -118.3367869
+  },
+  "santa monica, ca": {
+    "lat": 34.0194704,
+    "lng": -118.491227
+  },
+  "shrine auditorium, downtown, los angeles, ca": null,
+  "intuit dome, inglewood, los angeles, ca": {
+    "lat": 33.9442586,
+    "lng": -118.3421719
+  },
+  "troubadour, west hollywood, los angeles, ca": {
+    "lat": 34.0816145,
+    "lng": -118.3893521
+  },
+  "los angeles memorial coliseum, usc, los angeles, ca": null,
+  "hollywood bowl, hollywood, los angeles, ca": {
+    "lat": 34.1136602,
+    "lng": -118.340408
+  },
+  "sofi stadium, inglewood, los angeles, ca": {
+    "lat": 33.9534074,
+    "lng": -118.3390098
+  },
+  "dolby theatre, hollywood, los angeles, ca": {
+    "lat": 34.1026902,
+    "lng": -118.3404676
+  },
+  "kia forum, inglewood, los angeles, ca": {
+    "lat": 33.9582157,
+    "lng": -118.341972
+  },
+  "crypto.com arena, downtown, los angeles, ca": {
+    "lat": 34.0429979,
+    "lng": -118.2671352
+  },
+  "los angeles convention center, downtown, los angeles, ca": null,
+  "los angeles city hall, downtown, los angeles, ca": {
+    "lat": 34.0536961,
+    "lng": -118.2429212
+  },
+  "hollywood christmas parade, hollywood, los angeles, ca": null,
+  "walt disney concert hall, chinatown, los angeles, ca": {
+    "lat": 34.0554636,
+    "lng": -118.2492959
+  },
+  "hollywood pantages theatre, hollywood, los angeles, ca": null,
+  "burton chace park, venice, los angeles, ca": null,
+  "rose parade, pasadena, los angeles, ca": null,
+  "beyond the streets, la brea, los angeles, ca": null,
+  "the wiltern, mid-wilshire, los angeles, ca": null,
+  "book soup, west hollywood, los angeles, ca": {
+    "lat": 34.0904617,
+    "lng": -118.3836827
+  },
+  "dynasty typewriter at the hayworth, westlake, los angeles, ca": {
+    "lat": 34.0604633,
+    "lng": -118.2806495
+  },
+  "peacock theater, downtown, los angeles, ca": {
+    "lat": 34.0445026,
+    "lng": -118.2670716
+  },
+  "largo at the coronet, west hollywood, los angeles, ca": null,
+  "the walt disney concert hall, chinatown, los angeles, ca": null,
+  "fonda theatre, hollywood, los angeles, ca": {
+    "lat": 34.1012784,
+    "lng": -118.3232534
+  },
+  "los feliz 3 theatre, los feliz, los angeles, ca": null,
+  "american museum of ceramic art, outside los angeles/other, los angeles, ca": null,
+  "the broadwater second stage, hollywood, los angeles, ca": null,
+  "masonic lodge at hollywood forever, hollywood, los angeles, ca": {
+    "lat": 34.090502,
+    "lng": -118.3197793
+  },
+  "el portal theatre, north hollywood, los angeles, ca": null,
+  "village well books & coffee, palms, los angeles, ca": null,
+  "santa monica playhouse, santa monica, los angeles, ca": {
+    "lat": 34.0190134,
+    "lng": -118.497831
+  },
+  "japanese american cultural & community center (jaccc), chinatown, los angeles, ca": null,
+  "in-n-out burger pomona dragstrip, outside los angeles/other, los angeles, ca": null,
+  "vincent price art museum, monterey park, los angeles, ca": {
+    "lat": 34.0387048,
+    "lng": -118.1470474
+  },
+  "asu fidm museum, downtown, los angeles, ca": null,
+  "teragram ballroom, downtown, los angeles, ca": {
+    "lat": 34.0516899,
+    "lng": -118.2671329
+  },
+  "hollywood palladium, hollywood, los angeles, ca": {
+    "lat": 34.0984937,
+    "lng": -118.3242932
+  },
+  "hammer museum, westwood, los angeles, ca": {
+    "lat": 34.0594661,
+    "lng": -118.4437539
+  },
+  "ahmanson theatre, chinatown, los angeles, ca": {
+    "lat": 34.0582433,
+    "lng": -118.2473442
+  },
+  "youtube theater, inglewood, los angeles, ca": {
+    "lat": 33.9517558,
+    "lng": -118.3367869
+  },
+  "wilshire ebell theatre, koreatown, los angeles, ca": null,
+  "orpheum theatre, historic core, los angeles, ca": {
+    "lat": 34.0427183,
+    "lng": -118.2553893
+  },
+  "the venice west, venice, los angeles, ca": {
+    "lat": 33.9963454,
+    "lng": -118.4579146
+  },
+  "torrance cultural arts center, torrance, los angeles, ca": {
+    "lat": 33.8391825,
+    "lng": -118.3442401
+  },
+  "dignity health sports park, carson, los angeles, ca": {
+    "lat": 33.8622861,
+    "lng": -118.2629822
+  },
+  "the regent theater, arts district, los angeles, ca": null,
+  "ucla nimoy theater, westwood, los angeles, ca": {
+    "lat": 34.0577521,
+    "lng": -118.4427816
+  },
+  "terrace theater - long beach convention and entertainment center, long beach, los angeles, ca": null,
+  "carpenter performing arts center, outside los angeles/other, los angeles, ca": null,
+  "the novo, downtown, los angeles, ca": {
+    "lat": 34.0445489,
+    "lng": -118.2654725
+  },
+  "vidiots, eagle rock, los angeles, ca": {
+    "lat": 34.1348871,
+    "lng": -118.2150941
+  },
+  "el rey theatre, la brea, los angeles, ca": null,
+  "encino terrace lobby gallery, encino, los angeles, ca": null,
+  "santa anita park, arcadia, los angeles, ca": {
+    "lat": 34.117377,
+    "lng": -118.0283982
+  },
+  "natural history museum of los angeles county, downtown, los angeles, ca": null,
+  "la cita bar, little tokyo, los angeles, ca": null,
+  "forest lawn museum, glendale, los angeles, ca": {
+    "lat": 34.1284656,
+    "lng": -118.246095
+  },
+  "anaheim, outside los angeles/other, los angeles, ca": null,
+  "888 s olive st, los angeles, ca, 90014": {
+    "lat": 34.0438144,
+    "lng": -118.2578099
+  },
+  "10899 wilshire blvd, los angeles, ca, 90024": {
+    "lat": 34.0594661,
+    "lng": -118.4437539
+  },
+  "6801 hollywood blvd, los angeles, ca, 90028": {
+    "lat": 34.1026902,
+    "lng": -118.3404676
+  },
+  "3131 olympic blvd, los angeles, ca": {
+    "lat": 34.0310385,
+    "lng": -118.4606114
+  },
+  "2701 n sepulveda blvd, los angeles, ca, 90049": {
+    "lat": 34.12454,
+    "lng": -118.4791313
+  },
+  "1324 5th st, santa monica, ca, 90401": {
+    "lat": 34.0180842,
+    "lng": -118.4953985
+  },
+  "900 exposition blvd, los angeles, ca, 90007": {
+    "lat": 34.018445,
+    "lng": -118.2878355
+  },
+  "152 n central ave, los angeles, ca, 90012": {
+    "lat": 34.0497757,
+    "lng": -118.2389449
+  },
+  "4700 western heritage way, los angeles, ca, 90027": {
+    "lat": 34.1486033,
+    "lng": -118.2812686
+  },
+  "1626 north la brea avenue, los angeles, ca, 90028": {
+    "lat": 34.100466,
+    "lng": -118.344753
+  },
+  "5023 west pico boulevard, los angeles, ca, 90019": {
+    "lat": 34.047881,
+    "lng": -118.3467739
+  },
+  "3040 sunset boulevard, los angeles, ca, 90026": {
+    "lat": 34.0838297,
+    "lng": -118.2743452
+  },
+  "1153 valencia street, los angeles, ca, 90015": {
+    "lat": 34.0457581,
+    "lng": -118.274244
+  },
+  "811 wilshire boulevard, los angeles, ca, 90017": {
+    "lat": 34.0497826,
+    "lng": -118.2582443
+  },
+  "901 e. 1st st. , los angeles, ca": {
+    "lat": 34.0487467,
+    "lng": -118.2336858
+  },
+  "117 winston street, los angeles, ca, 90013": {
+    "lat": 34.0472364,
+    "lng": -118.247098
+  },
+  "3910 los feliz boulevard, los angeles, ca, 90027": {
+    "lat": 34.1132155,
+    "lng": -118.2774126
+  },
+  "527 colyton street, los angeles, ca, 90013": {
+    "lat": 34.0411859,
+    "lng": -118.236222
+  },
+  "1040 south los angeles street, los angeles, ca, 90015": {
+    "lat": 34.0390992,
+    "lng": -118.2563798
+  },
+  "1601 griffith park boulevard, los angeles, ca, 90026": {
+    "lat": 34.091025,
+    "lng": -118.277602
+  },
+  "6801 hollywood boulevard, los angeles, ca, 90028": {
+    "lat": 34.1026902,
+    "lng": -118.3404676
+  },
+  "2514 sunset blvd rear, los angeles, ca, 90026": null,
+  "1078 lillian way, los angeles, ca, 90038": {
+    "lat": 34.089564,
+    "lng": -118.3278264
+  },
+  "937 east pico boulevard, los angeles, ca, 90021": {
+    "lat": 34.0311312,
+    "lng": -118.2499812
+  },
+  "3607 trousdale parkway, los angeles, ca, 90089": {
+    "lat": 34.0201118,
+    "lng": -118.2866089
+  },
+  "555 universal hollywood drive, universal city, ca, 91608": {
+    "lat": 34.1372727,
+    "lng": -118.3583271
+  },
+  "13003 south figueroa street, los angeles, ca, 90061": {
+    "lat": 33.914222,
+    "lng": -118.282813
+  },
+  "216 alameda st, los angeles, ca, 90013": {
+    "lat": 34.1855271,
+    "lng": -118.1442678
+  },
+  "2268 venice boulevard, los angeles, ca, 90006": {
+    "lat": 34.0434875,
+    "lng": -118.3082039
+  },
+  "448 s. main st., los angeles, ca, 90013": {
+    "lat": 34.0470906,
+    "lng": -118.247986
+  },
+  ", los angeles, ca": {
+    "lat": 34.0536909,
+    "lng": -118.242766
+  },
+  "7420 sunset boulevard, los angeles, ca, 90046": {
+    "lat": 34.0978329,
+    "lng": -118.3525559
+  },
+  "818 wilshire boulevard, los angeles, ca, 90017": {
+    "lat": 34.04971,
+    "lng": -118.258855
+  },
+  "844 west 32nd street, los angeles, ca, 90007": {
+    "lat": 34.0250846,
+    "lng": -118.2834442
+  },
+  "11609 santa monica boulevard, los angeles, ca, 90025": {
+    "lat": 34.044623,
+    "lng": -118.4542886
+  },
+  "5426 crenshaw boulevard, los angeles, ca, 90043": {
+    "lat": 33.9924675,
+    "lng": -118.3304871
+  },
+  "1020 north vermont avenue, los angeles, ca, 90029": {
+    "lat": 34.090386,
+    "lng": -118.2912659
+  },
+  "8556 wilshire boulevard, beverly hills, ca, 90211": {
+    "lat": 34.0653208,
+    "lng": -118.3779097
+  },
+  "110 e 6th st, los angeles, ca, 90014": {
+    "lat": 34.0450792,
+    "lng": -118.2498071
+  },
+  "spire 73  \ud83e\udd42, los angeles, ca": {
+    "lat": 34.4401449,
+    "lng": -118.4509494
+  },
+  "18 social in the indigo hotel downtown la, los angeles, ca": null,
+  "zaya downtown  la, los angeles, ca": null,
+  "2038 sacramento street, los angeles, ca, 90021": {
+    "lat": 34.0305003,
+    "lng": -118.2313228
+  },
+  "3772 west olive avenue, burbank, ca, 91505": {
+    "lat": 34.1515331,
+    "lng": -118.339919
+  },
+  "6097 sunset boulevard, los angeles, ca, 90028": {
+    "lat": 34.0981044,
+    "lng": -118.3220773
+  },
+  "1910 lincoln blvd, venice, ca 90291": {
+    "lat": 33.9957971,
+    "lng": -118.4561571
+  },
+  "1323-a 3rd st promenade, santa monica, ca 90401": {
+    "lat": 34.0171783,
+    "lng": -118.497976
+  },
+  "the westin bonaventure hotel los angeles, los angeles, ca": null,
+  "930 pacific coast highway, santa monica, ca 90403": {
+    "lat": 34.0197442,
+    "lng": -118.506256
+  },
+  "frida kahlo theater, downtown, los angeles, ca": null,
+  "6516 selma avenue, los angeles, ca, 90028": {
+    "lat": 34.0996832,
+    "lng": -118.3313599
+  },
+  "3551 trousdale parkway, los angeles, ca, 90089": {
+    "lat": 34.0208709,
+    "lng": -118.2855497
+  }
+}

@@ -1,0 +1,451 @@
+"""
+Scraper for Eventbrite events in Los Angeles.
+Source: https://www.eventbrite.com/d/ca--los-angeles/events/
+
+This scraper catches events from multiple Westside LA venues including:
+- Perry's Beach (Santa Monica) - electronic music events
+- Aviator Nation Dreamland (Malibu) - events posted by various organizers
+- M.I.'s Westside Comedy Theater (Santa Monica)
+- Venice West (Venice)
+- And many other venues that use Eventbrite for ticketing
+
+Note: Events are automatically filtered to Westside/Malibu area by the base scraper's
+geo_filter validation.
+"""
+import json
+import re
+from datetime import datetime
+from typing import List, Optional
+from dateutil import parser as date_parser
+
+from .base import BaseScraper
+from src.data.models import Event
+
+
+class EventbriteScraper(BaseScraper):
+    """Scraper for Eventbrite events (no API key required)."""
+
+    def __init__(self):
+        super().__init__('Eventbrite')
+        self.base_url = 'https://www.eventbrite.com'
+        self.events_url = f'{self.base_url}/d/ca--los-angeles/events/'
+
+        # Specific organizer/collection pages to scrape
+        self.collection_urls = [
+            'https://www.eventbrite.com/cc/santa-monica-beach-perrys-beach-events-4542063',
+        ]
+
+    def scrape(self) -> List[Event]:
+        """
+        Scrape events from Eventbrite LA page and specific organizer collections.
+        Uses JSON-LD structured data for the general LA page and window.__SERVER_DATA__
+        for collection pages.
+
+        Returns:
+            List of Event objects
+        """
+        self.log("Starting scrape...")
+        events = []
+
+        # Scrape general LA events page (JSON-LD format)
+        events.extend(self._scrape_general_page())
+
+        # Scrape specific organizer collection pages (SERVER_DATA format)
+        for collection_url in self.collection_urls:
+            events.extend(self._scrape_collection_page(collection_url))
+
+        self.log(f"Successfully scraped {len(events)} total events")
+        return events
+
+    def _scrape_general_page(self) -> List[Event]:
+        """
+        Scrape the general LA events page using JSON-LD structured data.
+
+        Returns:
+            List of Event objects
+        """
+        self.log("Scraping general LA events page...")
+        events = []
+
+        try:
+            html = self.fetch_page(self.events_url)
+            if not html:
+                self.log("Failed to fetch events page")
+                return events
+
+            soup = self.parse_html(html)
+
+            # Extract JSON-LD structured data
+            json_ld = soup.find('script', type='application/ld+json')
+            if not json_ld:
+                self.log("No JSON-LD data found")
+                return events
+
+            data = json.loads(json_ld.string)
+
+            if data.get('@type') != 'ItemList':
+                self.log(f"Unexpected JSON-LD type: {data.get('@type')}")
+                return events
+
+            event_items = data.get('itemListElement', [])
+            self.log(f"Found {len(event_items)} events in JSON-LD")
+
+            for i, item in enumerate(event_items, 1):
+                try:
+                    event_data = item.get('item', {})
+                    event = self._parse_event_from_structured_data(event_data)
+                    if event:
+                        events.append(event)
+                except Exception as e:
+                    self.log(f"Error parsing event {i}: {e}")
+                    continue
+
+            self.log(f"Scraped {len(events)} events from general page")
+
+        except Exception as e:
+            self.log(f"Error during general page scrape: {e}")
+            import traceback
+            traceback.print_exc()
+
+        return events
+
+    def _scrape_collection_page(self, url: str) -> List[Event]:
+        """
+        Scrape a specific organizer collection page by extracting event URLs
+        and fetching JSON-LD data from each individual event page.
+
+        Args:
+            url: Collection page URL
+
+        Returns:
+            List of Event objects
+        """
+        organizer = url.split('/')[-1].split('-')[-1]
+        self.log(f"Scraping collection page: {organizer}...")
+        events = []
+
+        try:
+            html = self.fetch_page(url)
+            if not html:
+                self.log(f"Failed to fetch collection page: {url}")
+                return events
+
+            soup = self.parse_html(html)
+
+            # Extract event URLs from href attributes (both relative and absolute)
+            event_links = soup.find_all('a', href=re.compile(r'eventbrite\.com/e/[^/]+-tickets-\d+'))
+            event_urls = set()  # Use set to avoid duplicates
+
+            for link in event_links:
+                href = link.get('href', '')
+                if '/e/' in href and '-tickets-' in href:
+                    # Handle both relative and absolute URLs
+                    if href.startswith('http'):
+                        clean_url = href.split('?')[0]
+                    elif href.startswith('/e/'):
+                        clean_url = f"{self.base_url}{href.split('?')[0]}"
+                    else:
+                        continue
+                    event_urls.add(clean_url)
+
+            self.log(f"Found {len(event_urls)} unique event URLs in collection")
+
+            # Fetch each event page and extract JSON-LD data
+            for i, event_url in enumerate(sorted(event_urls), 1):
+                try:
+                    event = self._scrape_event_page(event_url)
+                    if event:
+                        events.append(event)
+                        self.log(f"  [{i}/{len(event_urls)}] ✓ {event.title}")
+                except Exception as e:
+                    self.log(f"  [{i}/{len(event_urls)}] ✗ Error: {e}")
+                    continue
+
+            self.log(f"Scraped {len(events)} events from collection page")
+
+        except Exception as e:
+            self.log(f"Error during collection page scrape: {e}")
+            import traceback
+            traceback.print_exc()
+
+        return events
+
+    def _scrape_event_page(self, url: str) -> Optional[Event]:
+        """
+        Scrape a single event page using window.__SERVER_DATA__.
+
+        Args:
+            url: Event page URL
+
+        Returns:
+            Event object or None if parsing fails
+        """
+        try:
+            html = self.fetch_page(url)
+            if not html:
+                return None
+
+            # Try to extract window.__SERVER_DATA__
+            # Use a more lenient regex that captures the object properly
+            match = re.search(r'window\.__SERVER_DATA__\s*=\s*(\{[^;]*\});?\s*(?:window\.|</script>)', html, re.DOTALL)
+            if not match:
+                return None
+
+            # Parse the JavaScript object as JSON
+            # Note: This may fail if the JS object contains non-JSON syntax
+            try:
+                # Clean up the JSON string
+                json_str = match.group(1)
+                # Replace common JavaScript patterns that aren't valid JSON
+                json_str = re.sub(r',\s*([\]}])', r'\1', json_str)  # Remove trailing commas
+                data = json.loads(json_str)
+            except json.JSONDecodeError as e:
+                self.log(f"Failed to parse SERVER_DATA for {url}: {e}")
+                return None
+
+            # Navigate to event data in SERVER_DATA structure
+            event_data = data.get('event', {})
+            if not event_data:
+                # Try alternate structure
+                event_data = data.get('listing', {})
+
+            if not event_data:
+                return None
+
+            return self._parse_event_from_server_data(event_data)
+
+        except Exception as e:
+            self.log(f"Error scraping event page {url}: {e}")
+            return None
+
+    def _parse_event_from_structured_data(self, data: dict) -> Optional[Event]:
+        """
+        Parse event from JSON-LD structured data.
+
+        Args:
+            data: Event data from JSON-LD
+
+        Returns:
+            Event object or None if parsing fails
+        """
+        # Title
+        title = data.get('name', '')
+        if not title:
+            return None
+
+        # Description
+        description = data.get('description', '')
+
+        # URL
+        url = data.get('url', '')
+
+        # Dates
+        event_date = None
+        end_date = None
+
+        start_str = data.get('startDate')
+        if start_str:
+            try:
+                event_date = date_parser.parse(start_str)
+            except:
+                pass
+
+        end_str = data.get('endDate')
+        if end_str:
+            try:
+                end_date = date_parser.parse(end_str)
+            except:
+                pass
+
+        # Location/Venue
+        location = data.get('location', {})
+        venue_name = location.get('name', '')
+
+        # Address
+        address_data = location.get('address', {})
+        street = address_data.get('streetAddress', '')
+        city = address_data.get('addressLocality', '')
+        state = address_data.get('addressRegion', '')
+        postal = address_data.get('postalCode', '')
+
+        # Build full address
+        address_parts = [p for p in [street, city, state, postal] if p]
+        address = ', '.join(address_parts) if address_parts else f"{venue_name}, Los Angeles, CA"
+
+        # Coordinates (Eventbrite provides them!)
+        latitude = None
+        longitude = None
+        geo = location.get('geo', {})
+        if geo:
+            try:
+                latitude = float(geo.get('latitude'))
+                longitude = float(geo.get('longitude'))
+            except:
+                pass
+
+        # Image
+        image_url = data.get('image', '')
+
+        # Price - check if free
+        offers = data.get('offers', {})
+        is_free = False
+        price = None
+
+        if isinstance(offers, dict):
+            price_str = offers.get('price', '')
+            if price_str:
+                try:
+                    price = float(price_str)
+                except:
+                    pass
+
+            availability = offers.get('availability', '')
+            if 'free' in str(offers).lower() or price == 0:
+                is_free = True
+        elif isinstance(offers, list) and offers:
+            # Sometimes offers is a list
+            first_offer = offers[0]
+            price_str = first_offer.get('price', '')
+            if price_str:
+                try:
+                    price = float(price_str)
+                except:
+                    pass
+            if 'free' in str(first_offer).lower() or price == 0:
+                is_free = True
+
+        # Category - extract from performers or keywords if available
+        category = None
+        performers = data.get('performer', [])
+        if performers:
+            # Could use performer info to classify
+            pass
+
+        return self.create_event(
+            title=title,
+            description=description,
+            venue_name=venue_name,
+            address=address,
+            event_date=event_date,
+            end_date=end_date,
+            url=url,
+            image_url=image_url,
+            category=category,  # Will be auto-classified by create_event
+            price=price,
+            is_free=is_free
+        )
+
+    def _parse_event_from_server_data(self, data: dict) -> Optional[Event]:
+        """
+        Parse event from window.__SERVER_DATA__ format (used in collection pages).
+
+        Args:
+            data: Event data from __SERVER_DATA__
+
+        Returns:
+            Event object or None if parsing fails
+        """
+        # Title (can be a string or dict with 'text' key)
+        title_data = data.get('name', '')
+        if isinstance(title_data, dict):
+            title = title_data.get('text', '')
+        else:
+            title = title_data
+
+        if not title:
+            return None
+
+        # Description
+        description = data.get('summary', '') or data.get('description', '')
+
+        # URL - build from event ID
+        event_id = data.get('id', '')
+        url = f"{self.base_url}/e/{event_id}" if event_id else data.get('url', '')
+
+        # Dates
+        event_date = None
+        end_date = None
+
+        start_data = data.get('start', {})
+        if start_data:
+            try:
+                # SERVER_DATA format uses 'local' or 'utc' timestamps
+                start_str = start_data.get('local') or start_data.get('utc')
+                if start_str:
+                    event_date = date_parser.parse(start_str)
+            except:
+                pass
+
+        end_data = data.get('end', {})
+        if end_data:
+            try:
+                end_str = end_data.get('local') or end_data.get('utc')
+                if end_str:
+                    end_date = date_parser.parse(end_str)
+            except:
+                pass
+
+        # Venue
+        venue_name = ''
+        address = ''
+
+        venue = data.get('primary_venue', {})
+        if venue:
+            venue_name = venue.get('name', '')
+
+            venue_address = venue.get('address', {})
+            if venue_address:
+                street = venue_address.get('address_1', '')
+                city = venue_address.get('city', '')
+                state = venue_address.get('region', '')
+                postal = venue_address.get('postal_code', '')
+
+                address_parts = [p for p in [street, city, state, postal] if p]
+                address = ', '.join(address_parts) if address_parts else ''
+
+        # Extract venue from title if not found in venue field
+        # (Perry's events often include venue name in title)
+        if not venue_name and "perry" in title.lower():
+            venue_name = "Perry's Beach"
+            address = "930 Pacific Coast Highway, Santa Monica, CA 90403"
+
+        # Fallback if no address found
+        if not address and venue_name:
+            address = f"{venue_name}, Santa Monica, CA"
+
+        # Image
+        image_url = ''
+        image_data = data.get('image', {})
+        if image_data:
+            image_url = image_data.get('url', '') or image_data.get('original', {}).get('url', '')
+
+        # Price
+        is_free = data.get('is_free', False)
+        price = None
+
+        ticket_availability = data.get('ticket_availability', {})
+        if ticket_availability:
+            min_price = ticket_availability.get('minimum_ticket_price', {})
+            if min_price:
+                try:
+                    price_value = min_price.get('major_value')
+                    if price_value is not None:
+                        price = float(price_value)
+                        if price == 0:
+                            is_free = True
+                except:
+                    pass
+
+        return self.create_event(
+            title=title,
+            description=description,
+            venue_name=venue_name,
+            address=address,
+            event_date=event_date,
+            end_date=end_date,
+            url=url,
+            image_url=image_url,
+            category=None,  # Will be auto-classified by create_event
+            price=price,
+            is_free=is_free
+        )

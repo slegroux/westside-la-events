@@ -1,0 +1,39 @@
+# Example .envrc configuration for direnv + micromamba
+#
+# This file shows the configuration currently in use.
+# The actual .envrc is tracked in git.
+#
+# To customize for your local setup, create .envrc.local (gitignored):
+#
+# Example .envrc.local:
+#   export DEBUG=True
+#   export LOG_LEVEL=DEBUG
+#   export DATABASE_PATH=/custom/path/events.db
+#
+# Your .envrc.local will be automatically sourced if it exists.
+
+# Automatically activate micromamba 'la' environment
+layout_micromamba() {
+    local env_name="${1:-la}"
+    local mamba_root="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
+    local env_path="${mamba_root}/envs/${env_name}"
+
+    if [ ! -d "$env_path" ]; then
+        log_error "Micromamba environment '$env_name' not found at $env_path"
+        return 1
+    fi
+
+    export CONDA_DEFAULT_ENV="$env_name"
+    export CONDA_PREFIX="$env_path"
+    export CONDA_SHLVL=1
+    export MAMBA_ROOT_PREFIX="$mamba_root"
+
+    PATH_add "$env_path/bin"
+
+    log_status "Activated micromamba environment: $env_name"
+}
+
+layout_micromamba la
+
+# Load .env file for API keys
+dotenv_if_exists
