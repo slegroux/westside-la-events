@@ -1,10 +1,15 @@
 """
 Scraper for The Venice West venue events.
 Source: https://www.thevenicewest.com/calendar
+
+Note: Tixr event pages use DataDome anti-bot protection which prevents automated
+price extraction. Manual price overrides can be added to venice_west_pricing.json.
 """
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from dateutil import parser as date_parser
+import json
+import os
 
 from .base import BaseScraper
 from src.data.models import Event
@@ -19,6 +24,24 @@ class VeniceWestScraper(BaseScraper):
         self.calendar_url = f'{self.base_url}/calendar'
         self.venue_name = 'The Venice West'
         self.venue_address = '1910 Lincoln Blvd, Venice, CA 90291'
+
+        # Load pricing overrides
+        self.pricing_overrides = self._load_pricing_overrides()
+
+    def _load_pricing_overrides(self) -> dict:
+        """Load manual pricing overrides from JSON file."""
+        pricing_file = os.path.join(
+            os.path.dirname(__file__),
+            'venice_west_pricing.json'
+        )
+        try:
+            if os.path.exists(pricing_file):
+                with open(pricing_file, 'r') as f:
+                    data = json.load(f)
+                    return data.get('pricing_overrides', {})
+        except Exception as e:
+            self.log(f"Error loading pricing overrides: {e}")
+        return {}
 
     def scrape(self) -> List[Event]:
         """
@@ -140,6 +163,32 @@ class VeniceWestScraper(BaseScraper):
                 except ValueError:
                     pass
 
+        # If we have a Tixr URL and no price yet, try manual override first, then Tixr extraction
+        if not price and 'tixr.com' in event_url:
+                # Extract event ID from URL (handle both short /e/ and long /events/ formats)
+                import re
+                event_id_match = re.search(r'/(?:events?|e)/([^/?\s]+)', event_url)
+                if event_id_match:
+                    event_id = event_id_match.group(1)
+
+                    # Check for manual pricing override
+                    if event_id in self.pricing_overrides:
+                        override = self.pricing_overrides[event_id]
+                        price = override.get('min_price')
+                        self.log(f"Using manual pricing override: ${price}")
+                    else:
+                        # Try to extract from Tixr
+                        # Note: Tixr uses DataDome anti-bot protection which is very difficult to bypass
+                        self.log(f"Attempting to extract pricing from Tixr: {event_url}")
+                        pricing_info = self._extract_tixr_pricing(event_url)
+                        if pricing_info['min_price']:
+                            price = pricing_info['min_price']
+                            self.log(f"Extracted price from Tixr: ${price}")
+                        else:
+                            # Tixr extraction failed (likely due to anti-bot protection)
+                            # Leave price as None but we'll note it in the description
+                            self.log(f"Could not extract pricing from Tixr (anti-bot protection)")
+
         # Build description from available info
         description_parts = []
 
@@ -163,6 +212,9 @@ class VeniceWestScraper(BaseScraper):
             description_parts.append("Free event with RSVP")
         elif price:
             description_parts.append(f"Tickets from ${price:.2f}")
+        elif 'tixr.com' in event_url:
+            # Event has Tixr tickets but pricing couldn't be extracted
+            description_parts.append("Tickets available (see event page for pricing)")
 
         # Add all tags if multiple
         if len(category_tags) > 1:
@@ -183,6 +235,92 @@ class VeniceWestScraper(BaseScraper):
             price=price,
             is_free=is_free
         )
+
+    def _extract_tixr_pricing(self, tixr_url: str) -> dict:
+        """
+        Extract pricing information from a Tixr event page.
+
+        Args:
+            tixr_url: URL of the Tixr event page
+
+        Returns:
+            Dictionary with 'min_price', 'max_price', and 'price_tiers' keys
+        """
+        import re
+
+        try:
+            # Attempt to fetch the Tixr page with JavaScript rendering
+            html = self.fetch_page_js(tixr_url, timeout=45000)
+            if not html:
+                self.log(f"Failed to fetch Tixr page: {tixr_url}")
+                return {'min_price': None, 'max_price': None, 'price_tiers': []}
+
+            soup = self.parse_html(html)
+
+            # Look for pricing information in various possible formats
+            price_tiers = []
+
+            # Method 1: Find all dollar amounts in the page
+            dollar_texts = soup.find_all(string=re.compile(r'\$\s*\d+'))
+            prices_found = set()
+
+            for text in dollar_texts:
+                # Extract dollar amounts
+                matches = re.findall(r'\$\s*(\d+(?:\.\d{2})?)', text)
+                for match in matches:
+                    try:
+                        price = float(match)
+                        # Filter out unrealistic prices (likely not ticket prices)
+                        if 5 <= price <= 500:
+                            prices_found.add(price)
+                            # Try to find the tier name near this price
+                            parent = text.parent
+                            context = parent.get_text(strip=True) if parent else text
+                            price_tiers.append({
+                                'name': context[:50] if len(context) < 100 else 'General Admission',
+                                'price': price
+                            })
+                    except ValueError:
+                        pass
+
+            # Method 2: Look for common ticket-related elements
+            ticket_elements = soup.find_all(class_=re.compile(r'(ticket|price|tier|admission)', re.I))
+            for elem in ticket_elements:
+                text = elem.get_text()
+                matches = re.findall(r'\$\s*(\d+(?:\.\d{2})?)', text)
+                for match in matches:
+                    try:
+                        price = float(match)
+                        if 5 <= price <= 500:
+                            prices_found.add(price)
+                    except ValueError:
+                        pass
+
+            # Calculate min and max prices
+            if prices_found:
+                min_price = min(prices_found)
+                max_price = max(prices_found)
+
+                # Remove duplicate prices from tiers
+                unique_tiers = {}
+                for tier in price_tiers:
+                    if tier['price'] not in unique_tiers:
+                        unique_tiers[tier['price']] = tier
+                price_tiers = list(unique_tiers.values())
+
+                self.log(f"Found pricing: ${min_price} - ${max_price} with {len(price_tiers)} tiers")
+                return {
+                    'min_price': min_price,
+                    'max_price': max_price,
+                    'price_tiers': price_tiers
+                }
+            else:
+                self.log(f"No pricing found on Tixr page: {tixr_url}")
+                return {'min_price': None, 'max_price': None, 'price_tiers': []}
+
+        except Exception as e:
+            self.log(f"Error extracting Tixr pricing from {tixr_url}: {e}")
+            return {'min_price': None, 'max_price': None, 'price_tiers': []}
 
     def _determine_category(self, tags: List[str], title: str) -> str:
         """

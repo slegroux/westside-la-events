@@ -23,6 +23,7 @@ class LogoScraper:
         'Meetup': 'https://www.meetup.com',
         'Eventbrite': 'https://www.eventbrite.com',
         "M.I.'s Westside Comedy Theater": 'https://westsidecomedy.com',
+        'Resident Advisor': 'https://ra.co',
     }
 
     # Known logo URLs (fallback if scraping fails)
@@ -34,6 +35,7 @@ class LogoScraper:
         'Meetup': 'https://secure.meetupstatic.com/next/images/shared/online_events.svg?w=640',
         'Eventbrite': 'https://cdn.evbstatic.com/s3-build/fe/build/images/eblogo_white.72eb78bc.svg',
         "M.I.'s Westside Comedy Theater": 'https://westsidecomedy.com/wp-content/uploads/2025/03/WSC-logo.png',
+        'Resident Advisor': 'https://cdn-icons-png.flaticon.com/512/2111/2111778.png',  # Generic music icon placeholder
     }
 
     def __init__(self, cache_dir: str = "static/logos"):

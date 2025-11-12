@@ -1,0 +1,146 @@
+name: Issue Tracking Automation
+
+on:
+  issues:
+    types: [opened, closed, reopened]
+  pull_request:
+    types: [opened, closed]
+
+jobs:
+  update-milestone-progress:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed'
+    steps:
+      - name: Comment on milestone progress
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issue = context.payload.issue || context.payload.pull_request;
+            if (!issue.milestone) return;
+
+            // Get milestone details
+            const milestone = await github.rest.issues.getMilestone({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              milestone_number: issue.milestone.number
+            });
+
+            const total = milestone.data.open_issues + milestone.data.closed_issues;
+            const progress = Math.floor((milestone.data.closed_issues / total) * 100);
+
+            // Comment on issue
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `🎉 Issue closed! Milestone **${milestone.data.title}** is now ${progress}% complete (${milestone.data.closed_issues}/${total} issues closed).`
+            });
+
+  check-issue-labels:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+    steps:
+      - name: Check for required labels
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issue = context.payload.issue;
+
+            // Check if issue has type label
+            const hasTypeLabel = issue.labels.some(label =>
+              label.name.startsWith('type:')
+            );
+
+            if (!hasTypeLabel) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `⚠️ This issue is missing a type label. Please add one of: \`type: feature\`, \`type: bug\`, \`type: enhancement\`, \`type: documentation\``
+              });
+            }
+
+            // Check if issue has milestone
+            if (!issue.milestone) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `⚠️ This issue is not assigned to a milestone. Please assign it to one of the project milestones.`
+              });
+            }
+
+  link-related-issues:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+    steps:
+      - name: Find and link related issues
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+
+            // Extract issue references (#123)
+            const references = body.match(/#\d+/g) || [];
+
+            if (references.length > 0) {
+              const linkedIssues = references.map(ref => ref.substring(1));
+
+              // Add comment to linked issues
+              for (const linkedIssue of linkedIssues) {
+                try {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: parseInt(linkedIssue),
+                    body: `🔗 Linked to #${issue.number}`
+                  });
+                } catch (error) {
+                  console.log(`Could not comment on #${linkedIssue}: ${error.message}`);
+                }
+              }
+            }
+
+  pr-auto-label:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'opened'
+    steps:
+      - name: Auto-label PR based on files changed
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            // Get list of files changed
+            const files = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            });
+
+            const labels = new Set();
+
+            // Determine labels based on file paths
+            for (const file of files.data) {
+              if (file.filename.startsWith('src/scrapers/')) {
+                labels.add('area: scrapers');
+              } else if (file.filename.startsWith('src/web/')) {
+                labels.add('area: frontend');
+              } else if (file.filename.startsWith('src/data/')) {
+                labels.add('area: database');
+              } else if (file.filename.startsWith('tests/')) {
+                labels.add('testing');
+              } else if (file.filename.endsWith('.md')) {
+                labels.add('type: documentation');
+              }
+            }
+
+            if (labels.size > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: Array.from(labels)
+              });
+            }

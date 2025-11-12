@@ -4,6 +4,8 @@ Source: https://www.discoverlosangeles.com/events
 """
 from datetime import datetime
 from typing import List, Optional
+import json
+import re
 from dateutil import parser as date_parser
 
 from .base import BaseScraper
@@ -123,27 +125,25 @@ class DiscoverLAScraper(BaseScraper):
 
         image_url = self.normalize_url(image_url, self.base_url)
 
-        # Note: Description is not available in list view
-        # We could fetch individual event pages for full details if needed
-        description = ""
+        # Fetch detailed information from the event page
+        details = self._fetch_event_details(url)
 
-        # Extract price information from data attributes or text
-        is_free = False
-        price = None
+        # Use description from details page
+        description = details.get('description', '')
 
-        # Check for free events in title or tags
-        price_tag = link.get('data-price', '').lower()
-        if 'free' in title.lower() or 'free' in price_tag:
-            is_free = True
-        elif price_tag and price_tag != 'varies':
-            # Try to extract price from data attribute
-            import re
-            price_match = re.search(r'\$?(\d+(?:\.\d{2})?)', price_tag)
-            if price_match:
-                try:
-                    price = float(price_match.group(1))
-                except ValueError:
-                    pass
+        # Use more accurate date/time from details page if available
+        if details.get('event_date'):
+            event_date = details['event_date']
+
+        end_date = details.get('end_date')
+
+        # Use price information from details page
+        price = details.get('price')
+        is_free = details.get('is_free', False)
+
+        # Use high-res image if available
+        if details.get('image_url'):
+            image_url = details['image_url']
 
         return self.create_event(
             title=title,
@@ -151,6 +151,7 @@ class DiscoverLAScraper(BaseScraper):
             venue_name=venue_name,
             address=address,
             event_date=event_date,
+            end_date=end_date,
             url=url,
             image_url=image_url,
             category=category,
@@ -166,12 +167,15 @@ class DiscoverLAScraper(BaseScraper):
             url: Event page URL
 
         Returns:
-            Dictionary with additional details (description, full date/time, etc.)
+            Dictionary with additional details (description, event_date, end_date, price, etc.)
         """
         details = {
             'description': '',
             'image_url': '',
-            'full_date': None
+            'event_date': None,
+            'end_date': None,
+            'price': None,
+            'is_free': False
         }
 
         try:
@@ -181,22 +185,147 @@ class DiscoverLAScraper(BaseScraper):
 
             soup = self.parse_html(html)
 
-            # Get description
-            desc_elem = soup.find(['div', 'p'], class_=lambda x: x and 'description' in str(x).lower())
-            if desc_elem:
-                details['description'] = self.clean_text(desc_elem.get_text())
-            else:
-                # Try to find first paragraphs in content area
-                content = soup.find(['article', 'div'], class_=lambda x: x and ('content' in str(x).lower() or 'body' in str(x).lower()))
-                if content:
-                    paragraphs = content.find_all('p', limit=3)
-                    if paragraphs:
-                        details['description'] = ' '.join([self.clean_text(p.get_text()) for p in paragraphs])
+            # First, try to extract structured data from JSON-LD
+            # This is the most reliable method for Discover LA
+            json_ld_scripts = soup.find_all('script', type='application/ld+json')
+            for script in json_ld_scripts:
+                try:
+                    data = json.loads(script.string)
 
-            # Get high-res image
-            og_image = soup.find('meta', property='og:image')
-            if og_image:
-                details['image_url'] = og_image.get('content', '')
+                    # Handle @graph structure
+                    if isinstance(data, dict) and '@graph' in data:
+                        # Find the Event object in the graph
+                        data = next((item for item in data['@graph'] if item.get('@type') == 'Event'), None)
+                    # Handle array of objects
+                    elif isinstance(data, list):
+                        data = next((item for item in data if item.get('@type') == 'Event'), None)
+
+                    if data and data.get('@type') == 'Event':
+                        # Extract description
+                        if data.get('description'):
+                            details['description'] = self.clean_text(data['description'])
+
+                        # Extract event date and time
+                        if data.get('startDate'):
+                            try:
+                                details['event_date'] = date_parser.parse(data['startDate'])
+                            except Exception as e:
+                                self.log(f"Error parsing startDate: {e}")
+
+                        # Extract end date and time
+                        if data.get('endDate'):
+                            try:
+                                details['end_date'] = date_parser.parse(data['endDate'])
+                            except Exception as e:
+                                self.log(f"Error parsing endDate: {e}")
+
+                        # Extract image
+                        if data.get('image'):
+                            image = data['image']
+                            if isinstance(image, str):
+                                details['image_url'] = image
+                            elif isinstance(image, dict) and image.get('url'):
+                                details['image_url'] = image['url']
+                            elif isinstance(image, list) and len(image) > 0:
+                                details['image_url'] = image[0] if isinstance(image[0], str) else image[0].get('url', '')
+
+                        # Extract price information from offers
+                        if data.get('offers'):
+                            offers = data['offers']
+                            if not isinstance(offers, list):
+                                offers = [offers]
+
+                            for offer in offers:
+                                # Check if event is free
+                                price_val = offer.get('price')
+                                if price_val == 0 or price_val == '0' or (isinstance(price_val, str) and price_val.lower() == 'free'):
+                                    details['is_free'] = True
+                                    details['price'] = None
+                                    break
+
+                                # Extract price
+                                if price_val is not None:
+                                    try:
+                                        # Handle price ranges (e.g., "25-75")
+                                        if isinstance(price_val, str):
+                                            # Extract first number from range
+                                            price_match = re.search(r'(\d+(?:\.\d{2})?)', price_val)
+                                            if price_match:
+                                                details['price'] = float(price_match.group(1))
+                                        else:
+                                            details['price'] = float(price_val)
+                                    except (ValueError, TypeError):
+                                        pass
+
+                                # Also check for lowPrice and highPrice
+                                if not details['price']:
+                                    if offer.get('lowPrice'):
+                                        try:
+                                            details['price'] = float(offer['lowPrice'])
+                                        except (ValueError, TypeError):
+                                            pass
+
+                        # Successfully parsed JSON-LD, we're done
+                        break
+
+                except json.JSONDecodeError:
+                    continue
+
+            # Fallback: If no JSON-LD data found, try scraping HTML
+            if not details['description']:
+                # Get description from meta tag
+                meta_desc = soup.find('meta', {'name': 'description'})
+                if meta_desc:
+                    details['description'] = self.clean_text(meta_desc.get('content', ''))
+                else:
+                    # Try to find description in content area
+                    desc_elem = soup.find(['div', 'p'], class_=lambda x: x and 'description' in str(x).lower())
+                    if desc_elem:
+                        details['description'] = self.clean_text(desc_elem.get_text())
+                    else:
+                        # Try to find first paragraphs in content area
+                        content = soup.find(['article', 'div'], class_=lambda x: x and ('content' in str(x).lower() or 'body' in str(x).lower()))
+                        if content:
+                            paragraphs = content.find_all('p', limit=3)
+                            if paragraphs:
+                                details['description'] = ' '.join([self.clean_text(p.get_text()) for p in paragraphs])
+
+            # Fallback: Get high-res image from og:image if not found in JSON-LD
+            if not details['image_url']:
+                og_image = soup.find('meta', property='og:image')
+                if og_image:
+                    details['image_url'] = og_image.get('content', '')
+
+            # Fallback: Try to extract price from HTML if not found in JSON-LD
+            if details['price'] is None and not details['is_free']:
+                # Look for price patterns in the page text
+                # Common patterns: "$25", "$25-$75", "Free", etc.
+                page_text = soup.get_text()
+
+                # Check for "Free" or "FREE"
+                if re.search(r'\bfree\b', page_text, re.IGNORECASE):
+                    free_context = re.search(r'(?:admission|entry|event|price|cost|ticket)?\s*(?:is\s*)?free', page_text, re.IGNORECASE)
+                    if free_context:
+                        details['is_free'] = True
+                        details['price'] = None
+
+                # Look for price patterns like $25 or $25-$75
+                if not details['is_free']:
+                    # Try to find price in metadata or specific elements first
+                    price_patterns = [
+                        r'\$(\d+)(?:-\$?(\d+))?',  # $25 or $25-$75
+                        r'(?:from\s+)?\$(\d+)',     # from $25
+                    ]
+
+                    for pattern in price_patterns:
+                        price_match = re.search(pattern, page_text)
+                        if price_match:
+                            try:
+                                # Get the first price (minimum price in a range)
+                                details['price'] = float(price_match.group(1))
+                                break
+                            except (ValueError, TypeError, IndexError):
+                                continue
 
             return details
 

@@ -168,7 +168,7 @@ After implementation:
 
 ### Documentation
 - **`docs/SCHEDULER.md`** - Scheduler setup and usage
-- **`SCRAPING_STRATEGY.md`** - This file
+- **`docs/SCRAPING_STRATEGY.md`** - This file
 
 ## Usage
 

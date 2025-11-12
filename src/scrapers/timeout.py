@@ -166,7 +166,9 @@ class TimeoutScraper(BaseScraper):
             price_text = offers.get('price', '')
             if price_text:
                 try:
-                    price = float(price_text)
+                    # Remove currency symbols and whitespace before converting to float
+                    clean_price = price_text.replace('$', '').replace('£', '').replace('€', '').strip()
+                    price = float(clean_price)
                 except:
                     pass
             if 'free' in str(offers).lower():

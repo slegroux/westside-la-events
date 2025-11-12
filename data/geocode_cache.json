@@ -434,5 +434,46 @@
   "3551 trousdale parkway, los angeles, ca, 90089": {
     "lat": 34.0208709,
     "lng": -118.2855497
+  },
+  "1224 abbot kinney blvd, venice, ca 90291": {
+    "lat": 33.9912755,
+    "lng": -118.4688349
+  },
+  "1233 rose ave, venice, ca 90291": {
+    "lat": 34.0067158,
+    "lng": -118.4600616
+  },
+  "hermosa beach, ca": {
+    "lat": 33.8637822,
+    "lng": -118.3992143
+  },
+  "205 ocean front walk, venice, ca 90291": {
+    "lat": 33.9950488,
+    "lng": -118.4807751
+  },
+  "474 s. raymond ave., pasadena, california, 91105": {
+    "lat": 34.1377487,
+    "lng": -118.1487075
+  },
+  "14948 crenshaw blvd., gardena": {
+    "lat": 33.895967,
+    "lng": -118.3261087
+  },
+  "71-100 ca-111, rancho mirage , california, 92270": {
+    "lat": 33.766078,
+    "lng": -116.4445095
+  },
+  "906 western ave, glendale, ca 91201": {
+    "lat": 34.1676804,
+    "lng": -118.2935556
+  },
+  "6067 wilshire blvd, los angeles, ca, 90211": {
+    "lat": 34.0638179,
+    "lng": -118.3608348
+  },
+  "blue note los angeles, los angeles, ca": null,
+  "zebulon, los angeles, ca": {
+    "lat": 34.1071951,
+    "lng": -118.2547392
   }
 }

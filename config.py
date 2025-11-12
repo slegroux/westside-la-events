@@ -49,13 +49,18 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 # Westside LA Geographic Bounds
 # Approximate boundaries for filtering events
 # Includes: Santa Monica, Venice, Westwood, Brentwood, Pacific Palisades,
-#           West LA, Culver City, Inglewood (SoFi Stadium, Intuit Dome, Kia Forum)
+#           West LA, Culver City, Marina del Rey, Playa Vista, Mar Vista
+#           Inglewood (SoFi Stadium, Intuit Dome, Kia Forum)
+# Excludes: Downtown LA, Echo Park, Silver Lake, Koreatown, Hollywood
 WESTSIDE_BOUNDS = {
-    'min_lat': 33.94,   # South boundary (includes Inglewood venues)
-    'max_lat': 34.15,   # North boundary
-    'min_lng': -118.55, # West boundary (Pacific coast)
-    'max_lng': -118.25  # East boundary (includes Culver City & Inglewood)
+    'min_lat': 33.93,   # South boundary (includes Inglewood venues)
+    'max_lat': 34.10,   # North boundary (Santa Monica Mountains)
+    'min_lng': -118.52, # West boundary (Pacific coast)
+    'max_lng': -118.33  # East boundary (west of La Cienega, excludes Downtown/Echo Park)
 }
+
+# Enable geographic filtering by default
+ENABLE_GEOGRAPHIC_FILTERING = os.getenv('ENABLE_GEOGRAPHIC_FILTERING', 'True').lower() == 'true'
 
 # Westside LA Center (for map default)
 MAP_CENTER = {
@@ -97,6 +102,13 @@ EVENT_SOURCES = {
         'name': 'KCRW',
         'url': 'https://www.kcrw.com/events',
         'enabled': True
+    },
+    'laist': {
+        'name': 'LAist',
+        'url': 'https://laist.com/events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'LAist events at The Crawford Family Forum and other venues'
     },
     'discover_la': {
         'name': 'Discover LA',
@@ -164,6 +176,34 @@ EVENT_SOURCES = {
         'enabled': True,
         'uses_api': True,  # Uses Squarespace API for event listings
         'note': 'Coffee shop on Main Street Santa Monica with community events'
+    },
+    'penmar': {
+        'name': 'The Penmar',
+        'url': 'https://www.eventbrite.com/o/world-of-sound-productions-34157573931',
+        'enabled': True,
+        'uses_api': False,  # Scrapes Eventbrite organizer page
+        'note': 'Penmar Golf Course venue in Venice hosting Sunset Vibes Silent Disco and Sunset Sessions'
+    },
+    'itk_la': {
+        'name': 'ITK LA',
+        'url': 'https://itk.la',
+        'enabled': True,
+        'uses_api': False,  # Scrapes curated events calendar
+        'note': 'Curated LA events calendar covering music, comedy, DJ, art, and misc events citywide'
+    },
+    'nerd_nite': {
+        'name': 'Nerd Nite LA',
+        'url': 'https://la.nerdnite.com',
+        'enabled': True,
+        'uses_api': False,  # Scrapes homepage for next event
+        'note': 'Monthly educational entertainment event - 20-minute fun presentations across all disciplines'
+    },
+    'resident_advisor': {
+        'name': 'Resident Advisor',
+        'url': 'https://ra.co/events/us/losangeles',
+        'enabled': False,  # Blocked by Cloudflare CAPTCHA protection
+        'uses_api': False,
+        'note': 'Leading electronic music platform. Currently blocked by Cloudflare CAPTCHA - requires CAPTCHA bypass solutions to work.'
     },
     'venice_beach': {
         'name': 'Venice Beach Events',

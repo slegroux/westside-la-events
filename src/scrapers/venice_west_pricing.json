@@ -1,0 +1,22 @@
+{
+  "comment": "Manual pricing overrides for Venice West Tixr events that cannot be scraped automatically due to anti-bot protection",
+  "instructions": "To add pricing for a Tixr event, use the event ID from the URL. For example, if the URL is 'https://www.tixr.com/groups/thevenicewest/events/some-event-12345' or 'https://tixr.com/e/12345', use '12345' or 'some-event-12345' as the key.",
+  "pricing_overrides": {
+    "157931": {
+      "min_price": 21.00,
+      "max_price": 100.00,
+      "tiers": [
+        {"name": "GA - Floor", "price": 21.00},
+        {"name": "VIP Table (Reservation Only)", "price": 100.00}
+      ]
+    },
+    "cubensis-tribute-to-grateful-dead-157931": {
+      "min_price": 21.00,
+      "max_price": 100.00,
+      "tiers": [
+        {"name": "GA - Floor", "price": 21.00},
+        {"name": "VIP Table (Reservation Only)", "price": 100.00}
+      ]
+    }
+  }
+}

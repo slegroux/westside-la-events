@@ -10,6 +10,7 @@ from src.data.database import Database
 from src.scrapers.santa_monica import SantaMonicaScraper
 from src.scrapers.timeout import TimeoutScraper
 from src.scrapers.kcrw import KCRWScraper
+from src.scrapers.laist import LAistScraper
 from src.scrapers.discover_la import DiscoverLAScraper
 from src.scrapers.eventbrite import EventbriteScraper
 
@@ -20,6 +21,10 @@ from src.scrapers.winston_house import WinstonHouseScraper
 from src.scrapers.westside_comedy import WestsideComedyScraper
 from src.scrapers.aviator_nation import AviatorNationScraper
 from src.scrapers.gnarwhal import GnarwhalScraper
+from src.scrapers.penmar import PenmarScraper
+from src.scrapers.itk_la import ITKLAScraper
+from src.scrapers.nerd_nite import NerdNiteScraper
+from src.scrapers.resident_advisor import ResidentAdvisorScraper
 
 
 def run_scraper(scraper, db):
@@ -89,6 +94,9 @@ def main():
     if config.EVENT_SOURCES['kcrw']['enabled']:
         scrapers.append(KCRWScraper())
 
+    if config.EVENT_SOURCES.get('laist', {}).get('enabled'):
+        scrapers.append(LAistScraper())
+
     if config.EVENT_SOURCES.get('discover_la', {}).get('enabled'):
         scrapers.append(DiscoverLAScraper())
 
@@ -113,6 +121,18 @@ def main():
 
     if config.EVENT_SOURCES.get('gnarwhal', {}).get('enabled'):
         scrapers.append(GnarwhalScraper())
+
+    if config.EVENT_SOURCES.get('penmar', {}).get('enabled'):
+        scrapers.append(PenmarScraper())
+
+    if config.EVENT_SOURCES.get('itk_la', {}).get('enabled'):
+        scrapers.append(ITKLAScraper())
+
+    if config.EVENT_SOURCES.get('nerd_nite', {}).get('enabled'):
+        scrapers.append(NerdNiteScraper())
+
+    if config.EVENT_SOURCES.get('resident_advisor', {}).get('enabled'):
+        scrapers.append(ResidentAdvisorScraper())
 
     # Add more web scrapers here as they are implemented
     # if config.EVENT_SOURCES['dola']['enabled']:

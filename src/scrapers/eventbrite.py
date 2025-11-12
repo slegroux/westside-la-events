@@ -212,7 +212,11 @@ class EventbriteScraper(BaseScraper):
             if not event_data:
                 return None
 
-            return self._parse_event_from_server_data(event_data)
+            # Parse HTML to extract price if not in SERVER_DATA
+            soup = self.parse_html(html)
+            html_price = self._extract_price_from_html(soup)
+
+            return self._parse_event_from_server_data(event_data, html_price)
 
         except Exception as e:
             self.log(f"Error scraping event page {url}: {e}")
@@ -335,7 +339,40 @@ class EventbriteScraper(BaseScraper):
             is_free=is_free
         )
 
-    def _parse_event_from_server_data(self, data: dict) -> Optional[Event]:
+    def _extract_price_from_html(self, soup) -> Optional[float]:
+        """
+        Extract price from HTML when not available in SERVER_DATA.
+
+        Args:
+            soup: BeautifulSoup object of the page
+
+        Returns:
+            Price as float or None if not found
+        """
+        try:
+            # Look for price in the conversion bar or ticket selector
+            # Pattern: "From $XX.XX" or "$XX.XX"
+            price_text_pattern = re.compile(r'(?:From\s+)?\$(\d+\.?\d*)')
+
+            # Search in common price display elements
+            price_elements = soup.find_all(['div', 'span'], string=price_text_pattern)
+
+            for elem in price_elements:
+                text = elem.get_text()
+                match = price_text_pattern.search(text)
+                if match:
+                    try:
+                        price = float(match.group(1))
+                        return price
+                    except ValueError:
+                        continue
+
+            return None
+        except Exception as e:
+            self.log(f"Error extracting price from HTML: {e}")
+            return None
+
+    def _parse_event_from_server_data(self, data: dict, html_price: Optional[float] = None) -> Optional[Event]:
         """
         Parse event from window.__SERVER_DATA__ format (used in collection pages).
 
@@ -435,6 +472,12 @@ class EventbriteScraper(BaseScraper):
                             is_free = True
                 except:
                     pass
+
+        # Fall back to HTML-extracted price if not found in SERVER_DATA
+        if price is None and html_price is not None:
+            price = html_price
+            if price == 0:
+                is_free = True
 
         return self.create_event(
             title=title,

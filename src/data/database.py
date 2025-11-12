@@ -417,8 +417,9 @@ class Database:
         """
         Find if an event is a duplicate of any existing event in the database.
 
-        This method queries events within the date tolerance window and checks
-        for duplicates using similarity matching.
+        This method uses a two-phase approach for efficiency:
+        1. First checks for exact URL match (fastest, most reliable)
+        2. Falls back to date-based similarity matching if no URL match
 
         Args:
             event: Event to check for duplicates
@@ -427,15 +428,40 @@ class Database:
         Returns:
             Tuple of (duplicate_event, similarity_scores) if found, None otherwise
         """
-        if not event.event_date:
-            return None
-
-        # Query events within date tolerance
-        start_date = event.event_date - timedelta(hours=date_tolerance_hours)
-        end_date = event.event_date + timedelta(hours=date_tolerance_hours)
-
         with self.get_connection() as conn:
             cursor = conn.cursor()
+
+            # PHASE 1: Check for exact URL match first (fastest check)
+            # This catches the same event from different sources immediately
+            if event.url:
+                cursor.execute("""
+                    SELECT * FROM events
+                    WHERE url = ?
+                    LIMIT 1
+                """, (event.url.strip(),))
+
+                row = cursor.fetchone()
+                if row:
+                    existing_event = self._row_to_event(row)
+                    # Create scores dict to match expected return format
+                    scores = {
+                        'same_url': True,
+                        'same_source': existing_event.source == event.source,
+                        'match_method': 'url',
+                        'title_similarity': 0.0,
+                        'venue_similarity': 0.0,
+                        'date_diff_hours': None
+                    }
+                    return existing_event, scores
+
+            # PHASE 2: No URL match, fall back to date-based similarity matching
+            if not event.event_date:
+                return None
+
+            # Query events within date tolerance (excluding same source for non-URL matches)
+            start_date = event.event_date - timedelta(hours=date_tolerance_hours)
+            end_date = event.event_date + timedelta(hours=date_tolerance_hours)
+
             cursor.execute("""
                 SELECT * FROM events
                 WHERE event_date BETWEEN ? AND ?
@@ -445,7 +471,7 @@ class Database:
             rows = cursor.fetchall()
             existing_events = [self._row_to_event(row) for row in rows]
 
-        # Use deduplication utility to find duplicate
+        # Use deduplication utility to find duplicate by title/venue similarity
         return find_duplicate(
             event,
             existing_events,

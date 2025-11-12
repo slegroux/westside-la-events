@@ -102,11 +102,10 @@ def events_are_duplicates(
     Determine if two events are duplicates.
 
     Two events are considered duplicates if:
-    1. They occur on the same or very close dates (within tolerance)
-    2. AND one of the following:
+    1. Same URL (exact match) - HIGHEST PRIORITY, checked first
+    2. OR (They occur on the same or very close dates AND one of the following):
        a. Titles are highly similar (>= title_threshold)
        b. Titles are somewhat similar (>= 0.7) AND venues match (>= venue_threshold)
-       c. Same URL (exact match from same source)
 
     Args:
         event1: First event
@@ -123,8 +122,18 @@ def events_are_duplicates(
         'venue_similarity': 0.0,
         'date_diff_hours': None,
         'same_url': False,
-        'same_source': False
+        'same_source': False,
+        'match_method': None  # Track which method detected the duplicate
     }
+
+    # PRIORITY 1: Check for exact URL match FIRST (most reliable indicator)
+    # This is checked before everything else to avoid expensive comparisons
+    if event1.url and event2.url and event1.url.strip() == event2.url.strip():
+        scores['same_url'] = True
+        scores['same_source'] = event1.source == event2.source
+        scores['match_method'] = 'url'
+        # Same URL = same event, regardless of source or date
+        return True, scores
 
     # Check if both events have dates
     if not event1.event_date or not event2.event_date:
@@ -146,17 +155,12 @@ def events_are_duplicates(
     if date_diff > date_tolerance_hours:
         return False, scores
 
-    # Check if same source (we don't dedupe within same source)
+    # Check if same source (we don't dedupe within same source for non-URL matches)
     scores['same_source'] = event1.source == event2.source
     if scores['same_source']:
         return False, scores
 
-    # Check for exact URL match (only if from different sources)
-    if event1.url and event2.url and event1.url == event2.url:
-        scores['same_url'] = True
-        return True, scores
-
-    # Calculate title similarity
+    # PRIORITY 2: Calculate title similarity
     title1 = normalize_title(event1.title)
     title2 = normalize_title(event2.title)
     scores['title_similarity'] = calculate_similarity(title1, title2)
@@ -170,10 +174,12 @@ def events_are_duplicates(
     # Decision logic:
     # 1. Very similar titles = duplicate
     if scores['title_similarity'] >= title_threshold:
+        scores['match_method'] = 'title'
         return True, scores
 
     # 2. Somewhat similar titles + matching venues = duplicate
     if scores['title_similarity'] >= 0.7 and scores['venue_similarity'] >= venue_threshold:
+        scores['match_method'] = 'title_venue'
         return True, scores
 
     return False, scores

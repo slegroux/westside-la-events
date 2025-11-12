@@ -5,19 +5,22 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 from src.data.database import Database
 from src.data.models import Event
+import config
 
 
 class EventSearch:
     """Search and filter events."""
 
-    def __init__(self, db: Database):
+    def __init__(self, db: Database, enable_geo_filter: bool = None):
         """
         Initialize event search.
 
         Args:
             db: Database instance
+            enable_geo_filter: Enable geographic filtering (defaults to config.ENABLE_GEOGRAPHIC_FILTERING)
         """
         self.db = db
+        self.enable_geo_filter = enable_geo_filter if enable_geo_filter is not None else config.ENABLE_GEOGRAPHIC_FILTERING
 
     def search(
         self,
@@ -45,10 +48,10 @@ class EventSearch:
             end_date: Custom end date
             categories: List of categories to filter by
             sources: List of sources to filter by
-            min_lat: Minimum latitude for geographic bounds
-            max_lat: Maximum latitude for geographic bounds
-            min_lng: Minimum longitude for geographic bounds
-            max_lng: Maximum longitude for geographic bounds
+            min_lat: Minimum latitude for geographic bounds (overrides default Westside filter)
+            max_lat: Maximum latitude for geographic bounds (overrides default Westside filter)
+            min_lng: Minimum longitude for geographic bounds (overrides default Westside filter)
+            max_lng: Maximum longitude for geographic bounds (overrides default Westside filter)
             is_free: Filter for free events only (True/False/None)
             limit: Maximum number of results
             offset: Offset for pagination
@@ -59,6 +62,13 @@ class EventSearch:
         # Process date filter
         if date_filter:
             start_date, end_date = self._parse_date_filter(date_filter)
+
+        # Apply Westside geographic filtering by default if enabled and no custom bounds provided
+        if self.enable_geo_filter and min_lat is None and max_lat is None and min_lng is None and max_lng is None:
+            min_lat = config.WESTSIDE_BOUNDS['min_lat']
+            max_lat = config.WESTSIDE_BOUNDS['max_lat']
+            min_lng = config.WESTSIDE_BOUNDS['min_lng']
+            max_lng = config.WESTSIDE_BOUNDS['max_lng']
 
         # Search database
         return self.db.search_events(

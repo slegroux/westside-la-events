@@ -127,6 +127,12 @@ For each scraper:
 - [ ] Hammer Museum
 - [ ] LACMA
 - [ ] Additional venues: The Broad, Getty Center, Bergamot Station
+- [x] Resident Advisor (ra.co) - **Note**: Currently disabled due to Cloudflare CAPTCHA protection
+- [ ] **Heylo** (heylo.com) - Community group platform with events
+  - **Challenges**: Next.js app with client-side data fetching, requires Playwright for JavaScript rendering
+  - **Approach**: Search for "Los Angeles" location, extract group/event listings
+  - **Note**: Similar to Meetup - consider API availability first before scraping
+  - **Priority**: Low (consider after Meetup or if API becomes available)
 
 ### Step 8: Scheduled Scraping
 - [ ] Set up APScheduler
@@ -143,8 +149,9 @@ For each scraper:
 - [ ] Price filtering (free, paid, price range)
 - [ ] Time filtering (morning, afternoon, evening)
 - [ ] Accessibility options
+- [ ] Sort functionality (by date, price low-to-high, price high-to-low, free events first)
 
-**Files**: `src/search/query.py`, update UI components
+**Files**: `src/search/query.py`, `src/data/database.py`, `src/web/app.py` (update UI components)
 
 ### Step 10: Map Enhancements
 - [ ] Implement marker clustering for performance
@@ -223,9 +230,34 @@ geopy
 
 ## Testing Strategy
 
+### Comprehensive Testing Approach
 - **Unit Tests**: Scrapers, geocoding, search queries
 - **Integration Tests**: Full scraping → storage → retrieval flow
 - **Manual Testing**: Web interface, map interaction, filters
+
+### Scraper Testing (High Priority)
+- [ ] Create individual test files for each scraper (see [docs/SCRAPER_TESTING.md](docs/SCRAPER_TESTING.md))
+  - [ ] aviator_nation
+  - [ ] discover_la
+  - [ ] eventbrite
+  - [ ] gnarwhal
+  - [ ] itk_la
+  - [ ] kcrw (example completed in tests/scrapers/test_kcrw.py)
+  - [ ] laist
+  - [ ] meetup
+  - [ ] nerd_nite
+  - [ ] penmar
+  - [ ] resident_advisor
+  - [ ] santa_monica
+  - [ ] timeout
+  - [ ] venice_west
+  - [ ] westside_comedy
+  - [ ] winston_house
+- [ ] Set up CI/CD for daily scraper health checks
+- [ ] Create snapshot directory for HTML baselines
+- [ ] Add test runner script for all scrapers at once
+
+**Rationale**: Websites change frequently. Unit tests with mocked HTML catch code regressions, integration tests catch website structure changes, and snapshot tests provide HTML baselines for debugging. See [docs/SCRAPER_TESTING.md](docs/SCRAPER_TESTING.md) for complete strategy.
 
 ## Success Metrics
 
@@ -317,3 +349,109 @@ geopy
 2. HTMX live updates (Phase 2)
 3. Manual refresh button (Phase 3)
 4. WebSocket updates (Phase 3+)
+
+### Scraper Caching System
+
+**Problem**: Scrapers currently re-fetch all HTML pages on every run, even if content hasn't changed. With 190+ events from multiple sources, full scraping takes several minutes and wastes bandwidth.
+
+**Proposed Multi-Level Caching Strategy**:
+
+#### 1. **Source-Level Scrape Cache** (Highest Priority)
+Track when each source was last successfully scraped to avoid redundant scraping:
+
+```sql
+CREATE TABLE scraper_cache (
+    source TEXT PRIMARY KEY,
+    last_scraped_at TIMESTAMP,
+    last_success INTEGER,  -- 1 for success, 0 for failure
+    cache_duration_hours INTEGER DEFAULT 24,  -- configurable per source
+    events_count INTEGER,  -- for monitoring
+    last_error TEXT  -- for debugging
+)
+```
+
+**Implementation**:
+```python
+def should_scrape(source: str, force: bool = False) -> bool:
+    if force:
+        return True
+
+    cache_entry = db.get_scraper_cache(source)
+    if not cache_entry:
+        return True
+
+    hours_since_scrape = (datetime.now() - cache_entry.last_scraped_at).total_seconds() / 3600
+    return hours_since_scrape >= cache_entry.cache_duration_hours
+```
+
+**Benefits**:
+- Skip sources scraped within cache window (default 24 hours)
+- Configurable cache duration per source (high-volume sources = shorter cache)
+- Force refresh with `--force` flag: `python run_scrapers.py --force`
+- Dramatically reduces scraping time from minutes to seconds
+
+#### 2. **Event Freshness Tracking** (Medium Priority)
+Track when events were last seen to identify stale/removed events:
+
+```sql
+ALTER TABLE events ADD COLUMN last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+```
+
+**Benefits**:
+- Mark events as "stale" if not seen in recent scrapes (e.g., 7 days)
+- Auto-archive past events that are no longer listed on source websites
+- Detect when venues remove/cancel events
+
+#### 3. **HTTP Response Caching** (Lower Priority)
+Cache raw HTML responses with ETag/Last-Modified headers:
+
+```python
+# Cache structure: data/http_cache/{source}/{url_hash}.json
+{
+    "url": "https://example.com/events",
+    "html": "<html>...",
+    "fetched_at": "2025-01-15T10:30:00",
+    "etag": "33a64df5",  # from response headers
+    "last_modified": "Wed, 15 Jan 2025 09:00:00 GMT",
+    "expires_at": "2025-01-15T11:30:00"
+}
+```
+
+**Implementation**:
+- Check cache before HTTP requests
+- Use conditional requests (If-None-Match, If-Modified-Since) for 304 Not Modified responses
+- Respect Cache-Control headers from servers
+
+**Benefits**:
+- Avoid downloading unchanged pages (304 responses are faster)
+- Reduce bandwidth and server load
+- Respect web server cache policies
+
+#### 4. **Smart Incremental Updates** (Future Enhancement)
+For sources with date-based listing pages:
+- Only scrape recent events (e.g., last 30 days forward)
+- Use date filters in URL parameters when available
+- Skip pages that only contain past events
+
+**Configuration**:
+```python
+# config.py
+SCRAPER_CACHE_CONFIG = {
+    'santa_monica': {'cache_hours': 24, 'incremental': False},
+    'discover_la': {'cache_hours': 6, 'incremental': True},  # high-volume source
+    'kcrw': {'cache_hours': 12, 'incremental': False},
+    'timeout': {'cache_hours': 24, 'incremental': False},
+}
+```
+
+**Expected Performance Improvement**:
+- First run: Full scrape (~3-5 minutes)
+- Subsequent runs within cache window: <10 seconds (just DB checks)
+- Force refresh when needed: `python run_scrapers.py --force --source discover_la`
+
+**Implementation Phase**: Phase 2 (Post-MVP)
+
+**Related Enhancements**:
+- Add `--force` flag to run_scrapers.py
+- Add `--source <name>` flag to scrape specific sources only
+- Add scraper status dashboard showing last scrape times and success rates

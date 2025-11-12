@@ -3,7 +3,8 @@ Scraper for KCRW events.
 Source: https://www.kcrw.com/events
 """
 from datetime import datetime
-from typing import List
+from typing import List, Dict, Optional
+import re
 from dateutil import parser as date_parser
 
 from .base import BaseScraper
@@ -130,26 +131,25 @@ class KCRWScraper(BaseScraper):
             if src:
                 image_url = src  # Already full URL from Contentful CDN
 
-        # Fetch description from detail page
-        description = self._fetch_event_description(url) if url else ""
+        # Fetch detailed information from event page
+        details = self._fetch_event_details(url) if url else {}
 
-        # Extract price information from title or description
-        is_free = False
-        price = None
+        # Use description from details
+        description = details.get('description', '')
 
-        # Check for free events
-        price_text = f"{title} {description}"
-        if 'free' in price_text.lower() or 'no cover' in price_text.lower():
-            is_free = True
-        else:
-            # Try to extract price
-            import re
-            price_match = re.search(r'\$(\d+(?:\.\d{2})?)', price_text)
-            if price_match:
-                try:
-                    price = float(price_match.group(1))
-                except ValueError:
-                    pass
+        # Use more accurate time from details page if available
+        if details.get('event_date'):
+            event_date = details['event_date']
+
+        end_date = details.get('end_date')
+
+        # Use price information from details
+        price = details.get('price')
+        is_free = details.get('is_free', False)
+
+        # Use high-res image if available
+        if details.get('image_url'):
+            image_url = details['image_url']
 
         return self.create_event(
             title=title,
@@ -157,6 +157,7 @@ class KCRWScraper(BaseScraper):
             venue_name=venue_name,
             address=address,
             event_date=event_date,
+            end_date=end_date,
             url=url,
             image_url=image_url,
             category=category,
@@ -164,21 +165,30 @@ class KCRWScraper(BaseScraper):
             is_free=is_free
         )
 
-    def _fetch_event_description(self, event_url: str) -> str:
+    def _fetch_event_details(self, event_url: str) -> Dict:
         """
-        Fetch event description from the detail page.
+        Fetch detailed event information from the detail page.
 
         Args:
             event_url: URL of the event detail page
 
         Returns:
-            Event description text
+            Dictionary with event details (description, event_date, end_date, price, etc.)
         """
+        details = {
+            'description': '',
+            'image_url': '',
+            'event_date': None,
+            'end_date': None,
+            'price': None,
+            'is_free': False
+        }
+
         try:
-            self.log(f"Fetching description from {event_url}")
+            self.log(f"Fetching details from {event_url}")
             html = self.fetch_page(event_url)
             if not html:
-                return ""
+                return details
 
             soup = self.parse_html(html)
 
@@ -203,8 +213,58 @@ class KCRWScraper(BaseScraper):
                 if len(description_parts) >= 3:
                     break
 
-            return ' '.join(description_parts)
+            details['description'] = ' '.join(description_parts)
+
+            # Extract date and time from page
+            # KCRW format: "Tue Nov 11, 2025 • 6:00 PM"
+            time_spans = soup.find_all('span', class_='paragraph')
+            for span in time_spans:
+                text = span.get_text(strip=True)
+                # Look for date/time pattern
+                if re.search(r'[A-Z][a-z]{2}\s+[A-Z][a-z]{2}\s+\d{1,2},\s+\d{4}\s+•\s+\d{1,2}:\d{2}\s+[AP]M', text):
+                    try:
+                        # Remove the bullet separator
+                        date_time_str = text.replace('•', '').strip()
+                        details['event_date'] = date_parser.parse(date_time_str)
+                        self.log(f"Parsed event date/time: {details['event_date']}")
+                        break
+                    except Exception as e:
+                        self.log(f"Could not parse date/time '{text}': {e}")
+
+            # Extract price information
+            page_text = soup.get_text()
+
+            # Check for free events
+            if re.search(r'\bfree\b', page_text, re.IGNORECASE):
+                free_context = re.search(r'(?:admission|entry|event|price|cost|ticket)?\s*(?:is\s*)?free', page_text, re.IGNORECASE)
+                if free_context or 'free' in details['description'].lower():
+                    details['is_free'] = True
+                    details['price'] = None
+
+            # Look for price patterns
+            if not details['is_free']:
+                price_patterns = [
+                    r'\$(\d+)(?:-\$?(\d+))?',  # $25 or $25-$75
+                    r'(?:from\s+)?\$(\d+)',     # from $25
+                    r'(?:ticket(?:s)?|admission)[:is\s]+\$(\d+)',  # tickets: $25
+                ]
+
+                for pattern in price_patterns:
+                    price_match = re.search(pattern, page_text, re.IGNORECASE)
+                    if price_match:
+                        try:
+                            details['price'] = float(price_match.group(1))
+                            break
+                        except (ValueError, TypeError, IndexError):
+                            continue
+
+            # Get high-res image
+            og_image = soup.find('meta', property='og:image')
+            if og_image:
+                details['image_url'] = og_image.get('content', '')
+
+            return details
 
         except Exception as e:
-            self.log(f"Error fetching description: {e}")
-            return ""
+            self.log(f"Error fetching event details: {e}")
+            return details

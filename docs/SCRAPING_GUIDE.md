@@ -267,6 +267,43 @@ python run_scrapers.py
 | "List index out of range" | HTML structure changed | Update selectors |
 | "No events found" | Selectors wrong | Inspect page HTML again |
 | Timeout | Slow website | Increase timeout in config |
+| CAPTCHA/Cloudflare block | Anti-bot protection | See "Handling CAPTCHA Protection" below |
+
+### Handling CAPTCHA Protection
+
+Some websites use CAPTCHA or Cloudflare protection to block automated scrapers:
+
+**Example**: Resident Advisor (ra.co) returns:
+```html
+<p>Please enable JS and disable any ad blocker</p>
+```
+
+**Solutions** (in order of complexity):
+
+1. **Check robots.txt first**: Some sites explicitly disallow scrapers
+   ```bash
+   curl https://example.com/robots.txt
+   ```
+
+2. **Try different approaches**:
+   - Use `fetch_page_js()` with Playwright (handles basic JS)
+   - Add realistic delays between requests
+   - Use residential proxies (not datacenter IPs)
+
+3. **Advanced solutions** (requires additional setup):
+   - Use `undetected-chromedriver` Python library
+   - Use CAPTCHA solving services (2captcha, anti-captcha)
+   - Use proxy rotation services
+
+4. **Alternative approaches**:
+   - Check if the site has an official API
+   - Monitor their social media for event announcements
+   - Look for RSS feeds or calendar exports
+
+**Important**: If a scraper consistently fails due to CAPTCHA:
+- Document the limitation in the scraper file
+- Set `enabled: False` in config.py
+- Add a note explaining why it's disabled
 
 ### When to Update
 

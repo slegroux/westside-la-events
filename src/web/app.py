@@ -150,7 +150,22 @@ def page_head(title: str, description: Optional[str] = None):
         # Leaflet MarkerCluster JS
         Script(src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js', defer=True),
         # Application JavaScript - defer to load after Leaflet
-        Script(src='/static/js/map.js', defer=True)
+        Script(src='/static/js/map.js', defer=True),
+        # Inline script for calendar picker toggle (needs to be available immediately)
+        Script('''
+            function toggleCalendarPicker(value) {
+                const datePicker = document.getElementById('date-picker');
+                const datePickerLabel = document.getElementById('date-picker-label');
+
+                if (value === 'specific_date') {
+                    if (datePicker) datePicker.style.display = 'block';
+                    if (datePickerLabel) datePickerLabel.style.display = 'block';
+                } else {
+                    if (datePicker) datePicker.style.display = 'none';
+                    if (datePickerLabel) datePickerLabel.style.display = 'none';
+                }
+            }
+        ''')
     )
 
 
@@ -337,19 +352,28 @@ def search_section():
                 cls='filter-group calendar-filter'
             ),
             Div(
-                Label('Category', for_='category-filter'),
-                Select(
-                    Option('All Categories', value='all', selected=True),
-                    *[Option(cat, value=cat) for cat in config.CATEGORIES],
-                    id='category-filter',
-                    name='category',
-                    hx_get='/events/list',
-                    hx_target='#events-container',
-                    hx_trigger='change',
-                    hx_include='this, [name="q"], [name="date_filter"], [name="free_only"], [name="specific_date"]',
-                    hx_swap='innerHTML'
+                Label('Categories', cls='filter-section-label'),
+                Div(
+                    *[
+                        Label(
+                            Input(
+                                type='checkbox',
+                                name='category',
+                                value=cat,
+                                hx_get='/events/list',
+                                hx_target='#events-container',
+                                hx_trigger='change',
+                                hx_include='[name="q"], [name="date_filter"], [name="category"], [name="free_only"], [name="specific_date"]',
+                                hx_swap='innerHTML'
+                            ),
+                            ' ' + cat,
+                            cls='category-checkbox-label'
+                        )
+                        for cat in config.CATEGORIES
+                    ],
+                    cls='category-checkboxes'
                 ),
-                cls='filter-group'
+                cls='filter-group category-filter-group'
             ),
             Div(
                 Label(
@@ -379,14 +403,14 @@ def search_section():
     )
 
 
-def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: str = '', free_only: str = '', specific_date: str = '', limit: int = 100) -> List[Event]:
+def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, free_only: str = '', specific_date: str = '', limit: int = 100) -> List[Event]:
     """
     Helper function to fetch events with consistent filter-building logic.
 
     Args:
         q: Search query string
         date_filter: Date filter (upcoming, today, this_week, etc.)
-        category: Category filter
+        category: List of category filters (from multiple checkboxes)
         free_only: Free events filter ('true' or empty string)
         specific_date: Specific date in YYYY-MM-DD format (when date_filter is 'specific_date')
         limit: Maximum number of events to return
@@ -394,8 +418,8 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: str = ''
     Returns:
         List of Event objects matching the filters
     """
-    # Ignore "All Categories" ('all', empty string, or the text "All Categories") - treat as no filter
-    categories = [category] if category and category not in ('', 'all', 'All Categories') else None
+    # Handle category filtering - if no categories selected, show all
+    categories = category if category and len(category) > 0 else None
 
     # Convert free_only to boolean
     is_free = True if free_only == 'true' else None
@@ -431,7 +455,7 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: str = ''
 
 
 @rt('/events/list')
-def get_events_list(q: str = '', date_filter: str = 'upcoming', category: str = '', free_only: str = '', specific_date: str = ''):
+def get_events_list(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, free_only: str = '', specific_date: str = ''):
     """HTMX endpoint to get events list HTML fragment."""
     from starlette.responses import HTMLResponse
     events = _fetch_events(q, date_filter, category, free_only, specific_date)
@@ -441,7 +465,7 @@ def get_events_list(q: str = '', date_filter: str = 'upcoming', category: str = 
 
 
 @rt('/api/events')
-def get_events_json(q: str = '', date_filter: str = 'upcoming', category: str = '', free_only: str = '', specific_date: str = ''):
+def get_events_json(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, free_only: str = '', specific_date: str = ''):
     """API endpoint to get events as JSON."""
     events = _fetch_events(q, date_filter, category, free_only, specific_date)
 
@@ -557,6 +581,12 @@ def event_detail_page(event_id: int):
                         Div(
                             Span(f'📅 {event.event_date.strftime("%A, %B %d, %Y at %I:%M %p") if event.event_date else "Date TBA"}', cls='event-detail-date'),
                             Span(f'📍 {event.venue_name}', cls='event-detail-venue') if event.venue_name else '',
+                            # Price display
+                            Span('FREE', cls='event-price free-badge', style='margin-left: 1rem;') if event.is_free else (
+                                Span(f'${event.price:.2f}', cls='event-price', style='margin-left: 1rem;') if event.price else None
+                            ),
+                            # Date Night badge
+                            Span('💕 DATE NIGHT', cls='event-badge date-night-badge', style='margin-left: 0.5rem;') if event.category == 'Date Night' else None,
                             cls='event-detail-meta'
                         ),
                         # Event summary/description
@@ -570,7 +600,11 @@ def event_detail_page(event_id: int):
                         Div(
                             Div(
                                 Strong('Address: '),
-                                Span(event.address)
+                                A(event.address,
+                                  href=f'https://www.google.com/maps/search/?api=1&query={event.latitude},{event.longitude}' if event.latitude and event.longitude else f'https://www.google.com/maps/search/?api=1&query={event.address.replace(" ", "+")}',
+                                  target='_blank',
+                                  rel='noopener noreferrer',
+                                  style='color: #10b981; text-decoration: none; font-weight: 500;')
                             ) if event.address else '',
                             Div(
                                 Strong('Category: '),

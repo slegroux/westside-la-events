@@ -140,18 +140,22 @@ This ensures that all dependencies are available in the correct isolated `la` en
 To start the FastHTML web server:
 
 ```bash
-micromamba run -n la uvicorn src.web.app:app --host 127.0.0.1 --port 8000 --reload
+micromamba run -n la uvicorn src.web.app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 **Command breakdown:**
 - `micromamba run -n la`: Executes command in the `la` micromamba environment
 - `uvicorn`: ASGI server for FastHTML/FastAPI apps
 - `src.web.app:app`: Python module path to the FastHTML app instance
-- `--host 127.0.0.1`: Bind to localhost
+- `--host 0.0.0.0`: Bind to all network interfaces (broadcast mode for remote access)
 - `--port 8000`: Use port 8000
 - `--reload`: Auto-reload on code changes (development only)
 
-The application will be available at http://127.0.0.1:8000
+The application will be available at:
+- Local: http://127.0.0.1:8000
+- Network: http://<your-ip>:8000
+
+**IMPORTANT:** When restarting the web server, ALWAYS use `--host 0.0.0.0` (broadcast mode) to allow access from remote clients.
 
 ### Common Issues
 
@@ -198,6 +202,10 @@ The project includes comprehensive documentation:
 ### Testing Documentation
 - **[tests/README.md](tests/README.md)** - Comprehensive testing guide
 
+### Project Management
+- **[docs/GITHUB_WORKFLOW.md](docs/GITHUB_WORKFLOW.md)** - GitHub issue tracking and milestone management
+- **[scripts/README.md](scripts/README.md)** - Automation scripts documentation
+
 ### When to Use Each Document
 - **Starting development?** Read [README.md](README.md) → [PLAN.md](PLAN.md)
 - **Understanding architecture?** Read [SDD.md](SDD.md)
@@ -205,3 +213,4 @@ The project includes comprehensive documentation:
 - **Working with FastHTML?** Read [docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)
 - **Writing tests?** Read [tests/README.md](tests/README.md)
 - **Understanding event sources?** Read [docs/EVENT_SOURCES.md](docs/EVENT_SOURCES.md)
+- **Managing issues and milestones?** Read [docs/GITHUB_WORKFLOW.md](docs/GITHUB_WORKFLOW.md)
