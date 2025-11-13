@@ -7,6 +7,7 @@ import tempfile
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
+from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 
 from src.data.database import Database
 from src.data.models import Event
@@ -21,6 +22,7 @@ def pytest_configure(config):
         'rostest',
         'launch_testing',
         'launch_testing_ros',
+        'launch_testing_ros_pytest_entrypoint',
         'ament_xmllint',
         'ament_lint',
         'ament_pep257',
@@ -187,3 +189,28 @@ def temp_geocode_cache():
     # Cleanup
     if os.path.exists(cache_path):
         os.unlink(cache_path)
+
+
+# Playwright fixtures for E2E testing
+# Note: pytest-playwright provides browser, context, and page fixtures automatically
+
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    """Override browser context arguments for pytest-playwright."""
+    return {
+        **browser_context_args,
+        "viewport": {"width": 1920, "height": 1080},
+        "ignore_https_errors": True,
+    }
+
+
+@pytest.fixture(scope="session")
+def base_url():
+    """Base URL for the application."""
+    return os.environ.get("TEST_BASE_URL", "http://127.0.0.1:8000")
+
+
+@pytest.fixture
+def e2e_db(populated_db):
+    """Create a populated database for E2E tests."""
+    return populated_db

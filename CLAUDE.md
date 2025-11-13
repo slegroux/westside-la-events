@@ -194,6 +194,8 @@ The project includes comprehensive documentation:
 ### Technical Documentation (`docs/`)
 - **[EVENT_SOURCES.md](docs/EVENT_SOURCES.md)** - Detailed guide on event sources (API vs scraping)
 - **[SCRAPING_GUIDE.md](docs/SCRAPING_GUIDE.md)** - Web scraping best practices and guidelines
+- **[LOGO_MANAGEMENT.md](docs/LOGO_MANAGEMENT.md)** - Source logo management and troubleshooting
+- **[ANALYTICS.md](docs/ANALYTICS.md)** - Analytics system documentation and usage guide
 - **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - FastHTML best practices and quick fixes
 - **[fasthtml_analysis.md](docs/fasthtml_analysis.md)** - In-depth FastHTML implementation analysis
 - **[TEST_COVERAGE_ANALYSIS.md](docs/TEST_COVERAGE_ANALYSIS.md)** - Test coverage report and gaps
@@ -209,8 +211,10 @@ The project includes comprehensive documentation:
 ### When to Use Each Document
 - **Starting development?** Read [README.md](README.md) → [PLAN.md](PLAN.md)
 - **Understanding architecture?** Read [SDD.md](SDD.md)
-- **Adding a scraper?** Read [docs/SCRAPING_GUIDE.md](docs/SCRAPING_GUIDE.md)
+- **Adding a scraper?** Read [docs/SCRAPING_GUIDE.md](docs/SCRAPING_GUIDE.md) → [docs/LOGO_MANAGEMENT.md](docs/LOGO_MANAGEMENT.md)
 - **Working with FastHTML?** Read [docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)
 - **Writing tests?** Read [tests/README.md](tests/README.md)
 - **Understanding event sources?** Read [docs/EVENT_SOURCES.md](docs/EVENT_SOURCES.md)
 - **Managing issues and milestones?** Read [docs/GITHUB_WORKFLOW.md](docs/GITHUB_WORKFLOW.md)
+- **Troubleshooting logos?** Read [docs/LOGO_MANAGEMENT.md](docs/LOGO_MANAGEMENT.md)
+- **Setting up analytics?** Read [docs/ANALYTICS.md](docs/ANALYTICS.md) → [ANALYTICS_IMPLEMENTATION.md](ANALYTICS_IMPLEMENTATION.md)

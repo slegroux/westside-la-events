@@ -1,35 +1,91 @@
 // Leaflet Map Implementation
 let map = null;
 let markerCluster = null;
+let currentMapContainerId = null;
+let loadMapEventsRetryCount = 0;
+const MAX_RETRY_COUNT = 5;
 
 function initMap() {
-    if (map) return; // Already initialized
+    // Check if map container exists
+    const mapContainer = document.getElementById('map');
+    if (!mapContainer) {
+        console.error('Map container not found');
+        return false;
+    }
 
-    // Create map centered on Westside LA
-    map = L.map('map').setView([34.0522, -118.4437], 11);
+    // Check if we need to reinitialize (new container or first time)
+    // HTMX swaps can destroy and recreate the container
+    const needsReinit = !map || !map.getContainer() || !document.body.contains(map.getContainer());
 
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19
-    }).addTo(map);
+    if (needsReinit) {
+        // Clean up old map if it exists
+        if (map) {
+            try {
+                map.remove();
+            } catch (e) {
+                console.warn('Error removing old map:', e);
+            }
+            map = null;
+            markerCluster = null;
+        }
+    } else {
+        // Map exists and is valid, just refresh size
+        map.invalidateSize();
+        return true;
+    }
 
-    // Initialize marker cluster group
-    markerCluster = L.markerClusterGroup({
-        maxClusterRadius: 50,
-        spiderfyOnMaxZoom: true,
-        showCoverageOnHover: false,
-        zoomToBoundsOnClick: true
-    });
-    map.addLayer(markerCluster);
+    try {
+        // Check if Leaflet is loaded
+        if (typeof L === 'undefined') {
+            console.error('Leaflet (L) is not loaded yet');
+            return false;
+        }
+
+        // Create map centered on Westside LA
+        map = L.map('map').setView([34.0522, -118.4437], 11);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Initialize marker cluster group
+        markerCluster = L.markerClusterGroup({
+            maxClusterRadius: 50,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true
+        });
+        map.addLayer(markerCluster);
+
+        return true;
+    } catch (error) {
+        console.error('Error initializing map:', error);
+        return false;
+    }
 }
 
 async function loadMapEvents() {
     try {
         // Initialize map if needed
-        if (!map) {
-            initMap();
+        const mapInitialized = initMap();
+        if (!mapInitialized) {
+            // If Leaflet isn't loaded, retry after a delay (with max retry limit)
+            if (typeof L === 'undefined') {
+                loadMapEventsRetryCount++;
+                if (loadMapEventsRetryCount < MAX_RETRY_COUNT) {
+                    setTimeout(loadMapEvents, 200);
+                } else {
+                    console.error('Leaflet failed to load after ' + MAX_RETRY_COUNT + ' attempts. Please refresh the page.');
+                    loadMapEventsRetryCount = 0;
+                }
+            }
+            return;
         }
+
+        // Reset retry counter on successful init
+        loadMapEventsRetryCount = 0;
 
         // Guard for missing DOM elements - use safe defaults
         const searchInput = document.getElementById('search-input');
@@ -85,6 +141,7 @@ async function loadMapEvents() {
         }
 
         // Add markers for each event with valid coordinates
+        let markerCount = 0;
         events.forEach(event => {
             if (event.latitude && event.longitude) {
                 const marker = L.marker([event.latitude, event.longitude]);
@@ -114,6 +171,7 @@ async function loadMapEvents() {
                 });
 
                 markerCluster.addLayer(marker);
+                markerCount++;
             }
         });
 
@@ -159,31 +217,8 @@ async function loadMapEvents() {
     }
 }
 
-function showListView() {
-    const listBtn = document.getElementById('list-view-btn');
-    const mapBtn = document.getElementById('map-view-btn');
-    const eventsContainer = document.getElementById('events-container');
-    const mapContainer = document.getElementById('map');
-
-    if (listBtn) listBtn.classList.add('active');
-    if (mapBtn) mapBtn.classList.remove('active');
-    if (eventsContainer) eventsContainer.style.display = 'block';
-    if (mapContainer) mapContainer.style.display = 'none';
-}
-
-function showMapView() {
-    const mapBtn = document.getElementById('map-view-btn');
-    const listBtn = document.getElementById('list-view-btn');
-    const mapContainer = document.getElementById('map');
-    const eventsContainer = document.getElementById('events-container');
-
-    if (mapBtn) mapBtn.classList.add('active');
-    if (listBtn) listBtn.classList.remove('active');
-    if (mapContainer) mapContainer.style.display = 'block';
-    if (eventsContainer) eventsContainer.style.display = 'none';
-
-    loadMapEvents();
-}
+// View toggle functions removed - now handled by HTMX
+// See /view/list and /view/map endpoints in app.py
 
 function formatDate(dateStr) {
     if (!dateStr) return 'Date TBA';
@@ -197,15 +232,38 @@ function formatDate(dateStr) {
     });
 }
 
+// Make loadMapEvents globally accessible for debugging
+window.loadMapEvents = loadMapEvents;
+window.initMap = initMap;
+
 // Listen for htmx events to refresh map when filters change
 document.addEventListener('DOMContentLoaded', function() {
+    // Category filter clicks now handled by HTMX directly
+    // See /filters/category/{category} endpoint in app.py
+
     // Refresh map markers when filter results are updated via htmx
-    document.body.addEventListener('htmx:afterSwap', function() {
+    document.body.addEventListener('htmx:afterSwap', function(event) {
         // Check if map is currently visible
         const mapContainer = document.getElementById('map');
+
         if (mapContainer && mapContainer.style.display !== 'none') {
-            // Reload map events to reflect new filter state
-            loadMapEvents();
+            // Delay to ensure DOM is ready and Leaflet is loaded
+            setTimeout(function() {
+                // Reload map events to reflect new filter state
+                loadMapEvents();
+            }, 200);
+        }
+
+        // Check if we just swapped to map view (by checking the event target)
+        if (event.detail.target && event.detail.target.id === 'view-container') {
+            const newMapContainer = event.detail.target.querySelector('#map');
+
+            if (newMapContainer && newMapContainer.style.display !== 'none') {
+                // Initialize and load map after view switch (increased delay for DOM settlement)
+                setTimeout(function() {
+                    loadMapEvents();
+                }, 250);
+            }
         }
     });
 

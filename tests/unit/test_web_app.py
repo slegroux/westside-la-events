@@ -162,6 +162,118 @@ class TestWebEndpoints:
             response = await client.get("/events/list?category=Music&date_filter=upcoming")
             assert response.status_code == 200
 
+    async def test_view_list_endpoint(self, populated_db):
+        """Test /view/list HTMX endpoint for view toggle."""
+        state.db = populated_db
+        from src.search.query import EventSearch
+        state.search = EventSearch(populated_db)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/view/list")
+            assert response.status_code == 200
+            # Should return HTML fragment with map hidden and events visible
+            assert 'id="map"' in response.text
+            assert 'display: none' in response.text
+            assert 'id="events-container"' in response.text
+            # Should include OOB swap for button states
+            assert 'hx-swap-oob="true"' in response.text
+            assert 'view-btn active' in response.text
+
+    async def test_view_map_endpoint(self, populated_db):
+        """Test /view/map HTMX endpoint for view toggle."""
+        state.db = populated_db
+        from src.search.query import EventSearch
+        state.search = EventSearch(populated_db)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/view/map")
+            assert response.status_code == 200
+            # Should return HTML fragment with map visible and events hidden
+            assert 'id="map"' in response.text
+            assert 'display: block' in response.text
+            assert 'id="events-container"' in response.text
+            # Should include script to trigger map loading
+            assert 'loadMapEvents' in response.text
+            # Should include OOB swap for button states
+            assert 'hx-swap-oob="true"' in response.text
+
+    async def test_filter_by_category_endpoint(self, populated_db):
+        """Test /filters/category/{category} HTMX endpoint."""
+        state.db = populated_db
+        from src.search.query import EventSearch
+        state.search = EventSearch(populated_db)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/filters/category/Music")
+            assert response.status_code == 200
+            # Should return events list
+            assert 'event-card' in response.text or 'No events found' in response.text
+            # Should include OOB swap for filter tallies
+            assert 'id="filter-tallies"' in response.text
+            assert 'hx-swap-oob="true"' in response.text
+
+    async def test_filter_by_category_empty_result(self, populated_db):
+        """Test /filters/category/{category} with non-existent category."""
+        state.db = populated_db
+        from src.search.query import EventSearch
+        state.search = EventSearch(populated_db)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/filters/category/NonExistentCategory")
+            assert response.status_code == 200
+            # Should handle gracefully with empty results
+            assert response.text is not None
+
+    async def test_filters_update_all_endpoint(self, populated_db):
+        """Test /filters/update-all HTMX endpoint with multiple filters."""
+        state.db = populated_db
+        from src.search.query import EventSearch
+        state.search = EventSearch(populated_db)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/filters/update-all?category=Music&date_filter=upcoming")
+            assert response.status_code == 200
+            # Should return events list with OOB swaps
+            assert 'id="filter-tallies"' in response.text
+            assert 'hx-swap-oob="true"' in response.text
+
+    async def test_filters_tallies_endpoint(self, populated_db):
+        """Test /filters/tallies HTMX endpoint."""
+        state.db = populated_db
+        from src.search.query import EventSearch
+        state.search = EventSearch(populated_db)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/filters/tallies")
+            assert response.status_code == 200
+            # Should return filter tallies HTML fragment
+            assert 'filter-group' in response.text or 'category' in response.text.lower()
+
+    async def test_date_picker_endpoint_specific_date(self, populated_db):
+        """Test /filters/date-picker endpoint with specific_date filter."""
+        state.db = populated_db
+        from src.search.query import EventSearch
+        state.search = EventSearch(populated_db)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/filters/date-picker?date_filter=specific_date")
+            assert response.status_code == 200
+            # Should return date picker input
+            assert 'date-picker' in response.text
+            assert 'type="date"' in response.text
+
+    async def test_date_picker_endpoint_other_filters(self, populated_db):
+        """Test /filters/date-picker endpoint with non-specific_date filter."""
+        state.db = populated_db
+        from src.search.query import EventSearch
+        state.search = EventSearch(populated_db)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/filters/date-picker?date_filter=upcoming")
+            assert response.status_code == 200
+            # Should return empty container
+            assert 'date-picker-container' in response.text
+
     async def test_static_file_serving(self):
         """Test static file serving (if CSS exists)."""
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

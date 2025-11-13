@@ -18,6 +18,7 @@ class CategoryClassifier:
             'Theater': 2.0,     # Theater is more specific than generic Music/Art
             'Comedy': 2.0,      # Comedy is more specific than generic Entertainment
             'Film': 2.0,        # Film is more specific than generic Art
+            'Tech': 1.5,        # Tech events
             'Music': 1.5,       # Moderate priority
             'Art': 1.5,         # Moderate priority
             'Sports': 1.5,      # Moderate priority
@@ -34,6 +35,33 @@ class CategoryClassifier:
             'romantic', 'date night', 'couples', 'candlelit', 'candlelight',
             'intimate', 'romantic evening', 'prix fixe', 'adults only'
         ]
+
+        # Venue-based category mappings (venues strongly associated with specific categories)
+        self.venue_categories = {
+            'Music': [
+                'kia forum', 'forum', 'hollywood bowl', 'greek theatre', 'troubadour',
+                'roxy', 'whisky a go go', 'el rey', 'teragram ballroom', 'echoplex',
+                'echo', 'bootleg theater', 'lodge room', 'resident', 'concert hall',
+                'music center', 'walt disney concert hall', 'shrine auditorium',
+                'hollywood palladium', 'fonda theatre', 'wiltern', 'novo',
+                'microsoft theater', 'staples center', 'crypto.com arena',
+                'dodger stadium', 'rose bowl', 'banc of california stadium',
+                'sofi stadium', 'rose bowl', 'hollywood forever cemetery'
+            ],
+            'Sports': [
+                'staples center', 'crypto.com arena', 'dodger stadium', 'rose bowl',
+                'banc of california stadium', 'sofi stadium', 'dignity health sports park',
+                'ucla pauley pavilion', 'galen center', 'coliseum'
+            ],
+            'Theater': [
+                'pantages', 'ahmanson', 'mark taper forum', 'geffen playhouse',
+                'kirk douglas theatre', 'pasadena playhouse', 'actors gang'
+            ],
+            'Film': [
+                'chinese theatre', 'egyptian theatre', 'vista theatre', 'aero theatre',
+                'nuart theatre', 'new beverly cinema', 'arclight', 'vintage cinemas'
+            ]
+        }
 
         self.category_keywords = {
             'Music': [
@@ -109,6 +137,16 @@ class CategoryClassifier:
                 'wine and', 'wine bar', 'wine club', 'dinner show', 'nightcap', 'moonlight',
                 'cocktail bar', 'speakeasy', 'jazz night', 'date spot', 'perfect for couples',
                 'romantic atmosphere', 'dimly lit', 'cozy atmosphere'
+            ],
+            'Tech': [
+                'tech', 'technology', 'startup', 'ai', 'artificial intelligence', 'machine learning',
+                'ml', 'software', 'developer', 'programming', 'coding', 'hackathon',
+                'blockchain', 'crypto', 'web3', 'saas', 'product', 'vc', 'venture capital',
+                'founder', 'entrepreneur', 'innovation', 'digital', 'app', 'platform',
+                'data science', 'cloud', 'cybersecurity', 'tech meetup', 'networking',
+                'pitch', 'demo day', 'techstars', 'y combinator', 'accelerator', 'incubator',
+                'silicon beach', 'tech industry', 'engineering', 'design thinking', 'ux',
+                'ui', 'product management', 'agile', 'devops', 'api', 'open source'
             ]
         }
 
@@ -126,11 +164,25 @@ class CategoryClassifier:
         """
         # Combine all text and convert to lowercase
         text = f"{title} {description} {venue}".lower()
+        venue_lower = venue.lower()
+
+        # Check venue-based categorization first (strong signal)
+        # Give venue matches a high score to ensure they take priority
+        venue_bonus = {}
+        for category, venue_names in self.venue_categories.items():
+            for venue_name in venue_names:
+                if venue_name in venue_lower:
+                    # Venue match gets a strong bonus (equivalent to 5 keyword matches)
+                    venue_bonus[category] = 5.0
+                    break  # Only need one match per category
 
         # Score each category with keyword matches
         raw_scores = {}
         for category, keywords in self.category_keywords.items():
             score = sum(1 for keyword in keywords if keyword.lower() in text)
+            # Add venue bonus if this category has one
+            if category in venue_bonus:
+                score += venue_bonus[category]
             if score > 0:
                 raw_scores[category] = score
 

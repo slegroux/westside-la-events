@@ -46,7 +46,7 @@ class TestBaseScraper:
         assert event.venue_name == "Test Venue"
         assert event.source == "Test Source"
 
-    def test_create_event_without_address(self):
+    def test_create_event_without_address(self, mock_geocoding_service):
         """Test creating an event without address."""
         class TestScraper(BaseScraper):
             def scrape(self):
@@ -54,14 +54,16 @@ class TestBaseScraper:
 
         scraper = TestScraper("Test Source")
 
+        # Create event with venue name in Westside area to pass location validation
         event = scraper.create_event(
             title="Test Event",
-            description="Test Description"
+            description="Test Description",
+            venue_name="Santa Monica Pier"  # Known Westside venue
         )
 
+        # Should create event even without address if venue_name validates
+        assert event is not None
         assert event.title == "Test Event"
-        assert event.latitude is None
-        assert event.longitude is None
 
     def test_clean_text(self):
         """Test text cleaning utility."""

@@ -573,5 +573,60 @@
   },
   "kenneth hahn state recreation area, 4100 s la cienega blvd, los angeles, ca 90056": null,
   "near the south lawn of los angeles state historic park, los angeles shp, ca": null,
-  "rio de los angeles state park, los angeles shp, ca": null
+  "rio de los angeles state park, los angeles shp, ca": null,
+  "651 clover street, los angeles, ca, 90031": {
+    "lat": 34.0659364,
+    "lng": -118.2221571
+  },
+  "1356 abbot kinney blvd, venice, ca 90291": {
+    "lat": 33.9907196,
+    "lng": -118.4666409
+  },
+  "the kinn, los angeles, california": null,
+  "baja cantina, marina del rey, california": null,
+  "blankspaces venice, los angeles, california": {
+    "lat": 33.9889847,
+    "lng": -118.4614302
+  },
+  "3950 campus drive, newport beach, ca 92660, newport beach, ca, 92660": null,
+  "2905 stanford avenue, marina del rey, ca 90292, marina del rey, ca, 90292": null,
+  "340 st. ann's drive, laguna beach, ca 92651, laguna beach, ca, 92651": null,
+  "3290 lang ranch parkway, thousand oaks, ca 91362, thousand oaks, ca, 91362": null,
+  "681 venice blvd venice beach, los angeles, ca 90291, los angeles, ca, 90291": null,
+  "681 venice blvd, venice beach, los angeles, ca 90291, los angeles, ca": null,
+  "2106 hyperion avenue, los angeles, ca 90027, los angeles, ca, 90027": null,
+  "188 campus dr, arcadia, ca 91007, arcadia, ca, 91007": null,
+  "10899 wilshire blvd, los angeles, ca 90024": {
+    "lat": 34.0594661,
+    "lng": -118.4437539
+  },
+  "5905 wilshire blvd, los angeles, ca 90036": {
+    "lat": 34.0644724,
+    "lng": -118.3599459
+  },
+  "smidt welcome plaza | lacma, los angeles, ca": null,
+  "bcam, level 3 | lacma, los angeles, ca": null,
+  "resnick pavilion | lacma, los angeles, ca": null,
+  "culver city, ca": {
+    "lat": 34.0211224,
+    "lng": -118.396466
+  },
+  "395 santa monica place, ##300, santa monica, ca 90401, santa monica, ca": null,
+  "930 pacific coast highway, santa monica, ca 90401, santa monica, ca": {
+    "lat": 34.0197442,
+    "lng": -118.506256
+  },
+  "1115 east wardlow road, long beach, ca 90807, long beach, ca, 90807": null,
+  "3531 wilshire boulevard, los angeles, ca 90010, los angeles, ca, 90010": null,
+  "330 pine avenue, long beach, ca 90802, long beach, ca, 90802": {
+    "lat": 33.7672564,
+    "lng": -118.1924087
+  },
+  "2940 kuehner drive, santa susana, ca 93063, santa susana, ca, 93063": null,
+  "930 pacific coast highway, santa monica, ca 90401, santa monica, ca, 90401": null,
+  "200 pine avenue, long beach, ca 90802, long beach, ca, 90802": {
+    "lat": 33.7672564,
+    "lng": -118.1924087
+  },
+  "400 disney way #suite 214, anaheim, ca 92802, anaheim, ca, 92802": null
 }

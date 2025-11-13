@@ -20,9 +20,10 @@ class TestDatabase:
 
     def test_insert_event(self, db, sample_event):
         """Test inserting a single event."""
-        event_id = db.insert_event(sample_event)
+        event_id, was_duplicate = db.insert_event(sample_event)
         assert event_id is not None
         assert event_id > 0
+        assert was_duplicate is False
 
         # Verify the event can be retrieved
         retrieved = db.get_event(event_id)
@@ -32,8 +33,9 @@ class TestDatabase:
     def test_insert_duplicate_event(self, db, sample_event):
         """Test that duplicate events are detected."""
         # Insert event first time
-        event_id = db.insert_event(sample_event)
+        event_id, was_duplicate = db.insert_event(sample_event)
         assert event_id is not None
+        assert was_duplicate is False
 
         # Try to insert the same event again (same URL and date)
         duplicate_event = Event(
@@ -43,13 +45,14 @@ class TestDatabase:
             source=sample_event.source,
             url=sample_event.url
         )
-        # Check if duplicate exists
-        exists = db.event_exists(duplicate_event.url, duplicate_event.event_date)
-        assert exists is True
+        # Insert duplicate - should return existing ID and was_duplicate=True
+        dup_id, was_dup = db.insert_event(duplicate_event)
+        assert dup_id == event_id
+        assert was_dup is True
 
     def test_get_event(self, db, sample_event):
         """Test retrieving a single event by ID."""
-        event_id = db.insert_event(sample_event)
+        event_id, _ = db.insert_event(sample_event)
         assert event_id is not None
 
         retrieved_event = db.get_event(event_id)
@@ -117,7 +120,7 @@ class TestDatabase:
     def test_delete_event(self, db, sample_event):
         """Test deleting an event."""
         # Insert event
-        event_id = db.insert_event(sample_event)
+        event_id, _ = db.insert_event(sample_event)
         assert event_id is not None
 
         # Verify it exists
@@ -135,7 +138,7 @@ class TestDatabase:
     def test_update_event(self, db, sample_event):
         """Test updating an event."""
         # Insert event
-        event_id = db.insert_event(sample_event)
+        event_id, _ = db.insert_event(sample_event)
         assert event_id is not None
 
         # Set the ID on the event object (insert_event doesn't do this automatically)

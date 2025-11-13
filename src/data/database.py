@@ -288,6 +288,17 @@ class Database:
             cursor.execute("DELETE FROM events WHERE id = ?", (event_id,))
             return cursor.rowcount > 0
 
+    def update_event_category(self, event_id: int, category: str) -> bool:
+        """Update the category of an event."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE events
+                SET category = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (category, event_id))
+            return cursor.rowcount > 0
+
     def search_events(
         self,
         query: Optional[str] = None,
@@ -363,15 +374,22 @@ class Database:
             rows = cursor.fetchall()
             return [self._row_to_event(row) for row in rows]
 
-    def get_all_events(self, limit: int = 100, offset: int = 0) -> List[Event]:
-        """Get all events with pagination."""
+    def get_all_events(self, limit: Optional[int] = None, offset: int = 0) -> List[Event]:
+        """Get all events with optional pagination."""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM events
-                ORDER BY event_date ASC
-                LIMIT ? OFFSET ?
-            """, (limit, offset))
+            if limit is None:
+                # Get all events without limit
+                cursor.execute("""
+                    SELECT * FROM events
+                    ORDER BY event_date ASC
+                """)
+            else:
+                cursor.execute("""
+                    SELECT * FROM events
+                    ORDER BY event_date ASC
+                    LIMIT ? OFFSET ?
+                """, (limit, offset))
             rows = cursor.fetchall()
             return [self._row_to_event(row) for row in rows]
 
@@ -381,7 +399,7 @@ class Database:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT * FROM events
-                WHERE event_date >= datetime('now')
+                WHERE event_date >= datetime('now', 'localtime')
                 ORDER BY event_date ASC
                 LIMIT ?
             """, (limit,))

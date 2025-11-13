@@ -10,7 +10,8 @@ This scraper catches events from multiple Westside LA venues including:
 - And many other venues that use Eventbrite for ticketing
 
 Note: Events are automatically filtered to Westside/Malibu area by the base scraper's
-geo_filter validation.
+geo_filter validation. Some venues with dedicated scrapers (like Beyond Baroque) are
+handled separately.
 """
 import json
 import re
@@ -125,6 +126,10 @@ class EventbriteScraper(BaseScraper):
         events = []
 
         try:
+            # Check if this is an organizer profile page (/o/) that requires JS rendering
+            if '/o/' in url:
+                return self._scrape_organizer_profile_page(url)
+
             html = self.fetch_page(url)
             if not html:
                 self.log(f"Failed to fetch collection page: {url}")
@@ -170,9 +175,69 @@ class EventbriteScraper(BaseScraper):
 
         return events
 
+    def _scrape_organizer_profile_page(self, url: str) -> List[Event]:
+        """
+        Scrape an organizer profile page (/o/) using Playwright for JS rendering.
+        These pages require JavaScript to load event links.
+
+        Args:
+            url: Organizer profile page URL
+
+        Returns:
+            List of Event objects
+        """
+        organizer = url.split('/')[-1]
+        self.log(f"Scraping organizer profile page (JS): {organizer}...")
+        events = []
+
+        try:
+            # Fetch page with JavaScript rendering
+            html = self.fetch_page_js(url, wait_selector='a[href*="/e/"]', timeout=30000)
+            if not html:
+                self.log(f"Failed to fetch organizer page with JS: {url}")
+                return events
+
+            soup = self.parse_html(html)
+
+            # Extract event URLs
+            event_urls = set()
+            all_links = soup.find_all('a', href=True)
+
+            for link in all_links:
+                href = link.get('href', '')
+                if '/e/' in href and 'tickets' in href:
+                    # Clean URL
+                    clean_url = href.split('?')[0]
+                    if clean_url.startswith('/'):
+                        clean_url = f"{self.base_url}{clean_url}"
+                    event_urls.add(clean_url)
+
+            self.log(f"Found {len(event_urls)} unique event URLs in organizer profile")
+
+            # Fetch each event page and extract data
+            for i, event_url in enumerate(sorted(event_urls), 1):
+                try:
+                    event = self._scrape_event_page(event_url)
+                    if event:
+                        events.append(event)
+                        self.log(f"  [{i}/{len(event_urls)}] ✓ {event.title}")
+                except Exception as e:
+                    self.log(f"  [{i}/{len(event_urls)}] ✗ Error: {e}")
+                    continue
+
+            self.log(f"Scraped {len(events)} events from organizer profile page")
+
+        except Exception as e:
+            self.log(f"Error during organizer profile page scrape: {e}")
+            import traceback
+            traceback.print_exc()
+
+        return events
+
     def _scrape_event_page(self, url: str) -> Optional[Event]:
         """
-        Scrape a single event page using window.__SERVER_DATA__.
+        Scrape a single event page using JSON-LD structured data or window.__SERVER_DATA__.
+        Tries JSON-LD first as it has more complete venue information.
 
         Args:
             url: Event page URL
@@ -185,14 +250,34 @@ class EventbriteScraper(BaseScraper):
             if not html:
                 return None
 
-            # Try to extract window.__SERVER_DATA__
-            # Use a more lenient regex that captures the object properly
+            soup = self.parse_html(html)
+
+            # First, try JSON-LD as it has complete venue information
+            json_lds = soup.find_all('script', type='application/ld+json')
+            for json_ld in json_lds:
+                try:
+                    data = json.loads(json_ld.string)
+                    # Look for Event, Festival, or SocialEvent type in either dict or list
+                    if isinstance(data, dict):
+                        if data.get('@type') in ('Event', 'Festival', 'SocialEvent'):
+                            event = self._parse_event_from_structured_data(data)
+                            if event:
+                                return event
+                    elif isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict) and item.get('@type') in ('Event', 'Festival', 'SocialEvent'):
+                                event = self._parse_event_from_structured_data(item)
+                                if event:
+                                    return event
+                except:
+                    continue
+
+            # Fallback to window.__SERVER_DATA__ if JSON-LD doesn't work
             match = re.search(r'window\.__SERVER_DATA__\s*=\s*(\{[^;]*\});?\s*(?:window\.|</script>)', html, re.DOTALL)
             if not match:
                 return None
 
             # Parse the JavaScript object as JSON
-            # Note: This may fail if the JS object contains non-JSON syntax
             try:
                 # Clean up the JSON string
                 json_str = match.group(1)
@@ -213,7 +298,6 @@ class EventbriteScraper(BaseScraper):
                 return None
 
             # Parse HTML to extract price if not in SERVER_DATA
-            soup = self.parse_html(html)
             html_price = self._extract_price_from_html(soup)
 
             return self._parse_event_from_server_data(event_data, html_price)
@@ -453,8 +537,12 @@ class EventbriteScraper(BaseScraper):
         # Image
         image_url = ''
         image_data = data.get('image', {})
-        if image_data:
+        if isinstance(image_data, dict) and image_data:
             image_url = image_data.get('url', '') or image_data.get('original', {}).get('url', '')
+
+        # Use Perry's Beach collection image as fallback for Perry's events without images
+        if not image_url and ("perry" in title.lower() or venue_name == "Perry's Beach"):
+            image_url = 'https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F1165815693%2F2872939232171%2F1%2Foriginal.20251029-200910?w=512&auto=format%2Ccompress&q=75&sharp=10&rect=0%2C34%2C1191%2C435&s=3121f4932e02e60f7a30495e5421b9e6'
 
         # Price
         is_free = data.get('is_free', False)

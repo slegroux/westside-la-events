@@ -12,7 +12,17 @@ logger = logging.getLogger(__name__)
 
 
 class LogoScraper:
-    """Scraper for source logos."""
+    """
+    Scraper for source logos.
+
+    When adding a new event source/scraper:
+    1. Add the source's base URL to SOURCE_URLS below
+    2. Add a fallback logo URL to FALLBACK_LOGOS below
+    3. Run: micromamba run -n la python migrate_logos.py
+    4. Verify: micromamba run -n la python check_missing_logos.py
+
+    See docs/LOGO_MANAGEMENT.md for detailed instructions.
+    """
 
     # Mapping of source names to their base URLs
     SOURCE_URLS = {
@@ -37,6 +47,15 @@ class LogoScraper:
         'California State Parks': 'https://www.parks.ca.gov',
         'Théâtre Raymond Kabbaz': 'https://theatreraymonkabbaz.com',
         'UCLA Mathias Botanical Garden': 'https://botgard.ucla.edu',
+        'KINN': 'https://luma.com/KINNevents',
+        'LA Tech Events': 'https://luma.com/latechevents',
+        'Apero Francophone': 'https://www.eventbrite.com/o/apero-francophone-de-los-angeles-59137584493',
+        'UCLA': 'https://community.ucla.edu',
+        'Hammer Museum': 'https://hammer.ucla.edu',
+        'LACMA': 'https://www.lacma.org',
+        'Venice Beach Events': 'https://www.visitveniceca.com',
+        'West Hollywood': 'https://www.weho.org',
+        'Culver City': 'https://www.culvercity.gov',
     }
 
     # Known logo URLs (fallback if scraping fails)
@@ -62,6 +81,15 @@ class LogoScraper:
         'California State Parks': 'https://www.parks.ca.gov/img/content/ParksLogo.png',
         'Théâtre Raymond Kabbaz': 'https://images.squarespace-cdn.com/content/v1/68484ef7a2c3c851600f4307/6dfad1be-3a49-453f-96eb-146a2291958a/logo-noir-sansfond.png',
         'UCLA Mathias Botanical Garden': 'https://sites.lifesci.ucla.edu/botgard/wp-content/uploads/sites/120/2024/01/UCLA_MBG_Logo_UCLAalt_RGB-1030x265.png',
+        'KINN': 'https://images.lumacdn.com/calendars/ba/19c73f3c-4578-4fac-83ee-947fd4a62beb',
+        'LA Tech Events': 'https://images.lumacdn.com/calendars/ba/40aabdcc-fc58-41e9-ad11-34ed6fecb30a',
+        'Apero Francophone': 'https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F789199169%2F147203442267%2F1%2Foriginal.20240613-175946?auto=format%2Ccompress&q=75&sharp=10&s=013e5c242fa306aeee088837cd6377f3',
+        'UCLA': 'https://newsroom.ucla.edu/file?fid=58a741882cfac20c4a08ef0b',
+        'Hammer Museum': 'https://hammer.ucla.edu/sites/default/files/logo_0.png',
+        'LACMA': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/LACMA_logo.svg/320px-LACMA_logo.svg.png',
+        'Venice Beach Events': 'https://www.visitveniceca.com/wp-content/uploads/2021/03/venice-logo.png',
+        'West Hollywood': 'https://www.weho.org/Home/ShowPublishedImage/6958/637444285636730000',
+        'Culver City': 'https://www.culvercity.gov/files/assets/public/v/1/images/culver-city-logo.png',
     }
 
     def __init__(self, cache_dir: str = "static/logos"):
@@ -83,6 +111,15 @@ class LogoScraper:
         Returns:
             URL to logo image or None if not found
         """
+        # Check if source has mappings configured
+        if source not in self.SOURCE_URLS and source not in self.FALLBACK_LOGOS:
+            logger.warning(
+                f"Source '{source}' is missing from both SOURCE_URLS and FALLBACK_LOGOS. "
+                f"Add it to src/utils/logo_scraper.py for logo support. "
+                f"Run 'python check_missing_logos.py' to see all missing sources."
+            )
+            return None
+
         # Try to scrape logo from the source website
         scraped_url = self._scrape_logo(source)
         if scraped_url:
@@ -214,6 +251,10 @@ class LogoScraper:
 
         logo_url = self.get_logo_url(source)
         if not logo_url:
+            logger.warning(
+                f"No logo URL found for source '{source}'. "
+                f"Check SOURCE_URLS and FALLBACK_LOGOS in src/utils/logo_scraper.py"
+            )
             return None
 
         try:

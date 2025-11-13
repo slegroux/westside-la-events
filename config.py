@@ -23,6 +23,7 @@ FACEBOOK_ACCESS_TOKEN = os.getenv('FACEBOOK_ACCESS_TOKEN', '')
 
 # Database Configuration
 DATABASE_PATH = os.getenv('DATABASE_PATH', 'data/events.db')
+ANALYTICS_DB_PATH = os.getenv('ANALYTICS_DB_PATH', 'data/analytics.db')
 
 # Scraper Configuration
 SCRAPER_CONFIG = {
@@ -45,6 +46,14 @@ LOG_FILE = os.getenv('LOG_FILE', 'logs/app.log')
 HOST = os.getenv('HOST', '0.0.0.0')
 PORT = int(os.getenv('PORT', '8000'))
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
+
+# Session Configuration
+# In production, set this to a strong random key via environment variable
+SESSION_SECRET_KEY = os.getenv('SESSION_SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Analytics Configuration
+ENABLE_ANALYTICS = os.getenv('ENABLE_ANALYTICS', 'True').lower() == 'true'
+ANALYTICS_RETENTION_DAYS = int(os.getenv('ANALYTICS_RETENTION_DAYS', '365'))  # Keep data for 1 year
 
 # Westside LA Geographic Bounds
 # Approximate boundaries for filtering events
@@ -82,6 +91,7 @@ CATEGORIES = [
     'Wellness',
     'Community',
     'Education',
+    'Tech',
     'Date Night',
     'Other'
 ]
@@ -239,6 +249,34 @@ EVENT_SOURCES = {
         'enabled': True,
         'uses_api': False,
         'note': 'California State Parks events in Angeles District (Malibu Creek SP, Malibu Lagoon SB, Santa Monica Mountains, etc.)'
+    },
+    'kinn': {
+        'name': 'KINN',
+        'url': 'https://luma.com/KINNevents',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'AI and technology community events hosted by KINN, listed on their Luma page'
+    },
+    'latechevents': {
+        'name': 'LA Tech Events',
+        'url': 'https://luma.com/latechevents?k=c',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'LA tech community events calendar hosted on Luma'
+    },
+    'beyond_baroque': {
+        'name': 'Beyond Baroque',
+        'url': 'https://www.eventbrite.com/o/beyond-baroque-literary-arts-center-1685240682',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Venice-based literary arts center featuring poetry, fiction workshops, and book launches'
+    },
+    'apero_francophone': {
+        'name': 'Apero Francophone',
+        'url': 'https://www.eventbrite.com/o/apero-francophone-de-los-angeles-59137584493',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Monthly afterwork gatherings for French expats and locals, featuring networking, food, drinks, and DJ entertainment'
     },
     'venice_beach': {
         'name': 'Venice Beach Events',

@@ -15,6 +15,12 @@ from src.scrapers.kcrw import KCRWScraper
 from src.scrapers.laist import LAistScraper
 from src.scrapers.discover_la import DiscoverLAScraper
 from src.scrapers.eventbrite import EventbriteScraper
+from src.scrapers.ucla import UCLAScraper
+from src.scrapers.hammer import HammerScraper
+from src.scrapers.lacma import LACMAScraper
+from src.scrapers.venice_beach import VeniceBeachScraper
+from src.scrapers.west_hollywood import WestHollywoodScraper
+from src.scrapers.culver_city import CulverCityScraper
 
 # Other optional scrapers:
 from src.scrapers.meetup import MeetupScraper
@@ -32,6 +38,10 @@ from src.scrapers.afdela import AFdelaScraper
 from src.scrapers.raymond_kabbaz import RaymondKabbazScraper
 from src.scrapers.ucla_botanical import UCLABotanicalScraper
 from src.scrapers.parks_ca import ParksCaliforniaScraper
+from src.scrapers.kinn import KinnScraper
+from src.scrapers.latechevents import LATechEventsScraper
+from src.scrapers.beyond_baroque import BeyondBaroqueScraper
+from src.scrapers.apero_francophone import AperoFrancophoneScraper
 
 # Thread-local storage for database connections
 thread_local = threading.local()
@@ -186,12 +196,35 @@ def main():
     if config.EVENT_SOURCES.get('parks_ca', {}).get('enabled'):
         scrapers.append(ParksCaliforniaScraper())
 
-    # Add more web scrapers here as they are implemented
-    # if config.EVENT_SOURCES['dola']['enabled']:
-    #     scrapers.append(DoLAScraper())
-    # if config.EVENT_SOURCES['ucla']['enabled']:
-    #     scrapers.append(UCLAScraper())
-    # etc.
+    if config.EVENT_SOURCES.get('kinn', {}).get('enabled'):
+        scrapers.append(KinnScraper())
+
+    if config.EVENT_SOURCES.get('latechevents', {}).get('enabled'):
+        scrapers.append(LATechEventsScraper())
+
+    if config.EVENT_SOURCES.get('beyond_baroque', {}).get('enabled'):
+        scrapers.append(BeyondBaroqueScraper())
+
+    if config.EVENT_SOURCES.get('apero_francophone', {}).get('enabled'):
+        scrapers.append(AperoFrancophoneScraper())
+
+    if config.EVENT_SOURCES.get('ucla', {}).get('enabled'):
+        scrapers.append(UCLAScraper())
+
+    if config.EVENT_SOURCES.get('hammer', {}).get('enabled'):
+        scrapers.append(HammerScraper())
+
+    if config.EVENT_SOURCES.get('lacma', {}).get('enabled'):
+        scrapers.append(LACMAScraper())
+
+    if config.EVENT_SOURCES.get('venice_beach', {}).get('enabled'):
+        scrapers.append(VeniceBeachScraper())
+
+    if config.EVENT_SOURCES.get('weho', {}).get('enabled'):
+        scrapers.append(WestHollywoodScraper())
+
+    if config.EVENT_SOURCES.get('culver_city', {}).get('enabled'):
+        scrapers.append(CulverCityScraper())
 
     print(f"\n✓ Loaded {len(scrapers)} scrapers")
 

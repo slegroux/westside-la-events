@@ -14,6 +14,12 @@ tests/
 │   ├── test_search.py       # Search functionality tests
 │   ├── test_scrapers.py     # Scraper tests
 │   └── _test_web_app.py.disabled  # Web endpoint tests (needs dependency fixes)
+├── e2e/                     # End-to-end tests with Playwright
+│   ├── README.md            # E2E testing guide
+│   ├── test_homepage.py     # Homepage tests
+│   ├── test_search_filters.py  # Search and filter tests
+│   ├── test_event_detail.py    # Event detail page tests
+│   └── test_map_interactions.py  # Map functionality tests
 └── integration/             # Integration tests (future)
 ```
 
@@ -44,12 +50,29 @@ PYTHONNOUSERSITE=1 micromamba run python -m pytest tests/ --cov=src --cov-report
 # Run only unit tests
 PYTHONNOUSERSITE=1 micromamba run python -m pytest -m unit
 
+# Run only E2E tests (requires web server running)
+micromamba run -n la python -m pytest -m e2e
+
 # Run only scraper tests
 PYTHONNOUSERSITE=1 micromamba run python -m pytest -m scraper
 
 # Skip slow tests
 PYTHONNOUSERSITE=1 micromamba run python -m pytest -m "not slow"
 ```
+
+### Run E2E Tests
+
+E2E tests require the web server to be running first:
+
+```bash
+# Terminal 1: Start the web server
+micromamba run -n la uvicorn src.web.app:app --host 0.0.0.0 --port 8000
+
+# Terminal 2: Run E2E tests
+micromamba run -n la python -m pytest tests/e2e/ -v
+```
+
+See [tests/e2e/README.md](e2e/README.md) for detailed E2E testing documentation.
 
 ## Test Fixtures
 
@@ -71,6 +94,13 @@ The test suite includes several useful fixtures defined in `conftest.py`:
 
 ### Web Fixtures
 - `app_client`: Test client for FastHTML application
+
+### Playwright Fixtures (E2E)
+- `browser`: Browser instance (session-scoped)
+- `context`: Browser context for each test
+- `page`: Page instance for each test
+- `base_url`: Base URL for the application (default: http://127.0.0.1:8000)
+- `browser_context_args`: Browser context configuration (viewport, user agent, etc.)
 
 ## Writing Tests
 
@@ -94,10 +124,24 @@ class TestMyFeature:
         assert event.id is not None
 ```
 
+### Example E2E Test
+
+```python
+import pytest
+from playwright.sync_api import Page, expect
+
+@pytest.mark.e2e
+def test_homepage_loads(page: Page, base_url: str):
+    """Test that homepage loads successfully."""
+    page.goto(base_url)
+    expect(page).to_have_title("Westside LA Events")
+```
+
 ### Using Markers
 
 ```python
 @pytest.mark.unit  # Unit test
+@pytest.mark.e2e   # End-to-end test
 @pytest.mark.slow  # Slow running test
 @pytest.mark.requires_network  # Requires network access
 ```

@@ -111,6 +111,21 @@ class WestsideComedyScraper(BaseScraper):
             # Extract event data from embedded JSON
             event_data = self._extract_eventbrite_event_data(html)
             if event_data:
+                # Enhance event data with description and image from HTML meta tags
+                soup = BeautifulSoup(html, 'html.parser')
+
+                # Extract description from Open Graph or structured data
+                if not event_data.get('summary') and not event_data.get('description'):
+                    og_desc = soup.find('meta', property='og:description')
+                    if og_desc and og_desc.get('content'):
+                        event_data['summary'] = og_desc['content']
+
+                # Extract image from Open Graph or structured data
+                if not event_data.get('logo') and not event_data.get('image'):
+                    og_image = soup.find('meta', property='og:image')
+                    if og_image and og_image.get('content'):
+                        event_data['logo'] = og_image['content']
+
                 # Parse using Eventbrite parser but use westsidecomedy.com URL
                 event = self._parse_eventbrite_event(event_data)
                 if event:
@@ -449,9 +464,9 @@ class WestsideComedyScraper(BaseScraper):
             if len(description) > 500:
                 description = description[:497] + "..."
 
-            # Extract image URL (Eventbrite uses 'logo' field)
+            # Extract image URL (Eventbrite uses 'logo' or 'image' field)
             image_url = ''
-            logo_data = event_data.get('logo', {})
+            logo_data = event_data.get('logo') or event_data.get('image')
             if isinstance(logo_data, dict):
                 # Try various image size keys
                 for key in ['url', 'original', 'large', 'medium']:
