@@ -1,9 +1,9 @@
 #!/bin/bash
 # Deploy Westside LA Events to Google Cloud Run
-# Usage: ./scripts/deploy.sh [--skip-tests] [--rollback] [--env-file PATH]
+# Usage: ./scripts/deploy.sh [--run-tests] [--rollback] [--env-file PATH]
 #
 # Options:
-#   --skip-tests    Skip running tests before deployment
+#   --run-tests     Run tests before deployment (tests are skipped by default)
 #   --rollback      Rollback to previous revision
 #   --env-file      Path to .env file with additional environment variables
 
@@ -17,12 +17,16 @@ IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 BUCKET_NAME="westside-la-events-data"
 
 # Parse command line arguments
-SKIP_TESTS=false
+SKIP_TESTS=true  # Skip tests by default (use --run-tests to enable)
 ROLLBACK=false
 ENV_FILE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --run-tests)
+            SKIP_TESTS=false
+            shift
+            ;;
         --skip-tests)
             SKIP_TESTS=true
             shift
@@ -37,7 +41,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: ./scripts/deploy.sh [--skip-tests] [--rollback] [--env-file PATH]"
+            echo "Usage: ./scripts/deploy.sh [--run-tests] [--rollback] [--env-file PATH]"
             exit 1
             ;;
     esac
@@ -114,14 +118,14 @@ if [ "$SKIP_TESTS" = false ]; then
         if bash -c 'unset PYTHONPATH; PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/ -v --tb=short'; then
             echo "✅ Tests passed"
         else
-            echo "❌ Tests failed. Use --skip-tests to deploy anyway."
+            echo "❌ Tests failed. Remove --run-tests to deploy without testing."
             exit 1
         fi
     else
         echo "⚠️  Warning: micromamba not found, skipping tests"
     fi
 else
-    echo "⏭️  Skipping tests (--skip-tests flag used)"
+    echo "⏭️  Skipping tests (use --run-tests to run tests before deployment)"
 fi
 
 # Check git status

@@ -122,7 +122,7 @@ if [ "$RUN_SCRAPERS" = true ]; then
     if [ "$DRY_RUN" = false ]; then
         # Check if micromamba is available
         if command -v micromamba &> /dev/null; then
-            # Run scrapers with clean environment
+            # Run scrapers with clean environment (now using async optimized version)
             bash -c 'unset PYTHONPATH; micromamba run -n la python run_scrapers.py' || {
                 echo "❌ Error: Scrapers failed"
                 exit 1
@@ -132,7 +132,7 @@ if [ "$RUN_SCRAPERS" = true ]; then
             exit 1
         fi
     else
-        echo "   [DRY RUN] Would run: micromamba run -n la python run_scrapers.py"
+        echo "   [DRY RUN] Would run: micromamba run -n la python run_scrapers.py (async optimized)"
     fi
 
     # Update event count after scraping
