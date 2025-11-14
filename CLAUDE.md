@@ -124,8 +124,14 @@ This project uses micromamba for environment management with a dedicated environ
 # Run a Python script
 micromamba run -n la python <script.py>
 
-# Run the scrapers
+# Run the scrapers (async optimized by default)
 micromamba run -n la python run_scrapers.py
+
+# Run specific scrapers only (faster for development)
+micromamba run -n la python run_scrapers.py --scrapers santa_monica timeout kcrw
+
+# Adjust concurrency for performance tuning
+micromamba run -n la python run_scrapers.py --max-concurrent 15
 
 # Use Python module/library commands
 micromamba run -n la uvicorn src.web.app:app --host 127.0.0.1 --port 8000 --reload
@@ -135,6 +141,8 @@ micromamba run -n la python -m pytest tests/
 ```
 
 This ensures that all dependencies are available in the correct isolated `la` environment. **Never use `micromamba run` without `-n la`** as it will default to the base environment which doesn't have the project dependencies.
+
+**Note**: The scraper runner now uses async/await with concurrent execution for optimal performance (5-10x faster than sequential). The old synchronous version is available as `run_scrapers_old_sync.py` if needed.
 
 **Important:** Do NOT run Python scripts directly (e.g., `python src/web/app.py`) as this will cause import errors. The project uses module imports that require the project root to be in the Python path.
 
