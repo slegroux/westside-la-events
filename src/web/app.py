@@ -234,8 +234,9 @@ def page_head(title: str, description: Optional[str] = None):
         # Filter collapse/expand functionality with state persistence
         Script('''
             // Get saved collapse state from localStorage
+            // Note: Using v2 key to reset previous expanded state defaults
             function getCollapseState(sectionId) {
-                const saved = localStorage.getItem('filter_collapse_' + sectionId);
+                const saved = localStorage.getItem('filter_collapse_v2_' + sectionId);
                 // Return null if no saved state (let the existing DOM state be preserved)
                 if (saved === null) return null;
                 return saved === 'expanded';
@@ -243,7 +244,7 @@ def page_head(title: str, description: Optional[str] = None):
 
             // Save collapse state to localStorage
             function saveCollapseState(sectionId, isExpanded) {
-                localStorage.setItem('filter_collapse_' + sectionId, isExpanded ? 'expanded' : 'collapsed');
+                localStorage.setItem('filter_collapse_v2_' + sectionId, isExpanded ? 'expanded' : 'collapsed');
             }
 
             // Toggle filter section and save state
