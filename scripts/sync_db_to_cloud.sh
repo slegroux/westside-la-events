@@ -17,7 +17,7 @@
 set -e  # Exit on error
 
 # Configuration
-PROJECT_ID="westside-events-406046958598"
+PROJECT_ID="westside-la-events"
 SERVICE_NAME="westside-events"
 REGION="us-west1"
 BUCKET_NAME="westside-la-events-data"
