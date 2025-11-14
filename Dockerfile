@@ -27,10 +27,9 @@ RUN mkdir -p /app/data
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV PORT=8000
 
-# Expose port (Cloud Run will override with $PORT)
-EXPOSE 8000
+# Expose port (Cloud Run will set $PORT environment variable)
+EXPOSE 8080
 
 # Run the application
 CMD uvicorn src.web.app:app --host 0.0.0.0 --port $PORT

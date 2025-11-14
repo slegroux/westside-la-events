@@ -880,7 +880,7 @@ def filter_section_collapsible(section_id: str, label: str, checkboxes_content, 
             *checkboxes_content,
             cls='category-checkboxes',
             id=f'{section_id}-content',
-            style='' if not collapsed else 'display: none;'
+            style='display: none;' if collapsed else 'display: flex;'
         ),
         cls='filter-group category-filter-group',
         id=f'filter-section-{section_id}'
@@ -991,9 +991,9 @@ def filter_tallies_section(date_filter: str = 'upcoming', category: List[str] = 
             cls='filter-group checkbox-filter',
         ),
         # Categories filter - collapsible (state managed by JavaScript/localStorage) with summary
-        filter_section_collapsible('categories', 'Categories', category_checkboxes, collapsed=False, total_count=total_categories, selected_count=selected_categories_event_count),
+        filter_section_collapsible('categories', 'Categories', category_checkboxes, collapsed=True, total_count=total_categories, selected_count=selected_categories_event_count),
         # Venues filter - collapsible (state managed by JavaScript/localStorage) with summary
-        filter_section_collapsible('venues', 'Venues', source_checkboxes, collapsed=False, total_count=total_sources, selected_count=selected_sources_event_count) if source_checkboxes else None,
+        filter_section_collapsible('venues', 'Venues', source_checkboxes, collapsed=True, total_count=total_sources, selected_count=selected_sources_event_count) if source_checkboxes else None,
         id='filter-tallies'
     )
 
