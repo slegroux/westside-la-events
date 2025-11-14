@@ -10,13 +10,13 @@
 ## 1. Overview
 
 ### 1.1 Purpose
-The Westside LA Events Aggregator is a production-ready web application that aggregates events from 33+ sources across LA's Westside and Malibu, providing a unified search interface with intelligent filtering, map visualization, privacy-friendly analytics, and comprehensive event details.
+The Westside LA Events Aggregator is a production-ready web application that aggregates events from 35+ sources across LA's Westside and Malibu, providing a unified search interface with intelligent filtering, map visualization, privacy-friendly analytics, and comprehensive event details.
 
 ### 1.2 Scope
 - **Audience**: LA Westside and Malibu residents, visitors, and event organizers
 - **Geographic Focus**: Santa Monica, West Hollywood, Culver City, Venice, Malibu, UCLA area
 - **Event Types**: Music, art, food & drink, sports, family activities, theater, comedy, film, nightlife, wellness, community, education, tech, date night
-- **Data Sources**: 33 event sources including city calendars, venues, cultural institutions, ticketing platforms, and community groups
+- **Data Sources**: 35+ event sources including city calendars, venues, cultural institutions, ticketing platforms, and community groups
 - **Key Features**: Full-text search, date/category/source filtering, map visualization, event details, calendar export, favorites, analytics dashboard
 
 ### 1.3 Technology Stack
@@ -82,7 +82,7 @@ The Westside LA Events Aggregator is a production-ready web application that agg
 ┌─────────▼─────────────────────────────────────────┐
 │      Data Collection Layer (src/scrapers/)        │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
-│  │  base.py │  │ 33 Active│  │ Disabled │        │
+│  │  base.py │  │ 35 Active│  │ Disabled │        │
 │  │  (Base   │  │ Scrapers │  │ Scrapers │        │
 │  │  Class)  │  │          │  │ (3)      │        │
 │  └──────────┘  └──────────┘  └──────────┘        │

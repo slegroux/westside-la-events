@@ -311,6 +311,41 @@ def page_head(title: str, description: Optional[str] = None):
                     setTimeout(restoreCollapseStates, 100);
                 }
             });
+
+            // Category filter toggle handler - integrated with checkbox filters
+            document.body.addEventListener('click', function(event) {
+                const categoryLink = event.target.closest('.event-category-filter');
+                if (categoryLink) {
+                    event.preventDefault();
+                    const category = categoryLink.getAttribute('data-category');
+
+                    // Find the checkbox for this category
+                    const checkbox = document.querySelector(`input[type="checkbox"][name="category"][value="${category}"]`);
+
+                    if (checkbox) {
+                        // Toggle the checkbox
+                        checkbox.checked = !checkbox.checked;
+                        console.log(`Toggled category ${category}: ${checkbox.checked}`);
+
+                        // Trigger HTMX to process this element
+                        // Use htmx.trigger to dispatch a proper change event that HTMX will handle
+                        if (typeof htmx !== 'undefined') {
+                            // HTMX processes events properly when triggered via htmx.trigger
+                            htmx.trigger(checkbox, 'change');
+                        } else {
+                            console.warn('HTMX not loaded, falling back to native event');
+                            // Create and dispatch a proper Event that bubbles and is cancelable
+                            const changeEvent = new Event('change', {
+                                bubbles: true,
+                                cancelable: true
+                            });
+                            checkbox.dispatchEvent(changeEvent);
+                        }
+                    } else {
+                        console.warn(`Checkbox not found for category: ${category}`);
+                    }
+                }
+            });
         ''')
     )
 
@@ -396,16 +431,23 @@ def event_card(event: Event, session=None):
     is_fav = is_favorited(session, event.id) if session else False
 
     # Source logo element - clickable, pointing to original event URL
-    source_display = A(
-        Img(src=event.source_logo_url, alt=f'{event.source} logo', cls='source-logo') if event.source_logo_url else Span(event.source, cls='event-source'),
-        href=event.url,
-        target='_blank',
-        rel='noopener noreferrer',
-        cls='event-source-link',
-        title=f'View on {event.source}'
-    ) if event.url else (
-        Img(src=event.source_logo_url, alt=f'{event.source} logo', cls='source-logo') if event.source_logo_url else Span(event.source, cls='event-source')
-    )
+    # Wrap logo and label in a container
+    if event.url:
+        source_display = A(
+            Img(src=event.source_logo_url, alt=f'{event.source} logo', cls='source-logo') if event.source_logo_url else None,
+            Span(event.source, cls='source-label'),
+            href=event.url,
+            target='_blank',
+            rel='noopener noreferrer',
+            cls='event-source-link',
+            title=f'View on {event.source}'
+        )
+    else:
+        source_display = Div(
+            Img(src=event.source_logo_url, alt=f'{event.source} logo', cls='source-logo') if event.source_logo_url else None,
+            Span(event.source, cls='source-label'),
+            cls='event-source-container'
+        )
 
     # Price display
     price_display = None
@@ -420,20 +462,29 @@ def event_card(event: Event, session=None):
         # Default when no price information is available
         price_display = Span('$TBD', cls='event-price price-tbd')
 
+    # Create link attributes for external event URL
+    link_attrs = {
+        'href': event.url,
+        'target': '_blank',
+        'rel': 'noopener noreferrer',
+        'style': 'text-decoration: none; color: inherit;'
+    } if event.url else {
+        'style': 'text-decoration: none; color: inherit; cursor: default;'
+    }
+
     return Div(
-        # Make image clickable
+        # Make image clickable to original event URL
         A(
             Img(src=event.image_url, alt=event.title, cls='event-image'),
-            href=f'/event/{event.id}'
+            **link_attrs
         ) if event.image_url else None,
         Div(
-            # Make title clickable with favorite button
+            # Make title clickable to original event URL with favorite button
             Div(
                 Div(
                     A(
                         H2(event.title, cls='event-title'),
-                        href=f'/event/{event.id}',
-                        style='text-decoration: none; color: inherit;'
+                        **link_attrs
                     ),
                     cls='event-title-wrapper'
                 ),
@@ -442,26 +493,42 @@ def event_card(event: Event, session=None):
                 cls='event-header'
             ) if (price_display or session) else A(
                 H2(event.title, cls='event-title'),
-                href=f'/event/{event.id}',
-                style='text-decoration: none; color: inherit;'
+                **link_attrs
             ),
-            Div(f'📅 {event_date_str}', cls='event-date'),
-            Div(f'📍 {event.venue_name}', cls='event-location') if event.venue_name else None,
+            A(
+                Div(
+                    Span('📅', cls='calendar-download-icon', style='margin-right: 0.25rem;'),
+                    Span(event_date_str),
+                    cls='event-date'
+                ),
+                href=f'/api/events/{event.id}/calendar',
+                title='Download calendar event',
+                style='text-decoration: none; cursor: pointer; color: inherit;'
+            ),
+            # Make venue name clickable to open map popup
+            (Div(
+                A(
+                    '📍 ',
+                    event.venue_name,
+                    href='#',
+                    cls='venue-location-link',
+                    **{
+                        'data-venue-name': event.venue_name,
+                        'data-latitude': str(event.latitude) if event.latitude else '',
+                        'data-longitude': str(event.longitude) if event.longitude else '',
+                        'data-address': event.address or ''
+                    },
+                    title=f'View {event.venue_name} on map',
+                    style='text-decoration: none; color: inherit; cursor: pointer;'
+                ),
+                cls='event-location'
+            ) if event.venue_name else None),
             P(event.description, cls='event-description') if event.description else None,
             Div(
-                A(
+                Span(
                     event.category,
-                    cls='event-category event-category-filter',
-                    hx_get=f'/filters/category/{event.category}',
-                    hx_target='#events-container',
-                    hx_indicator='#loading-indicator',
-                    hx_swap='innerHTML',
-                    href='#',
-                    **{
-                        'data-category': event.category
-                    }
+                    cls='event-category'
                 ),
-                A('📅', href=f'/event/{event.id}/calendar', cls='calendar-link-icon', title='Add to Calendar'),
                 source_display,
                 cls='event-footer'
             ),
@@ -1309,273 +1376,41 @@ def get_events_json(q: str = '', date_filter: str = 'upcoming', category: List[s
     return JSONResponse([event.to_dict() for event in events])
 
 
-def _lazy_load_description(event: Event):
-    """
-    Lazy load description for an event that doesn't have one.
-    This is a fallback for events that were scraped without descriptions.
-
-    Args:
-        event: Event object to load description for
-    """
-    try:
-        # Import scraper dynamically to avoid circular imports
-        if event.source == 'KCRW':
-            from src.scrapers.kcrw import KCRWScraper
-            scraper = KCRWScraper()
-            description = scraper._fetch_event_description(event.url)
-
-            if description:
-                # Update event in database
-                event.description = description
-                state.db.update_event(event)
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Failed to lazy load description for event {event.id}: {e}")
-
-
-def event_location_map(event: Event):
-    """Component to render an inline map for a single event location."""
-    import json
-
-    # Safely escape strings for JavaScript
-    title_json = json.dumps(event.title)
-    venue_json = json.dumps(event.venue_name if event.venue_name else "")
-
-    map_id = f'event-map-{event.id}'
-
-    return Div(
-        Div(id=map_id, style='width: 100%; height: 300px; border-radius: 0.5rem; margin-bottom: 1.5rem;'),
-        Script(f'''
-            document.addEventListener('DOMContentLoaded', function() {{
-                // Initialize map for event location
-                const eventMap = L.map('{map_id}').setView([{event.latitude}, {event.longitude}], 15);
-
-                // Add OpenStreetMap tiles
-                L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                    maxZoom: 19
-                }}).addTo(eventMap);
-
-                // Add marker for event location
-                const marker = L.marker([{event.latitude}, {event.longitude}]).addTo(eventMap);
-                const popupTitle = {title_json};
-                const popupVenue = {venue_json};
-                const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination={event.latitude},{event.longitude}`;
-                marker.bindPopup(`
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 0.25rem;">${{popupTitle}}</div>
-                        <div style="font-size: 0.9rem; color: #64748b; margin-bottom: 0.5rem;">${{popupVenue}}</div>
-                        <a href="${{directionsUrl}}" target="_blank" rel="noopener noreferrer" style="color: #10b981; font-weight: 600; text-decoration: none; font-size: 0.9rem;">🗺️ Get Directions</a>
-                    </div>
-                `).openPopup();
-            }});
-        ''')
-    )
-
-
-@rt('/event/{event_id}')
-def event_detail_page(request, session, event_id: int):
-    """Event detail page with lazy description loading."""
-    event = state.db.get_event(event_id)
-    if not event:
-        return Html(
-            page_head('Event Not Found - Westside LA Events'),
-            Body(
-                page_header(),
-                Main(
-                    Div(
-                        A('← Back to Events', href='/', cls='back-link'),
-                        Div(
-                            H2('Event Not Found'),
-                            P('The event you are looking for does not exist.'),
-                            cls='empty-state'
-                        ),
-                        cls='container'
-                    )
-                ),
-                page_footer()
-            )
-        )
-
-    # Track event view
-    if config.ENABLE_ANALYTICS and state.analytics:
-        try:
-            session_id = get_session_id(session)
-            state.analytics.track_event_interaction(
-                session_id=session_id,
-                event_id=event.id,
-                interaction_type='view',
-                source=event.source,
-                category=event.category
-            )
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error tracking event view: {e}")
-
-    # Track page view
-    track_page_view(request, session, f'/event/{event_id}')
-
-    # Lazy load description if missing (for KCRW events)
-    if not event.description and event.url and event.source == 'KCRW':
-        _lazy_load_description(event)
-
-    description = f'{event.description[:150]}...' if event.description and len(event.description) > 150 else event.description
-    return Html(
-        page_head(f'{event.title} - Westside LA Events', description=description),
-        Body(
-            page_header(),
-            Main(
-                Div(
-                    A('← Back to Events', href='/', cls='back-link'),
-                    Div(
-                        # Event image
-                        Img(src=event.image_url, alt=event.title, cls='event-detail-image') if event.image_url else None,
-                        H1(event.title, cls='event-detail-title'),
-                        Div(
-                            Span(f'📅 {event.event_date.strftime("%A, %B %d, %Y at %I:%M %p") if event.event_date else "Date TBA"}', cls='event-detail-date'),
-                            Span(f'📍 {event.venue_name}', cls='event-detail-venue') if event.venue_name else '',
-                            # Price display
-                            Span('FREE', cls='event-price free-badge', style='margin-left: 1rem;') if event.is_free else (
-                                Span(f'${event.price:.2f}', cls='event-price', style='margin-left: 1rem;') if event.price else (
-                                    Span(event.price_note, cls='event-price price-note', style='margin-left: 1rem;') if event.price_note else Span('$TBD', cls='event-price price-tbd', style='margin-left: 1rem;')
-                                )
-                            ),
-                            cls='event-detail-meta'
-                        ),
-                        # Event summary/description
-                        Div(
-                            H2('About This Event', cls='section-heading'),
-                            P(event.description, cls='event-detail-description'),
-                            cls='event-summary-section'
-                        ) if event.description else None,
-                        # Map showing event location
-                        event_location_map(event) if event.latitude and event.longitude else '',
-                        Div(
-                            Div(
-                                Strong('Address: '),
-                                A(event.address,
-                                  href=f'https://www.google.com/maps/search/?api=1&query={event.latitude},{event.longitude}' if event.latitude and event.longitude else f'https://www.google.com/maps/search/?api=1&query={event.address.replace(" ", "+")}',
-                                  target='_blank',
-                                  rel='noopener noreferrer',
-                                  style='color: #10b981; text-decoration: none; font-weight: 500;')
-                            ) if event.address else '',
-                            Div(
-                                Strong('Category: '),
-                                Span(event.category, cls='badge event-category', **{'data-category': event.category})
-                            ) if event.category else '',
-                            Div(
-                                Strong('Source: '),
-                                Div(
-                                    Img(src=event.source_logo_url, alt=f'{event.source} logo', cls='source-logo') if event.source_logo_url else None,
-                                    Span(event.source, cls='event-source'),
-                                    cls='event-source-container'
-                                )
-                            ),
-                            cls='event-detail-info'
-                        ),
-                        Div(
-                            A('Visit Original Event Page →', href=event.url, target='_blank', cls='btn-primary') if event.url and not event.url.startswith('https://example.com') else '',
-                            A('📅 Add to Calendar', href=f'/event/{event.id}/calendar', cls='btn-secondary calendar-link'),
-                            cls='event-detail-actions'
-                        ),
-                        cls='event-detail-card'
-                    ),
-                    cls='container'
-                )
-            ),
-            page_footer()
-        )
-    )
-
-
-@rt('/event/{event_id}/calendar')
-def export_event_calendar(session, event_id: int):
-    """Export event as .ics calendar file."""
+@rt('/api/events/{event_id}/calendar')
+def download_event_calendar(event_id: int, session):
+    """API endpoint to download event as .ics calendar file."""
     from starlette.responses import Response
-    import re
+    from src.utils.calendar import generate_ics, get_ics_filename
 
+    # Get the event from database
     event = state.db.get_event(event_id)
+
     if not event:
         return Response('Event not found', status_code=404)
 
-    # Track calendar export
+    # Track calendar download interaction
     if config.ENABLE_ANALYTICS and state.analytics:
         try:
             session_id = get_session_id(session)
             state.analytics.track_event_interaction(
                 session_id=session_id,
                 event_id=event_id,
-                interaction_type='calendar',
+                interaction_type='calendar_download',
                 source=event.source,
                 category=event.category
             )
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Error tracking calendar export: {e}")
+            logger.error(f"Error tracking calendar download: {e}")
 
     # Generate .ics content
-    from datetime import datetime, timezone, timedelta
+    ics_content = generate_ics(event)
 
-    # Format dates for iCalendar (YYYYMMDDTHHMMSSZ format)
-    def format_ical_date(dt):
-        if dt:
-            # Convert to UTC if possible
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt.strftime('%Y%m%dT%H%M%SZ')
-        return ''
+    # Generate filename
+    filename = get_ics_filename(event)
 
-    # Handle start date - use event date or current time if missing
-    start_dt = event.event_date if event.event_date else datetime.now()
-    start_date = format_ical_date(start_dt)
-
-    # Handle end date - use event end_date, or fallback to start + 2 hours
-    if event.end_date:
-        end_date = format_ical_date(event.end_date)
-    else:
-        # Use timedelta to handle late-night events (e.g., 11 PM + 2 hours = 1 AM next day)
-        end_dt = start_dt + timedelta(hours=2)
-        end_date = format_ical_date(end_dt)
-
-    # Clean text for iCalendar format (escape special characters)
-    def clean_ical_text(text):
-        if not text:
-            return ''
-        text = str(text).replace('\\', '\\\\').replace(',', '\\,').replace(';', '\\;').replace('\n', '\\n')
-        return text
-
-    # Create unique ID for the event
-    uid = f'event-{event.id}@westsidelaevents.com'
-
-    # Build location string
-    location = clean_ical_text(f"{event.venue_name}, {event.address}" if event.venue_name and event.address else event.venue_name or event.address or '')
-
-    ics_content = f"""BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Westside LA Events//Event Export//EN
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-BEGIN:VEVENT
-UID:{uid}
-DTSTAMP:{format_ical_date(datetime.now())}
-DTSTART:{start_date}
-DTEND:{end_date}
-SUMMARY:{clean_ical_text(event.title)}
-DESCRIPTION:{clean_ical_text(event.description)}
-LOCATION:{location}
-URL:{event.url if event.url else ''}
-STATUS:CONFIRMED
-SEQUENCE:0
-END:VEVENT
-END:VCALENDAR"""
-
-    # Create safe filename from event title
-    safe_title = re.sub(r'[^\w\s-]', '', event.title).strip().replace(' ', '_')[:50]
-    filename = f'{safe_title}.ics'
-
+    # Return as downloadable file
     return Response(
         content=ics_content,
         media_type='text/calendar',
@@ -1585,42 +1420,7 @@ END:VCALENDAR"""
     )
 
 
-@rt('/api/events/{event_id}')
-def get_event_json(event_id: int):
-    """API endpoint to get a single event."""
-    from starlette.responses import JSONResponse
-    event = state.db.get_event(event_id)
-    if event:
-        return JSONResponse(event.to_dict())
-    return JSONResponse({'error': 'Event not found'}, status_code=404)
-
-
-@app.post('/api/track/click/{event_id}')
-def track_event_click(session, event_id: int):
-    """Track an external link click (called from client-side JS)."""
-    from starlette.responses import JSONResponse
-
-    if not config.ENABLE_ANALYTICS or not state.analytics:
-        return JSONResponse({'status': 'analytics_disabled'})
-
-    try:
-        event = state.db.get_event(event_id)
-        if event:
-            session_id = get_session_id(session)
-            state.analytics.track_event_interaction(
-                session_id=session_id,
-                event_id=event_id,
-                interaction_type='click',
-                source=event.source,
-                category=event.category
-            )
-            return JSONResponse({'status': 'tracked'})
-        return JSONResponse({'error': 'Event not found'}, status_code=404)
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error tracking click: {e}")
-        return JSONResponse({'error': 'Internal error'}, status_code=500)
+# Detail page routes removed - events now link directly to original source URLs
 
 
 @app.get('/favicon.ico')
@@ -1664,6 +1464,42 @@ def serve_static(filepath: str):
         return Response('Not Found', status_code=404)
 
     return FileResponse(requested_file)
+
+
+@rt('/api/run-scrapers')
+async def post(request):
+    """
+    API endpoint to trigger scrapers.
+    Used by Cloud Scheduler for automated scraping.
+    """
+    import subprocess
+    import os
+
+    # Verify the request is authorized (basic security)
+    auth_header = request.headers.get('Authorization', '')
+    expected_token = os.getenv('SCRAPER_TOKEN', 'default-secret-token')
+
+    if auth_header != f'Bearer {expected_token}':
+        return JSONResponse({'error': 'Unauthorized'}, status_code=401)
+
+    try:
+        # Run scrapers in background
+        subprocess.Popen(
+            ['python3', 'run_scrapers.py'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd='/app'
+        )
+        return JSONResponse({
+            'status': 'success',
+            'message': 'Scrapers started',
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return JSONResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status_code=500)
 
 
 if __name__ == '__main__':

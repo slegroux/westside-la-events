@@ -1,0 +1,51 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache
+.coverage
+htmlcov
+*.egg-info
+
+# Environment
+.env
+.envrc
+venv
+env
+ENV
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Testing
+tests
+*.log
+logs
+
+# Large files
+google-cloud-cli-linux-x86_64.tar.gz
+google-cloud-sdk
+
+# Data (will use Cloud Storage)
+data/*.db
+data/*.json
+
+# Claude
+.claude

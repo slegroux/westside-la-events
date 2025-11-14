@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 """
 Reclassify all events in the database using the updated category classifier.
 This script updates events that were previously misclassified.

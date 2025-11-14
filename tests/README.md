@@ -12,8 +12,18 @@ tests/
 ├── unit/                    # Unit tests
 │   ├── test_database.py     # Database and Event model tests
 │   ├── test_search.py       # Search functionality tests
-│   ├── test_scrapers.py     # Scraper tests
-│   └── _test_web_app.py.disabled  # Web endpoint tests (needs dependency fixes)
+│   ├── test_scrapers.py     # Base scraper class tests
+│   ├── test_all_scrapers.py # Comprehensive tests for all 34 scrapers
+│   ├── test_analytics.py    # Analytics system tests
+│   ├── test_logos.py        # Logo management tests
+│   ├── test_fts_security.py # Full-text search security tests
+│   ├── test_setup.py        # Setup and configuration tests
+│   └── test_web_app.py      # Web endpoint tests
+├── scrapers/                # Individual scraper tests
+│   ├── test_kcrw.py         # KCRW scraper tests
+│   ├── test_parks_scraper.py # Parks scraper tests
+│   ├── test_venice_west_*.py # Venice West scraper tests
+│   └── test_*.py            # Other specific scraper tests
 ├── e2e/                     # End-to-end tests with Playwright
 │   ├── README.md            # E2E testing guide
 │   ├── test_homepage.py     # Homepage tests
@@ -48,16 +58,19 @@ PYTHONNOUSERSITE=1 micromamba run python -m pytest tests/ --cov=src --cov-report
 ### Run Tests by Marker
 ```bash
 # Run only unit tests
-PYTHONNOUSERSITE=1 micromamba run python -m pytest -m unit
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest -m unit
 
 # Run only E2E tests (requires web server running)
 micromamba run -n la python -m pytest -m e2e
 
-# Run only scraper tests
-PYTHONNOUSERSITE=1 micromamba run python -m pytest -m scraper
+# Run only scraper tests (includes all 34 scrapers)
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest -m scraper
+
+# Run comprehensive scraper tests
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/test_all_scrapers.py -v
 
 # Skip slow tests
-PYTHONNOUSERSITE=1 micromamba run python -m pytest -m "not slow"
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest -m "not slow"
 ```
 
 ### Run E2E Tests
@@ -73,6 +86,46 @@ micromamba run -n la python -m pytest tests/e2e/ -v
 ```
 
 See [tests/e2e/README.md](e2e/README.md) for detailed E2E testing documentation.
+
+## Comprehensive Scraper Tests
+
+The `test_all_scrapers.py` file provides comprehensive unit tests for all 34 event scrapers in the system:
+
+### Coverage
+
+- **34 scrapers tested**: All scrapers from Aero Theater to Winston House
+- **251 total test cases**: Parametrized tests ensure consistent coverage
+- **Test categories**:
+  - **Initialization**: Verifies proper setup, source names, and configuration
+  - **Basic Functionality**: Tests scrape() method, error handling, and empty responses
+  - **JavaScript Support**: Validates Playwright integration for dynamic sites
+  - **Event Creation**: Tests event validation and location filtering
+  - **Utility Methods**: Tests text cleaning, URL normalization, HTML parsing
+  - **Error Handling**: Tests malformed HTML and network error resilience
+  - **Logging**: Validates logging functionality
+
+### Running Scraper Tests
+
+```bash
+# Run all scraper tests (251 tests)
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/test_all_scrapers.py -v
+
+# Run specific test class
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/test_all_scrapers.py::TestScraperInitialization -v
+
+# Run tests for a specific scraper
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/test_all_scrapers.py -k "KCRWScraper" -v
+
+# Run just initialization tests (fast)
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/test_all_scrapers.py::TestScraperInitialization -v
+```
+
+### Test Design
+
+- **Mocked Dependencies**: All network calls and geocoding are mocked for speed
+- **Parametrized Tests**: Each scraper runs through the same test suite
+- **Consistent Validation**: Ensures all scrapers follow the same patterns
+- **No External Calls**: Tests run quickly without API dependencies
 
 ## Test Fixtures
 
@@ -91,6 +144,8 @@ The test suite includes several useful fixtures defined in `conftest.py`:
 ### Scraper Fixtures
 - `mock_geocoding_service`: Mocked geocoding service (no API calls)
 - `temp_geocode_cache`: Temporary geocoding cache file
+- `mock_fetch_page`: Mocked fetch_page to avoid network calls
+- `mock_fetch_page_js`: Mocked fetch_page_js to avoid Playwright calls
 
 ### Web Fixtures
 - `app_client`: Test client for FastHTML application

@@ -82,3 +82,10 @@ temp/
 
 # Claude Code
 .claude/
+
+# Google Cloud deployment info (contains sensitive tokens)
+.gcloud-deployment-info
+
+# Google Cloud SDK
+google-cloud-sdk/
+google-cloud-cli-*.tar.gz

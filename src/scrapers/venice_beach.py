@@ -153,7 +153,7 @@ class VeniceBeachScraper(BaseScraper):
         text_content = f"{title} {description}".lower()
         if '$' in text_content and 'free' not in text_content:
             is_free = False
-            price_note = "Check website for pricing"
+            price_note = None  # Display as $TBD
 
         return self.create_event(
             title=title,

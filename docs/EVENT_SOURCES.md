@@ -11,14 +11,16 @@ This document outlines the various event sources for the LA Events Aggregator an
 | KCRW | Scraping | Easy | ✅ Implemented | High |
 | **Eventbrite** | **API** | **Easy** | **✅ Implemented** | **High** |
 | **Meetup** | **API/Scraping** | **Medium** | **✅ Implemented** | **High** |
+| Discover LA (DoLA) | Scraping | Medium | ✅ Implemented | High |
+| UCLA Events | Scraping | Easy | ✅ Implemented | High |
+| Hammer Museum | Scraping | Easy | ✅ Implemented | High |
+| LACMA | Scraping | Easy | ✅ Implemented | High |
+| Venice West | Scraping | Medium | ✅ Implemented | High |
+| Westside Comedy | Scraping | Easy | ✅ Implemented | Medium |
+| **35+ Total Scrapers** | Various | - | **✅ Implemented** | - |
 | Facebook Events | API | Very Hard | ❌ Skip for now | Low |
-| Discover LA (DoLA) | Scraping | Medium | 🔄 Planned | Medium |
-| UCLA Events | Scraping | Easy | 🔄 Planned | Medium |
-| Hammer Museum | Scraping | Easy | 🔄 Planned | Medium |
-| LACMA | Scraping | Easy | 🔄 Planned | Medium |
-| Bandsintown | API | Easy | 🔄 Recommended | High |
-| Dice.fm | Scraping | Medium | 🔄 Optional | Medium |
-| LA Weekly | Scraping | Medium | 🔄 Optional | Medium |
+| Bandsintown | API | Easy | 🔄 Future | Medium |
+| Dice.fm | Scraping | Medium | 🔄 Future | Medium |
 
 ## Detailed Platform Analysis
 

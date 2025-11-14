@@ -547,7 +547,7 @@ class AviatorNationScraper(BaseScraper):
             end_date=None,
             url=event_url,
             image_url=image_url,
-            category='music',  # Aviator Nation is primarily a music venue
+            category='Music',  # Aviator Nation is primarily a music venue
             price=price,
             is_free=is_free
         )

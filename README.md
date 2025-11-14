@@ -1,122 +1,116 @@
 # Westside LA Events Aggregator
 
-A FastHTML-powered web application that aggregates events from multiple sources across LA's Westside, providing a unified search interface with date filtering, activity type categorization, and Google Maps geolocation visualization.
+> **Live Demo**: https://westside-events-406046958598.us-west1.run.app
+
+A FastHTML-powered web application that aggregates events from 30+ sources across LA's Westside, providing a unified search interface with intelligent filtering, interactive maps, and analytics.
 
 ## Features
 
-- **Multi-Source Aggregation**: Collects events from Santa Monica, Timeout LA, KCRW, UCLA, museums, and more
-- **Advanced Search**: Search by keywords, date range, category, and location
-- **Interactive Map**: Google Maps visualization with clustered markers and info windows
-- **Smart Categorization**: Automatic event classification into categories (Music, Art, Food & Drink, etc.)
-- **Geocoding**: Automatic address-to-coordinates conversion for map display
-- **Responsive Design**: Works on desktop and mobile devices
+- **Multi-Source Aggregation**: 35+ scrapers collecting events from venues, museums, cultural centers, and community organizations
+- **Smart Search**: Full-text search with date filtering, category tags, and location-based queries
+- **Interactive Maps**: Leaflet + OpenStreetMap visualization with clustered markers and detailed event cards
+- **Analytics Dashboard**: Track popular events, user engagement, and traffic sources
+- **Favorites System**: Save and manage your favorite events across sessions
+- **Responsive Design**: Optimized for desktop, tablet, and mobile devices
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.10 or higher
-- Google Maps API key (for map visualization - optional for testing)
-- Google Geocoding API key (for address geocoding - optional for testing)
-- (Optional) direnv + micromamba for automatic environment activation
-
-**Note:** The scrapers work with **no API keys required**! They use web scraping only. Google API keys are only needed for the map visualization and geocoding features.
+- Python 3.10+
+- Google Geocoding API key (optional - only for address geocoding)
 
 ### Installation
 
-#### Option 1: Using direnv + micromamba (Recommended)
-
-This project uses **direnv** to automatically activate the **micromamba environment** when you enter the project directory.
-
-1. Install micromamba (if not installed):
 ```bash
-"${SHELL}" <(curl -L micro.mamba.pm/install.sh)
-```
+# 1. Clone the repository
+git clone https://github.com/slegroux/LA.git
+cd LA
 
-2. Create the micromamba environment:
-```bash
+# 2. Create environment
 micromamba create -n la python=3.10 -y
 micromamba activate la
+
+# 3. Install dependencies
 pip install -r requirements.txt
-```
 
-3. Configure direnv (if not already configured):
-```bash
-# Add to ~/.bashrc or ~/.zshrc
-eval "$(direnv hook bash)"  # For bash
-eval "$(direnv hook zsh)"   # For zsh
-```
-
-4. Allow direnv for this project:
-```bash
-direnv allow
-```
-
-Now the `la` environment will **automatically activate** when you enter this directory!
-
-**Benefits:**
-- No need to manually activate the environment
-- Consistent environment across terminal sessions
-- Automatic `.env` loading for API keys
-- Clean separation between projects
-
-5. Set up environment variables:
-```bash
+# 4. Set up configuration
 cp .env.example .env
-# Edit .env and add your Google API keys
-```
+# Edit .env to add API keys (optional for testing)
 
-5. Initialize the database:
-```bash
-micromamba run python -c "from src.data.database import Database; Database('data/events.db')"
-```
-
-#### Option 2: Using venv (Alternative)
-
-**Note:** Using micromamba (Option 1) is recommended for this project as all documentation and scripts assume micromamba usage.
-
-1. Create and activate a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env and add your Google API keys
-```
-
-4. Initialize the database:
-```bash
+# 5. Initialize database
 python -c "from src.data.database import Database; Database('data/events.db')"
 ```
 
-**Important:** If using venv, replace `micromamba run python` with just `python` and `micromamba run uvicorn` with just `uvicorn` in all commands below.
+### Running Locally
 
-### Running the Application
-
-1. **Run scrapers to collect events**:
 ```bash
-micromamba run python run_scrapers.py
+# Collect events
+micromamba run -n la python run_scrapers.py
+
+# Start server
+micromamba run -n la uvicorn src.web.app:app --host 127.0.0.1 --port 8000 --reload
+
+# Open browser
+open http://127.0.0.1:8000
 ```
 
-2. **Start the web server**:
+## Data Sources
+
+Currently scraping 35+ sources including:
+
+**Venues & Cultural Centers**
+- Santa Monica, West Hollywood, Culver City official sites
+- KCRW, UCLA, Venice West, Winston House
+- Westside Comedy, Aviator Nation, Gnarwhal
+
+**Museums & Arts**
+- Hammer Museum, LACMA, UCLA Botanical Garden
+- Beyond Baroque, Raymond Kabbaz
+
+**Event Platforms**
+- Timeout LA, Eventbrite, Meetup, Resident Advisor
+- LA Tech Events, Nerd Nite, IIC LA
+
+**Specialty**
+- Parks California, Aero Theater, ITK LA
+- Penmar Golf Course, Casual Creative
+
+See [docs/EVENT_SOURCES.md](docs/EVENT_SOURCES.md) for complete list and implementation details.
+
+## Deployment
+
+Deploy your own instance to Google Cloud Run (free tier):
+
 ```bash
-micromamba run uvicorn src.web.app:app --host 127.0.0.1 --port 8000 --reload
+gcloud run deploy westside-events --source . --region us-west1
 ```
 
-3. **Open your browser** and navigate to:
-```
-http://127.0.0.1:8000
-```
+See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for complete deployment guide covering:
+- Google Cloud Run (recommended)
+- Railway
+- Custom domains
+- Monitoring and cost management
 
-**Note:** Always use `micromamba run` to ensure the correct environment is activated with all dependencies. The `--reload` flag enables automatic reloading during development.
+## Documentation
+
+### Getting Started
+- **[README.md](README.md)** - This file (project overview)
+- **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Local development setup
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production deployment guide
+- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+
+### Technical Docs
+- **[docs/SDD.md](docs/SDD.md)** - Software design document (architecture)
+- **[docs/SCRAPING_GUIDE.md](docs/SCRAPING_GUIDE.md)** - Web scraping best practices
+- **[docs/EVENT_SOURCES.md](docs/EVENT_SOURCES.md)** - Event source implementation guide
+- **[docs/ANALYTICS.md](docs/ANALYTICS.md)** - Analytics system documentation
+- **[docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - FastHTML quick reference
+
+### Testing & Contributing
+- **[tests/README.md](tests/README.md)** - Testing guide
+- **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** - Contribution guidelines
+- **[scripts/README.md](scripts/README.md)** - Utility scripts documentation
 
 ## Project Structure
 
@@ -124,220 +118,129 @@ http://127.0.0.1:8000
 LA/
 ├── src/
 │   ├── data/           # Database models and operations
-│   ├── scrapers/       # Event scrapers for each source
+│   ├── scrapers/       # Event scrapers (30+ sources)
 │   ├── search/         # Search and filter functionality
-│   ├── utils/          # Utilities (geocoding, categorization)
+│   ├── utils/          # Geocoding, categorization
 │   └── web/            # FastHTML web application
-├── static/
-│   ├── css/           # Stylesheets
-│   └── js/            # JavaScript for map integration
-├── tests/             # Test suite
-│   ├── README.md      # Testing guide
-│   └── unit/          # Unit tests
-├── docs/              # Technical documentation
-│   ├── EVENT_SOURCES.md
-│   ├── SCRAPING_GUIDE.md
-│   ├── QUICK_REFERENCE.md
-│   ├── fasthtml_analysis.md
-│   └── TEST_COVERAGE_ANALYSIS.md
-├── data/              # SQLite database and cache files
-├── logs/              # Application logs
-├── config.py          # Configuration settings
-├── run_scrapers.py    # Script to run all scrapers
-├── requirements.txt   # Python dependencies
-├── README.md          # This file
-├── PLAN.md            # Implementation roadmap
-├── CLAUDE.md          # AI assistant instructions
-└── SDD.md             # Software Design Document
+├── static/             # CSS, JavaScript, logos
+├── tests/              # Unit, integration, E2E tests
+├── docs/               # Technical documentation
+├── scripts/            # Utility scripts
+└── data/               # SQLite databases and caches
 ```
 
-## Configuration
-
-Edit `config.py` or `.env` to customize:
-
-- **API Keys**: Google Maps and Geocoding API keys
-- **Database Path**: Location of SQLite database
-- **Scraper Settings**: User agent, delays, timeouts
-- **Event Sources**: Enable/disable specific scrapers
-- **Geographic Bounds**: Define Westside LA boundaries
-- **Categories**: Customize event categories
-
-## Usage
-
-### Search Events
-
-- **Keyword Search**: Enter terms in the search box
-- **Date Filters**: Select from predefined ranges (Today, This Week, This Month, etc.)
-- **Category Filter**: Filter by event type (Music, Art, Food & Drink, etc.)
-- **View Toggle**: Switch between List View and Map View
-
-### Map View
-
-- Click on markers to see event details
-- Markers are color-coded by category
-- Automatic clustering for better performance
-- Click "View Details" to visit the original event page
-
-### Running Scrapers
-
-Run all enabled scrapers:
-```bash
-micromamba run python run_scrapers.py
-```
-
-Run scrapers on a schedule (using cron):
-```bash
-# Add to crontab for daily scraping at 3 AM
-0 3 * * * cd /path/to/LA && micromamba run python run_scrapers.py
-```
-
-## Data Sources
-
-Currently implemented scrapers:
-
-- **Santa Monica**: City events and activities
-- **Timeout LA**: Curated LA events and things to do
-- **KCRW**: Music and cultural events
-
-Planned scrapers:
-
-- Discover LA (DoLA)
-- UCLA Events
-- Hammer Museum
-- LACMA
-- The Broad
-- Getty Center
-- Various concert venues and bars
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for detailed project structure.
 
 ## Development
 
-### Adding a New Scraper
+### Add a New Scraper
 
-1. Create a new scraper file in `src/scrapers/`:
 ```python
+# src/scrapers/new_venue.py
 from .base import BaseScraper
 from src.data.models import Event
 
-class NewSourceScraper(BaseScraper):
+class NewVenueScraper(BaseScraper):
     def __init__(self):
-        super().__init__('Source Name')
-        self.base_url = 'https://example.com'
+        super().__init__('New Venue Name')
 
     def scrape(self):
-        # Implement scraping logic
-        pass
+        # Your scraping logic here
+        return events
 ```
 
-2. Add the source to `config.py`:
+See [docs/SCRAPING_GUIDE.md](docs/SCRAPING_GUIDE.md) for complete guide.
+
+### Run Tests
+
+```bash
+# All tests
+micromamba run -n la python -m pytest
+
+# With coverage
+micromamba run -n la python -m pytest --cov=src
+
+# Specific test
+micromamba run -n la python -m pytest tests/scrapers/test_timeout.py -v
+```
+
+See [tests/README.md](tests/README.md) for testing guide.
+
+## Tech Stack
+
+- **Framework**: [FastHTML](https://fastht.ml) - Modern Python web framework
+- **Database**: SQLite with full-text search
+- **Maps**: Leaflet + OpenStreetMap (no API key required)
+- **Scraping**: BeautifulSoup4, requests, Playwright
+- **Testing**: pytest, Playwright (E2E)
+- **Deployment**: Docker, Google Cloud Run
+
+## Configuration
+
+Key settings in `config.py` and `.env`:
+
 ```python
-EVENT_SOURCES = {
-    'new_source': {
-        'name': 'New Source',
-        'url': 'https://example.com/events',
-        'enabled': True
-    }
+# API Keys (optional - only for geocoding addresses)
+GOOGLE_GEOCODING_API_KEY = "your_key"
+
+# Database paths
+DATABASE_PATH = "data/events.db"
+ANALYTICS_DB_PATH = "data/analytics.db"
+
+# Scraper settings
+REQUEST_DELAY = 1  # seconds between requests
+REQUEST_TIMEOUT = 30  # seconds
+
+# Geographic bounds (Westside LA)
+WESTSIDE_BOUNDS = {
+    'north': 34.1, 'south': 33.9,
+    'east': -118.3, 'west': -118.6
 }
 ```
 
-3. Add to `run_scrapers.py`:
-```python
-from src.scrapers.new_source import NewSourceScraper
-
-if config.EVENT_SOURCES['new_source']['enabled']:
-    scrapers.append(NewSourceScraper())
-```
-
-### Database Schema
-
-Events table:
-- `id`: Primary key
-- `title`: Event title
-- `description`: Event description
-- `venue_name`: Venue name
-- `address`: Full address
-- `latitude`, `longitude`: Coordinates
-- `event_date`: Start date/time
-- `end_date`: End date/time
-- `category`: Event category
-- `source`: Data source
-- `url`: Original event URL
-- `image_url`: Event image
-- `created_at`, `updated_at`: Timestamps
-
-## API Endpoints
-
-- `GET /`: Home page with search and map
-- `GET /api/events`: Get events (supports query parameters: `q`, `date_filter`, `category`)
-- `GET /api/events/{id}`: Get single event by ID
-
-## Troubleshooting
-
-### No events showing
-
-1. Run the scrapers first: `micromamba run python run_scrapers.py`
-2. Check database: `ls -lh data/events.db`
-3. Check logs for errors
-
-### Map not loading
-
-1. Verify Google Maps API key in `.env`
-2. Check browser console for errors
-3. Ensure API key has Maps JavaScript API enabled
-
-### Geocoding not working
-
-1. Verify Google Geocoding API key in `.env`
-2. Check geocoding cache: `cat data/geocode_cache.json`
-3. API may have rate limits or require billing enabled
-
-### Scrapers failing
-
-1. Websites may have changed their structure
-2. Update selectors in scraper files
-3. Check for rate limiting or blocking
-4. Inspect target website first
+See [docs/DEVELOPMENT.md#configuration](docs/DEVELOPMENT.md#configuration) for complete configuration guide.
 
 ## Contributing
 
+Contributions welcome! Please:
+
 1. Fork the repository
-2. Create a feature branch
-3. Implement your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
+
+## Roadmap
+
+See [PLAN.md](PLAN.md) for detailed development roadmap.
+
+**Current priorities:**
+- [ ] Add more venue scrapers (target: 50+ sources)
+- [ ] Implement user accounts and personalized recommendations
+- [ ] Mobile app (React Native)
+- [ ] Email notifications for saved searches
+- [ ] Enhanced recommendation engine based on user preferences
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
 - Event data provided by respective sources
-- Built with [FastHTML](https://fastht.ml)
-- Maps powered by Google Maps Platform
-- Icons and design inspired by modern web standards
-
-## Documentation
-
-- **[README.md](README.md)** - This file (project overview and quick start)
-- **[PLAN.md](PLAN.md)** - Development roadmap and implementation plan
-- **[SDD.md](SDD.md)** - Software Design Document (architecture and technical details)
-- **[CLAUDE.md](CLAUDE.md)** - AI assistant instructions
-- **[docs/](docs/)** - Detailed technical documentation
-  - [EVENT_SOURCES.md](docs/EVENT_SOURCES.md) - Event source implementation guide
-  - [SCRAPING_GUIDE.md](docs/SCRAPING_GUIDE.md) - Web scraping best practices
-  - [QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md) - FastHTML quick reference
-  - [fasthtml_analysis.md](docs/fasthtml_analysis.md) - Detailed FastHTML analysis
-  - [TEST_COVERAGE_ANALYSIS.md](docs/TEST_COVERAGE_ANALYSIS.md) - Test coverage report
-- **[tests/README.md](tests/README.md)** - Testing guide
+- Built with [FastHTML](https://fastht.ml) by Jeremy Howard
+- Maps powered by [Leaflet](https://leafletjs.com) and [OpenStreetMap](https://www.openstreetmap.org)
+- Inspired by the vibrant LA Westside community
 
 ## Support
 
-For issues, questions, or contributions:
-- Open an issue on GitHub
-- Check [SDD.md](SDD.md) for architecture details
-- Review [PLAN.md](PLAN.md) for implementation roadmap
-- See [docs/](docs/) for detailed technical documentation
+- **Issues**: [GitHub Issues](https://github.com/slegroux/LA/issues)
+- **Documentation**: [docs/](docs/)
+- **Deployment Help**: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- **Troubleshooting**: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
 ---
 
-Made with ❤️ for the LA community
+**Made with ❤️ for the LA community**

@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 """
 Fix the existing database by updating FTS triggers.
 This script will recreate the triggers to fix the update issue.

@@ -44,7 +44,7 @@ class CategoryClassifier:
                 'echo', 'bootleg theater', 'lodge room', 'resident', 'concert hall',
                 'music center', 'walt disney concert hall', 'shrine auditorium',
                 'hollywood palladium', 'fonda theatre', 'wiltern', 'novo',
-                'microsoft theater', 'staples center', 'crypto.com arena',
+                'microsoft theater', 'youtube theater', 'staples center', 'crypto.com arena',
                 'dodger stadium', 'rose bowl', 'banc of california stadium',
                 'sofi stadium', 'rose bowl', 'hollywood forever cemetery'
             ],
@@ -67,7 +67,8 @@ class CategoryClassifier:
             'Music': [
                 'concert', 'music', 'band', 'orchestra', 'symphony', 'jazz',
                 'rock', 'pop', 'classical', 'opera', 'dj', 'performance',
-                'festival', 'live music', 'singing', 'choir', 'recital'
+                'festival', 'live music', 'singing', 'choir', 'recital',
+                'live nation', 'ticketmaster', 'axs'
             ],
             'Art': [
                 'art', 'gallery', 'exhibition', 'museum', 'painting', 'sculpture',
@@ -103,8 +104,8 @@ class CategoryClassifier:
                 'stage', 'acting', 'actor', 'production', 'broadway', 'show'
             ],
             'Comedy': [
-                'comedy', 'stand-up', 'comedian', 'improv', 'funny', 'laugh',
-                'humor', 'comic'
+                'comedy', 'stand-up', 'comedian', ' improv ', 'improv show', 'improv comedy',
+                'funny', 'laugh', 'humor', 'comic'
             ],
             'Film': [
                 'film', 'movie', 'cinema', 'screening', 'documentary', 'short film',

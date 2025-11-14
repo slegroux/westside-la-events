@@ -1,7 +1,7 @@
 # Westside LA Events Aggregator
 
 ## Project Overview
-A FastHTML-powered web application that aggregates events from multiple sources across LA's Westside, providing a unified search interface with date filtering, activity type categorization, and Google Maps geolocation visualization.
+A FastHTML-powered web application that aggregates events from 35+ sources across LA's Westside, providing a unified search interface with date filtering, activity type categorization, and interactive map visualization.
 
 ## Architecture
 
@@ -18,9 +18,11 @@ A FastHTML-powered web application that aggregates events from multiple sources 
 - **Database Schema**: Events table with fields:
   - `id`, `title`, `description`, `venue_name`, `address`
   - `latitude`, `longitude`, `event_date`, `end_date`
-  - `category`, `source`, `url`, `image_url`
+  - `category`, `source`, `url`, `image_url`, `source_logo_url`
+  - `price`, `is_free`, `price_note`
   - `created_at`, `updated_at`
-- **Models**: SQLite/SQLAlchemy models for event storage
+- **Models**: SQLite models for event storage
+- **Analytics**: Separate analytics database for tracking views, searches, favorites
 
 #### 2. Scraper Layer (`src/scrapers/`)
 Individual scrapers for each data source:
@@ -50,7 +52,7 @@ FastHTML routes and components:
 - **Home Page**: Search bar, filters, map view toggle
 - **Results View**: Grid/list of events with map pins
 - **Event Detail**: Full event information
-- **Map Component**: Google Maps with clustered markers
+- **Map Component**: Leaflet/OpenStreetMap with clustered markers
 - **API Endpoints**: JSON responses for AJAX requests
 
 #### 5. Utilities (`src/utils/`)
@@ -77,7 +79,7 @@ FastHTML routes and components:
 - Keyword search
 
 ### Map Visualization
-- Interactive Google Maps
+- Interactive Leaflet + OpenStreetMap maps
 - Event markers with info windows
 - Marker clustering for performance
 - Filter results by map viewport
@@ -92,12 +94,12 @@ FastHTML routes and components:
 
 ## Development Phases
 
-### Phase 1: MVP
+### Phase 1: MVP ✅ (Completed)
 - Basic database schema
-- 3-5 scrapers (Santa Monica, Timeout, KCRW)
+- 35+ scrapers (Santa Monica, Timeout, KCRW, and many more)
 - Simple search by date and category
-- Basic map with markers
-- FastHTML interface
+- Interactive map with clustered markers
+- FastHTML interface with analytics and favorites
 
 ### Phase 2: Enhancement
 - Add remaining scrapers
@@ -176,10 +178,17 @@ lsof -ti:8000 | xargs kill -9
 - Scraper schedule configuration
 
 ## Deployment
-- Docker container for easy deployment
-- Cron job for scheduled scraping
-- Static file serving for performance
-- Logging and monitoring setup
+
+For production deployment, see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** which covers:
+- **Google Cloud Run** (recommended): Free tier, serverless, persistent storage with Cloud Storage
+- **Railway**: Simple GitHub integration, free tier available
+- **Other options**: Fly.io, Render, DigitalOcean
+- Custom domain setup, monitoring, and cost management
+
+Quick reference for deployed instance:
+- **Service URL**: https://westside-events-406046958598.us-west1.run.app
+- **Cloud Storage**: gs://westside-la-events-data/
+- **Automated Scraping**: Daily at 2 AM UTC via Cloud Scheduler
 
 ## Documentation
 
@@ -188,10 +197,14 @@ The project includes comprehensive documentation:
 ### Core Documentation
 - **[README.md](README.md)** - Project overview and quick start guide
 - **[PLAN.md](PLAN.md)** - Development roadmap and implementation phases
-- **[SDD.md](SDD.md)** - Software Design Document with architecture details
 - **[CLAUDE.md](CLAUDE.md)** - This file (AI assistant instructions)
 
 ### Technical Documentation (`docs/`)
+- **[DEVELOPMENT.md](docs/DEVELOPMENT.md)** - **Local development setup and workflow**
+- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - **Production deployment guide (Google Cloud Run, Railway, etc.)**
+- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - **Common issues and solutions**
+- **[SDD.md](docs/SDD.md)** - Software Design Document with architecture details
+- **[ANALYTICS_IMPLEMENTATION.md](docs/ANALYTICS_IMPLEMENTATION.md)** - Analytics implementation guide
 - **[EVENT_SOURCES.md](docs/EVENT_SOURCES.md)** - Detailed guide on event sources (API vs scraping)
 - **[SCRAPING_GUIDE.md](docs/SCRAPING_GUIDE.md)** - Web scraping best practices and guidelines
 - **[LOGO_MANAGEMENT.md](docs/LOGO_MANAGEMENT.md)** - Source logo management and troubleshooting
@@ -200,6 +213,10 @@ The project includes comprehensive documentation:
 - **[fasthtml_analysis.md](docs/fasthtml_analysis.md)** - In-depth FastHTML implementation analysis
 - **[TEST_COVERAGE_ANALYSIS.md](docs/TEST_COVERAGE_ANALYSIS.md)** - Test coverage report and gaps
 - **[COVERAGE_SUMMARY.md](docs/COVERAGE_SUMMARY.md)** - Test coverage summary
+- **[CHANGELOG.md](docs/CHANGELOG.md)** - Project changelog
+- **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** - Contribution guidelines
+- **[E2E_TEST_RESULTS.md](docs/E2E_TEST_RESULTS.md)** - E2E test results
+- **[PLAYWRIGHT_SETUP_COMPLETE.md](docs/PLAYWRIGHT_SETUP_COMPLETE.md)** - Playwright setup documentation
 
 ### Testing Documentation
 - **[tests/README.md](tests/README.md)** - Comprehensive testing guide
@@ -209,12 +226,13 @@ The project includes comprehensive documentation:
 - **[scripts/README.md](scripts/README.md)** - Automation scripts documentation
 
 ### When to Use Each Document
-- **Starting development?** Read [README.md](README.md) → [PLAN.md](PLAN.md)
-- **Understanding architecture?** Read [SDD.md](SDD.md)
+- **Starting development?** Read [README.md](README.md) → [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+- **Deploying to production?** Read [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- **Stuck on an issue?** Read [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+- **Understanding architecture?** Read [docs/SDD.md](docs/SDD.md)
 - **Adding a scraper?** Read [docs/SCRAPING_GUIDE.md](docs/SCRAPING_GUIDE.md) → [docs/LOGO_MANAGEMENT.md](docs/LOGO_MANAGEMENT.md)
 - **Working with FastHTML?** Read [docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)
 - **Writing tests?** Read [tests/README.md](tests/README.md)
 - **Understanding event sources?** Read [docs/EVENT_SOURCES.md](docs/EVENT_SOURCES.md)
 - **Managing issues and milestones?** Read [docs/GITHUB_WORKFLOW.md](docs/GITHUB_WORKFLOW.md)
-- **Troubleshooting logos?** Read [docs/LOGO_MANAGEMENT.md](docs/LOGO_MANAGEMENT.md)
-- **Setting up analytics?** Read [docs/ANALYTICS.md](docs/ANALYTICS.md) → [ANALYTICS_IMPLEMENTATION.md](ANALYTICS_IMPLEMENTATION.md)
+- **Setting up analytics?** Read [docs/ANALYTICS.md](docs/ANALYTICS.md) → [docs/ANALYTICS_IMPLEMENTATION.md](docs/ANALYTICS_IMPLEMENTATION.md)

@@ -56,6 +56,7 @@ class LogoScraper:
         'Venice Beach Events': 'https://www.visitveniceca.com',
         'West Hollywood': 'https://www.weho.org',
         'Culver City': 'https://www.culvercity.gov',
+        'MUD\\WTR :gather': 'https://www.mudwtrgather.com',
     }
 
     # Known logo URLs (fallback if scraping fails)
@@ -90,6 +91,7 @@ class LogoScraper:
         'Venice Beach Events': 'https://www.visitveniceca.com/wp-content/uploads/2021/03/venice-logo.png',
         'West Hollywood': 'https://www.weho.org/Home/ShowPublishedImage/6958/637444285636730000',
         'Culver City': 'https://www.culvercity.gov/files/assets/public/v/1/images/culver-city-logo.png',
+        'MUD\\WTR :gather': 'https://images.squarespace-cdn.com/content/v1/655100b54c023d4139e41375/7f13fce4-ed7a-4844-a017-d5a1153bd5dc/gather-logo.png',
     }
 
     def __init__(self, cache_dir: str = "static/logos"):

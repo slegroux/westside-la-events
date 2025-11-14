@@ -155,7 +155,7 @@ class WestHollywoodScraper(BaseScraper):
         text_content = f"{title} {description}".lower()
         if '$' in text_content or 'ticket' in text_content:
             is_free = False
-            price_note = "Check website for pricing"
+            price_note = None  # Display as $TBD
         elif 'free' in text_content:
             price_note = "Free event"
 

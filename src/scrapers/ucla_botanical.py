@@ -332,8 +332,8 @@ class UCLABotanicalScraper(BaseScraper):
             is_free = True
             price = None
         elif price is None and 'ticket' in page_text:
-            # If tickets are mentioned but no price found, note to check website
-            price_note = 'Check website for pricing'
+            # If tickets are mentioned but no price found, display as $TBD
+            price_note = None
 
         return price, is_free, price_note
 

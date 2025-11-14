@@ -628,5 +628,90 @@
     "lat": 33.7672564,
     "lng": -118.1924087
   },
-  "400 disney way #suite 214, anaheim, ca 92802, anaheim, ca, 92802": null
+  "400 disney way #suite 214, anaheim, ca 92802, anaheim, ca, 92802": null,
+  "26300 crenshaw blvd, rancho palos verdes, ca, 90274": {
+    "lat": 33.7683849,
+    "lng": -118.3702966
+  },
+  "natural history museum of los angeles county, los angeles, ca": {
+    "lat": 34.0170795,
+    "lng": -118.2886906
+  },
+  "rodeo dr, beverly hills, ca, 90210": {
+    "lat": 34.0676303,
+    "lng": -118.4013549
+  },
+  "631 w 2nd st, los angeles, ca, 90012": {
+    "lat": 34.0551594,
+    "lng": -118.250627
+  },
+  "5333 zoo dr, los angeles, ca": {
+    "lat": 34.1473597,
+    "lng": -118.2844025
+  },
+  "charles white elementary school, los angeles, ca": {
+    "lat": 34.0603601,
+    "lng": -118.2797619
+  },
+  "hollywood forever cemetery, hollywood, los angeles, ca": {
+    "lat": 34.088464,
+    "lng": -118.3190484
+  },
+  "amoeba hollywood, hollywood, los angeles, ca": {
+    "lat": 34.1014539,
+    "lng": -118.325032
+  },
+  "the huntington\u2019s rothenberg hall, san marino, los angeles, ca": null,
+  "pauley pavilion, westwood, los angeles, ca": {
+    "lat": 34.0704868,
+    "lng": -118.4467767
+  },
+  "the grammy museum, downtown, los angeles, ca": null,
+  "los angeles, california": {
+    "lat": 34.0536909,
+    "lng": -118.242766
+  },
+  "moda studios, los angeles, ca": null,
+  "the airliner, los angeles, ca": {
+    "lat": 34.0738885,
+    "lng": -118.2162323
+  },
+  "1332 2nd street, santa monica, ca 90401": {
+    "lat": 34.015358,
+    "lng": -118.4978879
+  },
+  "14537 ventura blvd, sherman oaks, ca 91403, sherman oaks, ca, 91403": null,
+  "the bellwether, downtown / la metro, los angeles, ca": null,
+  "hauser & wirth, arts district, los angeles, ca": {
+    "lat": 34.0461117,
+    "lng": -118.2346476
+  },
+  "galen center at usc, downtown, los angeles, ca": null,
+  "wallis annenberg center for the performing arts, beverly hills, los angeles, ca": {
+    "lat": 34.0726299,
+    "lng": -118.401703
+  },
+  "the pasadena civic, pasadena, los angeles, ca": null,
+  "th\u00e9\u00e2tre raymond kabbaz, west los angeles, los angeles, ca": {
+    "lat": 34.0471537,
+    "lng": -118.4159902
+  },
+  "the ricardo montalban theatre, hollywood, los angeles, ca": null,
+  "rose bowl stadium, pasadena, los angeles, ca": {
+    "lat": 34.1613492,
+    "lng": -118.1676674
+  },
+  "biergarten at old world hb concert venue, arts district, los angeles, ca": null,
+  "930 mateo street, los angeles, ca, 90021": {
+    "lat": 34.0322007,
+    "lng": -118.2321489
+  },
+  "206 west 6th street, los angeles, ca, 90014": {
+    "lat": 34.0459946,
+    "lng": -118.2513244
+  },
+  "melrose avenue, hollywood, los angeles, ca": {
+    "lat": 34.0807588,
+    "lng": -118.3895925
+  }
 }

@@ -248,8 +248,9 @@ def merge_event_data(primary: Event, secondary: Event) -> Event:
         url=primary.url or secondary.url,
         image_url=primary.image_url or secondary.image_url,
         source_logo_url=primary.source_logo_url or secondary.source_logo_url,
-        price=primary.price if primary.price is not None else secondary.price,
-        is_free=primary.is_free or secondary.is_free,
+        price=secondary.price if secondary.price is not None else primary.price,
+        is_free=secondary.is_free if secondary.is_free is not None else primary.is_free,
+        price_note=secondary.price_note,  # Always use secondary's price_note (may be empty to clear old value)
         created_at=primary.created_at,
         updated_at=datetime.now()
     )

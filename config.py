@@ -257,6 +257,13 @@ EVENT_SOURCES = {
         'uses_api': False,
         'note': 'AI and technology community events hosted by KINN, listed on their Luma page'
     },
+    'casual_creative': {
+        'name': 'The Casual Creative',
+        'url': 'https://luma.com/thecasualcreative?k=c',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Pop-up experiences and creative workshops in Los Angeles, listed on Luma'
+    },
     'latechevents': {
         'name': 'LA Tech Events',
         'url': 'https://luma.com/latechevents?k=c',
@@ -287,6 +294,27 @@ EVENT_SOURCES = {
         'name': 'West Hollywood',
         'url': 'https://www.weho.org/city-government/city-departments/public-facilities/events',
         'enabled': True
+    },
+    'aero_theater': {
+        'name': 'Aero Theater',
+        'url': 'https://www.americancinematheque.com/now-showing/?event_location=54',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'American Cinematheque venue in Santa Monica showing classic, independent, and international films'
+    },
+    'laemmle_monica': {
+        'name': 'Laemmle Monica Film Center',
+        'url': 'https://www.laemmle.com/theater/monica-film-center',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Independent and art house cinema on 2nd Street in Santa Monica'
+    },
+    'mudwtr': {
+        'name': 'MUD\\WTR :gather',
+        'url': 'https://www.mudwtrgather.com/schedule',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Mushroom cafe and mindfulness studio offering yoga, meditation, breathwork classes and special events. Schedule via Mindbody integration.'
     },
     'culver_city': {
         'name': 'Culver City',

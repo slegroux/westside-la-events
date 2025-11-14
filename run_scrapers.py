@@ -39,9 +39,13 @@ from src.scrapers.raymond_kabbaz import RaymondKabbazScraper
 from src.scrapers.ucla_botanical import UCLABotanicalScraper
 from src.scrapers.parks_ca import ParksCaliforniaScraper
 from src.scrapers.kinn import KinnScraper
+from src.scrapers.casual_creative import CasualCreativeScraper
 from src.scrapers.latechevents import LATechEventsScraper
 from src.scrapers.beyond_baroque import BeyondBaroqueScraper
 from src.scrapers.apero_francophone import AperoFrancophoneScraper
+from src.scrapers.aero_theater import AeroTheaterScraper
+from src.scrapers.laemmle_monica import LaemmleMonicaScraper
+from src.scrapers.mudwtr import MudWtrScraper
 
 # Thread-local storage for database connections
 thread_local = threading.local()
@@ -199,6 +203,9 @@ def main():
     if config.EVENT_SOURCES.get('kinn', {}).get('enabled'):
         scrapers.append(KinnScraper())
 
+    if config.EVENT_SOURCES.get('casual_creative', {}).get('enabled'):
+        scrapers.append(CasualCreativeScraper())
+
     if config.EVENT_SOURCES.get('latechevents', {}).get('enabled'):
         scrapers.append(LATechEventsScraper())
 
@@ -225,6 +232,15 @@ def main():
 
     if config.EVENT_SOURCES.get('culver_city', {}).get('enabled'):
         scrapers.append(CulverCityScraper())
+
+    if config.EVENT_SOURCES.get('aero_theater', {}).get('enabled'):
+        scrapers.append(AeroTheaterScraper())
+
+    if config.EVENT_SOURCES.get('laemmle_monica', {}).get('enabled'):
+        scrapers.append(LaemmleMonicaScraper())
+
+    if config.EVENT_SOURCES.get('mudwtr', {}).get('enabled'):
+        scrapers.append(MudWtrScraper())
 
     print(f"\n✓ Loaded {len(scrapers)} scrapers")
 

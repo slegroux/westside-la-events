@@ -244,13 +244,13 @@ class PenmarScraper(BaseScraper):
                     pass
 
         # Determine category - most Penmar events are music
-        category = 'music'
+        category = 'Music'
         if 'silent disco' in title.lower():
-            category = 'music'
+            category = 'Music'
         elif 'comedy' in title.lower():
-            category = 'entertainment'
+            category = 'Comedy'
         elif 'trivia' in title.lower() or 'bingo' in title.lower():
-            category = 'entertainment'
+            category = 'Other'
 
         return self.create_event(
             title=title,

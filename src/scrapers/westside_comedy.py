@@ -285,7 +285,7 @@ class WestsideComedyScraper(BaseScraper):
                 end_date=end_date,
                 url=event_url,
                 image_url=image_url,
-                category='entertainment'
+                category='Comedy'
             )
 
         except Exception as e:
@@ -503,7 +503,7 @@ class WestsideComedyScraper(BaseScraper):
                 end_date=end_date,
                 url=event_url,
                 image_url=image_url,
-                category='entertainment',  # Comedy is categorized as entertainment
+                category='Comedy',
                 price=price,
                 is_free=is_free
             )

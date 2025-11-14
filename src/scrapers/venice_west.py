@@ -182,8 +182,8 @@ class VeniceWestScraper(BaseScraper):
                         self.log(f"Using manual pricing override: ${price}")
                     else:
                         # Tixr extraction is disabled due to anti-bot protection
-                        # Set a clear price note for the user
-                        price_note = "Check website for pricing"
+                        # Display as $TBD
+                        price_note = None
                         self.log(f"Tixr URL detected - manual pricing override needed for event ID: {event_id}")
 
         # Build description from available info

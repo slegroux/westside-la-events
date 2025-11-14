@@ -160,7 +160,7 @@ async function loadMapEvents() {
                             <span style="display: inline-block; padding: 0.25rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 1rem; font-size: 0.75rem; font-weight: 700;">${event.category}</span>
                         </div>
                         <div style="margin-top: 0.75rem; display: flex; gap: 1rem;">
-                            <a href="/event/${event.id}" style="color: #6366f1; font-weight: 600; text-decoration: none;">View Details →</a>
+                            ${event.url ? `<a href="${event.url}" target="_blank" rel="noopener noreferrer" style="color: #6366f1; font-weight: 600; text-decoration: none;">View Event →</a>` : ''}
                             <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer" style="color: #10b981; font-weight: 600; text-decoration: none;">🗺️ Directions</a>
                         </div>
                     </div>
@@ -301,4 +301,124 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
     });
+});
+
+// Popup Map Modal for individual venue locations
+let popupMap = null;
+
+function openVenueMapPopup(venueName, latitude, longitude, address) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('venue-map-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'venue-map-modal';
+        modal.className = 'venue-map-modal';
+        modal.innerHTML = `
+            <div class="venue-map-modal-content">
+                <div class="venue-map-modal-header">
+                    <h3 id="venue-map-title"></h3>
+                    <button class="venue-map-close" onclick="closeVenueMapPopup()">&times;</button>
+                </div>
+                <div id="venue-popup-map" style="height: 400px; width: 100%;"></div>
+                <div class="venue-map-modal-footer">
+                    <p id="venue-map-address"></p>
+                    <a id="venue-map-directions-btn" class="btn-primary" target="_blank" rel="noopener noreferrer">
+                        Get Directions
+                    </a>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // Update modal content
+    document.getElementById('venue-map-title').textContent = venueName;
+    document.getElementById('venue-map-address').textContent = address || '';
+
+    // Update directions link
+    const directionsBtn = document.getElementById('venue-map-directions-btn');
+    if (latitude && longitude) {
+        directionsBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+    } else {
+        directionsBtn.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueName)}`;
+    }
+
+    // Show modal
+    modal.style.display = 'flex';
+
+    // Initialize map after a short delay to ensure container is visible
+    setTimeout(() => {
+        // Clean up old map if it exists
+        if (popupMap) {
+            try {
+                popupMap.remove();
+            } catch (e) {
+                console.warn('Error removing old popup map:', e);
+            }
+            popupMap = null;
+        }
+
+        // Create new map
+        const mapContainer = document.getElementById('venue-popup-map');
+        if (mapContainer && latitude && longitude) {
+            popupMap = L.map('venue-popup-map').setView([latitude, longitude], 15);
+
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(popupMap);
+
+            // Add marker
+            L.marker([latitude, longitude])
+                .addTo(popupMap)
+                .bindPopup(`<b>${venueName}</b>${address ? '<br>' + address : ''}`)
+                .openPopup();
+        }
+    }, 100);
+}
+
+function closeVenueMapPopup() {
+    const modal = document.getElementById('venue-map-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+
+    // Clean up map
+    if (popupMap) {
+        try {
+            popupMap.remove();
+        } catch (e) {
+            console.warn('Error removing popup map:', e);
+        }
+        popupMap = null;
+    }
+}
+
+// Close modal when clicking outside of it
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('venue-map-modal');
+    if (modal && event.target === modal) {
+        closeVenueMapPopup();
+    }
+});
+
+// Make functions globally accessible
+window.openVenueMapPopup = openVenueMapPopup;
+window.closeVenueMapPopup = closeVenueMapPopup;
+
+// Event delegation for venue location links
+document.addEventListener('click', function(e) {
+    const link = e.target.closest('.venue-location-link');
+    if (link) {
+        console.log('Venue location clicked!', link);
+        e.preventDefault();
+        const venueName = link.dataset.venueName;
+        const latitude = link.dataset.latitude ? parseFloat(link.dataset.latitude) : null;
+        const longitude = link.dataset.longitude ? parseFloat(link.dataset.longitude) : null;
+        const address = link.dataset.address;
+
+        console.log('Opening popup with:', {venueName, latitude, longitude, address});
+        openVenueMapPopup(venueName, latitude, longitude, address);
+    }
 });

@@ -191,6 +191,30 @@ def temp_geocode_cache():
         os.unlink(cache_path)
 
 
+@pytest.fixture
+def mock_fetch_page(monkeypatch):
+    """Mock fetch_page to avoid actual network calls in tests."""
+    def mock_fetch(self, url, retry=3):
+        """Return empty HTML for testing."""
+        return "<html><body></body></html>"
+
+    from src.scrapers import base
+    monkeypatch.setattr(base.BaseScraper, 'fetch_page', mock_fetch)
+    return mock_fetch
+
+
+@pytest.fixture
+def mock_fetch_page_js(monkeypatch):
+    """Mock fetch_page_js to avoid actual Playwright calls in tests."""
+    def mock_fetch(self, url, wait_selector=None, timeout=30000):
+        """Return empty HTML for testing."""
+        return "<html><body></body></html>"
+
+    from src.scrapers import base
+    monkeypatch.setattr(base.BaseScraper, 'fetch_page_js', mock_fetch)
+    return mock_fetch
+
+
 # Playwright fixtures for E2E testing
 # Note: pytest-playwright provides browser, context, and page fixtures automatically
 

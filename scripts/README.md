@@ -1,8 +1,92 @@
-# Automation Scripts
+# Scripts Directory
 
-This directory contains automation scripts for tracking GitHub issues, milestones, and ensuring proper workflow.
+This directory contains utility scripts and automation tools for the LA Events Aggregator project.
 
-## Available Scripts
+## Directory Structure
+
+```
+scripts/
+├── *.py              # Core utility scripts (6 files)
+└── *.sh              # GitHub workflow automation scripts (4 files)
+```
+
+## Deployment Scripts
+
+### deploy.sh
+**Purpose:** Deploy the application to Google Cloud Run
+
+**Usage:**
+```bash
+# Standard deployment (runs tests first)
+./scripts/deploy.sh
+
+# Skip tests (faster, but less safe)
+./scripts/deploy.sh --skip-tests
+
+# Rollback to previous version
+./scripts/deploy.sh --rollback
+
+# Deploy with custom environment variables
+./scripts/deploy.sh --env-file .env.production
+```
+
+**Features:**
+- Pre-deployment checks (Dockerfile, src directory)
+- Runs unit tests before deploying
+- Checks git status and warns about uncommitted changes
+- Builds Docker image via Google Cloud Build
+- Deploys to Cloud Run with optimized settings
+- Verifies deployment by checking service health
+- Shows service URL and helpful next steps
+- Supports rollback to previous revision
+
+**Requirements:**
+- Authenticated with gcloud (`gcloud auth login`)
+- Correct project set (`gcloud config set project westside-events-406046958598`)
+
+## Core Utility Scripts
+
+These Python scripts handle database management, geocoding, and maintenance:
+
+### Database Tools
+- **inspect_db.py** - Quick database inspection and statistics
+- **fix_database_triggers.py** - Fix database triggers and constraints
+
+### Data Enhancement
+- **geocode_missing.py** - Geocode events with missing coordinates (includes address improvements)
+- **reclassify_all_events.py** - Reclassify all events in database using updated classifier
+- **migrate_logos.py** - Migrate source logos to new format
+
+### Testing
+- **run_pytest.py** - Run pytest with proper configuration (essential for avoiding ROS conflicts)
+
+**Usage Note:** All Python scripts should be run from the project root using:
+```bash
+micromamba run -n la python scripts/<script_name>.py
+```
+
+**Note:** Data quality checks (duplicates, locations, sources, logos) are now automated tests in [tests/unit/](../tests/unit/). Run them with `micromamba run -n la python -m pytest tests/unit/ -v`
+
+## Testing Scrapers
+
+For testing scrapers, use the proper pytest tests in [tests/scrapers/](../tests/scrapers/):
+
+```bash
+# Run all scraper tests
+micromamba run -n la python -m pytest tests/scrapers/ -v
+
+# Run tests for a specific scraper
+micromamba run -n la python -m pytest tests/scrapers/test_kcrw.py -v
+
+# Run only live integration tests (hits actual websites)
+micromamba run -n la python -m pytest tests/scrapers/ -m requires_network -v
+```
+
+## GitHub Workflow Automation Scripts
+
+These shell scripts help with GitHub issue tracking, milestones, and workflow automation:
+
+### Available Scripts
 
 ### 1. daily-standup.sh
 **Purpose:** Daily development standup report
