@@ -101,7 +101,7 @@ class SantaMonicaFarmersMarketScraper(BaseScraper):
                         address=market['address'],
                         event_date=event_date,
                         url=self.events_url,
-                        image_url="",
+                        image_url="https://cityofsantamonica.getbynder.com/m/3c685e9639708c15/Desktop_Header-Baskets-of-Multi-Colored-Cherry-Tomatoes.jpg",
                         category="Food & Drink",
                         price=None,
                         is_free=True,

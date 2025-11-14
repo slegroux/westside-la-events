@@ -758,5 +758,9 @@
     "lat": 34.0283043,
     "lng": -118.4676682
   },
-  "sports basement south bay, hawthorne, los angeles, ca": null
+  "sports basement south bay, hawthorne, los angeles, ca": null,
+  "2218 s harvard blvd, los angeles, ca, 90018": {
+    "lat": 34.0358599,
+    "lng": -118.3064302
+  }
 }

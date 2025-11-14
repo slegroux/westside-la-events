@@ -99,16 +99,23 @@ class McCabesScraper(BaseScraper):
         if desc_elem:
             description = self.clean_text(desc_elem.get_text())
 
-        # Extract date/time from fooevents-event-listing-list-datetime
+        # Extract date/time from fooevents-shortcode-date
         event_date = None
-        date_elem = item.find('div', class_='fooevents-event-listing-list-datetime')
+        date_elem = item.find('p', class_='fooevents-shortcode-date')
+        if not date_elem:
+            date_elem = item.find('div', class_='fooevents-event-listing-list-datetime')
         if not date_elem:
             date_elem = item.find(['time', 'span'], class_=re.compile(r'date|time', re.IGNORECASE))
 
         if date_elem:
             date_str = date_elem.get('datetime', '') or date_elem.get_text()
             # Format is like "Fri Nov 14 2025 | 8pm"
+            # Remove icon elements and clean up
+            date_str = re.sub(r'<[^>]+>', '', str(date_str))  # Remove HTML tags
             date_str = date_str.replace('|', '').strip()
+            # Fix non-standard day abbreviations
+            date_str = date_str.replace('Tues ', 'Tue ')
+            date_str = date_str.replace('Thurs ', 'Thu ')
             try:
                 event_date = date_parser.parse(date_str)
             except Exception as e:
@@ -123,21 +130,42 @@ class McCabesScraper(BaseScraper):
         venue_name = "McCabe's Guitar Shop"
         address = "3101 Pico Blvd, Santa Monica, CA 90405"
 
-        # Extract image
+        # Extract image - check both img tags and CSS background-image
         image_url = ""
         img_elem = item.find('img')
         if img_elem:
             image_url = img_elem.get('data-src', '') or img_elem.get('src', '')
-            if image_url:
-                image_url = self.normalize_url(image_url, self.base_url)
 
-        # Category - music concerts
-        category = "Music & Concerts"
+        # If no img tag, check for background-image in style attribute
+        if not image_url:
+            bg_div = item.find('div', style=re.compile(r'background-image'))
+            if bg_div:
+                style = bg_div.get('style', '')
+                match = re.search(r'background-image:\s*url\((.*?)\)', style)
+                if match:
+                    image_url = match.group(1).strip('\'"')
 
-        # Price info
+        if image_url:
+            image_url = self.normalize_url(image_url, self.base_url)
+
+        # Category - music only (McCabe's is a music venue)
+        category = "Music"
+
+        # Price info - fetch from detail page
         is_free = False
         price = None
-        price_note = "Sold out" if is_sold_out else "Check website for ticket prices"
+        price_note = "Sold out" if is_sold_out else None
+
+        if not is_sold_out and url and url != self.events_url:
+            # Fetch the detail page to get pricing
+            price_info = self._extract_price_from_detail_page(url)
+            if price_info:
+                price = price_info.get('price')
+                price_note = price_info.get('price_note')
+                is_free = price_info.get('is_free', False)
+
+        if price_note is None:
+            price_note = "Check website for ticket prices"
 
         return self.create_event(
             title=title,
@@ -152,3 +180,84 @@ class McCabesScraper(BaseScraper):
             is_free=is_free,
             price_note=price_note
         )
+
+    def _extract_price_from_detail_page(self, url: str) -> dict:
+        """
+        Extract pricing information from an event detail page.
+
+        Args:
+            url: URL of the event detail page
+
+        Returns:
+            Dictionary with price, price_note, and is_free keys
+        """
+        try:
+            html = self.fetch_page(url)
+            if not html:
+                return None
+
+            soup = self.parse_html(html)
+
+            # Look for WooCommerce price elements
+            price_elem = soup.find('span', class_='woocommerce-Price-amount')
+            if not price_elem:
+                # Try alternative price selectors
+                price_elem = soup.find('p', class_='price')
+
+            if price_elem:
+                # Extract price text
+                price_text = self.clean_text(price_elem.get_text())
+                # Parse price (e.g., "$25.00" or "$25")
+                price_match = re.search(r'\$(\d+(?:\.\d{2})?)', price_text)
+                if price_match:
+                    price = float(price_match.group(1))
+
+                    # Look for ticketing fee and total amount
+                    # Search for patterns like "Ticketing Fee" followed by a price
+                    fee_match = None
+                    total_match = None
+
+                    # Find fee amount in the page
+                    page_text = soup.get_text()
+                    fee_pattern = re.search(r'Ticketing Fee.*?\$(\d+(?:\.\d{2})?)', page_text, re.DOTALL | re.IGNORECASE)
+                    if fee_pattern:
+                        fee_match = float(fee_pattern.group(1))
+
+                    # Find total amount
+                    total_pattern = re.search(r'Total Payable Amount.*?\$(\d+(?:\.\d{2})?)', page_text, re.DOTALL | re.IGNORECASE)
+                    if total_pattern:
+                        total_match = float(total_pattern.group(1))
+
+                    # Build price note with fee information if available
+                    if fee_match and total_match:
+                        return {
+                            'price': price,
+                            'price_note': f"${price:.2f} + ${fee_match:.2f} fee = ${total_match:.2f} total",
+                            'is_free': False
+                        }
+                    elif fee_match:
+                        total_calc = price + fee_match
+                        return {
+                            'price': price,
+                            'price_note': f"${price:.2f} + ${fee_match:.2f} fee = ${total_calc:.2f} total",
+                            'is_free': False
+                        }
+                    else:
+                        return {
+                            'price': price,
+                            'price_note': f"${price:.2f}",
+                            'is_free': False
+                        }
+
+            # Check for "free" indicators
+            if soup.find(text=re.compile(r'\bfree\b', re.IGNORECASE)):
+                return {
+                    'price': 0.0,
+                    'price_note': "Free",
+                    'is_free': True
+                }
+
+        except Exception as e:
+            self.log(f"Error extracting price from {url}: {e}")
+
+        return None
