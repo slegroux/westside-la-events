@@ -713,5 +713,50 @@
   "melrose avenue, hollywood, los angeles, ca": {
     "lat": 34.0807588,
     "lng": -118.3895925
-  }
+  },
+  "tbd, los angeles, ca": {
+    "lat": 33.7186595,
+    "lng": -118.279322
+  },
+  "1328 montana ave, santa monica, ca 90403": {
+    "lat": 34.0330531,
+    "lng": -118.4941273
+  },
+  "1299 arizona ave, santa monica, ca 90401": {
+    "lat": 34.024635,
+    "lng": -118.48838
+  },
+  "2640 main st, santa monica, ca 90405": {
+    "lat": 34.0017004,
+    "lng": -118.4833822
+  },
+  "2400 pico blvd, santa monica, ca 90405": {
+    "lat": 34.022028,
+    "lng": -118.46438
+  },
+  "1200 getty center dr, los angeles, ca 90049": {
+    "lat": 34.0769513,
+    "lng": -118.475712
+  },
+  "17985 pacific coast highway, pacific palisades, ca 90272": {
+    "lat": 34.0449819,
+    "lng": -118.5650197
+  },
+  "10886 le conte ave, los angeles, ca 90024": {
+    "lat": 34.0634558,
+    "lng": -118.4445262
+  },
+  "308 charles e young dr n, los angeles, ca 90095": {
+    "lat": 34.0767406,
+    "lng": -118.4395593
+  },
+  "3101 pico blvd, santa monica, ca 90405": {
+    "lat": 34.0260256,
+    "lng": -118.4576079
+  },
+  "2525 michigan ave, santa monica, ca 90404": {
+    "lat": 34.0283043,
+    "lng": -118.4676682
+  },
+  "sports basement south bay, hawthorne, los angeles, ca": null
 }

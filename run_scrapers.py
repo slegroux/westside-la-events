@@ -46,6 +46,16 @@ from src.scrapers.apero_francophone import AperoFrancophoneScraper
 from src.scrapers.aero_theater import AeroTheaterScraper
 from src.scrapers.laemmle_monica import LaemmleMonicaScraper
 from src.scrapers.mudwtr import MudWtrScraper
+from src.scrapers.getty_center import GettyCenterScraper
+from src.scrapers.getty_villa import GettyVillaScraper
+from src.scrapers.skirball import SkirballScraper
+from src.scrapers.geffen_playhouse import GeffenPlayhouseScraper
+from src.scrapers.broad_stage import BroadStageScraper
+from src.scrapers.nuart_theatre import NuartTheatreScraper
+from src.scrapers.mccabes import McCabesScraper
+from src.scrapers.bergamot_station import BergamotStationScraper
+from src.scrapers.fowler_museum import FowlerMuseumScraper
+from src.scrapers.sm_farmers_market import SantaMonicaFarmersMarketScraper
 
 # Thread-local storage for database connections
 thread_local = threading.local()
@@ -241,6 +251,36 @@ def main():
 
     if config.EVENT_SOURCES.get('mudwtr', {}).get('enabled'):
         scrapers.append(MudWtrScraper())
+
+    if config.EVENT_SOURCES.get('getty_center', {}).get('enabled'):
+        scrapers.append(GettyCenterScraper())
+
+    if config.EVENT_SOURCES.get('getty_villa', {}).get('enabled'):
+        scrapers.append(GettyVillaScraper())
+
+    if config.EVENT_SOURCES.get('skirball', {}).get('enabled'):
+        scrapers.append(SkirballScraper())
+
+    if config.EVENT_SOURCES.get('geffen_playhouse', {}).get('enabled'):
+        scrapers.append(GeffenPlayhouseScraper())
+
+    if config.EVENT_SOURCES.get('broad_stage', {}).get('enabled'):
+        scrapers.append(BroadStageScraper())
+
+    if config.EVENT_SOURCES.get('nuart_theatre', {}).get('enabled'):
+        scrapers.append(NuartTheatreScraper())
+
+    if config.EVENT_SOURCES.get('mccabes', {}).get('enabled'):
+        scrapers.append(McCabesScraper())
+
+    if config.EVENT_SOURCES.get('bergamot_station', {}).get('enabled'):
+        scrapers.append(BergamotStationScraper())
+
+    if config.EVENT_SOURCES.get('fowler_museum', {}).get('enabled'):
+        scrapers.append(FowlerMuseumScraper())
+
+    if config.EVENT_SOURCES.get('sm_farmers_market', {}).get('enabled'):
+        scrapers.append(SantaMonicaFarmersMarketScraper())
 
     print(f"\n✓ Loaded {len(scrapers)} scrapers")
 

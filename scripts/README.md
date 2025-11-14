@@ -44,6 +44,49 @@ scripts/
 - Authenticated with gcloud (`gcloud auth login`)
 - Correct project set (`gcloud config set project westside-events-406046958598`)
 
+### sync_db_to_cloud.sh
+**Purpose:** Sync local database to Google Cloud Storage (updates production data without redeploying code)
+
+**Usage:**
+```bash
+# Quick sync (upload current local DB)
+./scripts/sync_db_to_cloud.sh
+
+# Run scrapers first, then sync
+./scripts/sync_db_to_cloud.sh --run-scrapers
+
+# Skip backing up production DB
+./scripts/sync_db_to_cloud.sh --skip-backup
+
+# Force sync without confirmation
+./scripts/sync_db_to_cloud.sh --force
+
+# Test what would happen without making changes
+./scripts/sync_db_to_cloud.sh --dry-run
+
+# Common: Update events and sync in one command
+./scripts/sync_db_to_cloud.sh --run-scrapers --force
+```
+
+**Features:**
+- Backs up production database before overwriting (optional)
+- Optionally runs scrapers to update local database first
+- Uploads events.db, analytics.db, and geocode_cache.json
+- Shows database statistics (event count, file size)
+- Verifies uploaded files
+- Includes dry-run mode for testing
+- Cloud Run service automatically picks up new data on next request
+
+**When to use:**
+- After running scrapers locally to update production data
+- To restore a backup database to production
+- To manually update event data without full deployment
+
+**Requirements:**
+- Authenticated with gcloud (`gcloud auth login`)
+- Local database exists at `./data/events.db`
+- Micromamba environment `la` set up (if using --run-scrapers)
+
 ## Core Utility Scripts
 
 These Python scripts handle database management, geocoding, and maintenance:

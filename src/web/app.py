@@ -227,15 +227,17 @@ def page_head(title: str, description: Optional[str] = None):
         Script(src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js', defer=True),
         # Application JavaScript - defer to load after Leaflet
         Script(src='/static/js/map.js', defer=True),
+        # Toast notification system
+        Script(src='/static/js/toast.js', defer=True),
         # Analytics tracking (if enabled)
         Script(src='/static/js/analytics.js', defer=True) if config.ENABLE_ANALYTICS else None,
         # Filter collapse/expand functionality with state persistence
         Script('''
-            // Get saved collapse state from localStorage (defaults to expanded/open)
+            // Get saved collapse state from localStorage (defaults to collapsed)
             function getCollapseState(sectionId) {
                 const saved = localStorage.getItem('filter_collapse_' + sectionId);
-                // Default to expanded if no saved state
-                if (saved === null) return true;
+                // Default to collapsed if no saved state
+                if (saved === null) return false;
                 return saved === 'expanded';
             }
 
@@ -266,7 +268,7 @@ def page_head(title: str, description: Optional[str] = None):
             // Restore collapse states on page load and after HTMX swaps
             function restoreCollapseStates() {
                 console.log('Restoring collapse states...');
-                ['categories', 'sources'].forEach(sectionId => {
+                ['categories', 'venues'].forEach(sectionId => {
                     const content = document.getElementById(sectionId + '-content');
                     const button = document.querySelector(`[aria-controls="${sectionId}-content"]`);
 
@@ -523,11 +525,16 @@ def event_card(event: Event, session=None):
                 ),
                 cls='event-location'
             ) if event.venue_name else None),
-            P(event.description, cls='event-description') if event.description else None,
+            (A(
+                P(event.description, cls='event-description'),
+                **link_attrs,
+                title='Click to view full event details'
+            ) if event.description else None),
             Div(
                 Span(
                     event.category,
-                    cls='event-category'
+                    cls='event-category',
+                    **{'data-category': event.category}
                 ),
                 source_display,
                 cls='event-footer'
@@ -535,7 +542,34 @@ def event_card(event: Event, session=None):
             cls='event-content'
         ),
         cls='event-card',
-        **{'data-event-id': str(event.id)}
+        **{'data-event-id': str(event.id), 'data-category': event.category}
+    )
+
+
+def skeleton_card():
+    """Component to render a skeleton loading card."""
+    return Div(
+        Div(cls='skeleton-image'),
+        Div(
+            Div(cls='skeleton-title'),
+            Div(cls='skeleton-text short'),
+            Div(cls='skeleton-text medium'),
+            Div(
+                Div(cls='skeleton-badge'),
+                Div(cls='skeleton-badge'),
+                cls='skeleton-footer'
+            ),
+            cls='skeleton-content'
+        ),
+        cls='skeleton-card'
+    )
+
+
+def skeleton_grid(count: int = 6):
+    """Component to render a grid of skeleton cards during loading."""
+    return Div(
+        Div('Loading events...', style='margin-bottom: 1.5rem; color: var(--text-light); font-size: 1rem; font-weight: 600;'),
+        Div(*[skeleton_card() for _ in range(count)], cls='events-grid'),
     )
 
 
@@ -598,7 +632,7 @@ def home_page(request, session):
                             # Map Container (hidden by default)
                             Div(id='map', style='display: none;'),
                             # Events Grid - Now with server-rendered content
-                            Div(events_list(initial_events, session), id='events-container'),
+                            Div(events_list(initial_events, session), id='events-container', **{'data-loading': 'skeleton'}),
                             id='view-container'
                         ),
 
@@ -609,9 +643,31 @@ def home_page(request, session):
                 ),
                 cls='container'
             ),
-            # Global HTMX loading indicator
+            # Global HTMX loading indicator (kept for backward compatibility but skeleton is preferred)
             htmx_loading_indicator(),
-            page_footer()
+            # Toast notification container
+            Div(id='toast-container'),
+            page_footer(),
+            # Add script to show skeleton during HTMX requests
+            Script('''
+                // Show skeleton screens during HTMX requests
+                document.body.addEventListener('htmx:beforeSwap', function(event) {
+                    const target = event.detail.target;
+                    if (target && target.id === 'events-container') {
+                        // Show skeleton while loading
+                        const skeleton = `
+                            <div style="margin-bottom: 1.5rem; color: var(--text-light); font-size: 1rem; font-weight: 600;">Loading events...</div>
+                            <div class="events-grid">
+                                ${'<div class="skeleton-card"><div class="skeleton-image"></div><div class="skeleton-content"><div class="skeleton-title"></div><div class="skeleton-text short"></div><div class="skeleton-text medium"></div><div class="skeleton-footer"><div class="skeleton-badge"></div><div class="skeleton-badge"></div></div></div></div>'.repeat(6)}
+                            </div>
+                        `;
+                        // Only show skeleton if we're not already showing content
+                        if (target.getAttribute('data-loading') === 'skeleton') {
+                            target.innerHTML = skeleton;
+                        }
+                    }
+                });
+            ''')
         )
     )
 
@@ -923,10 +979,10 @@ def filter_tallies_section(date_filter: str = 'upcoming', category: List[str] = 
             ),
             cls='filter-group checkbox-filter',
         ),
-        # Categories filter - collapsible (open by default) with summary
-        filter_section_collapsible('categories', 'Categories', category_checkboxes, collapsed=False, total_count=total_categories, selected_count=selected_categories_event_count),
-        # Sources filter - collapsible (open by default) with summary
-        filter_section_collapsible('sources', 'Sources', source_checkboxes, collapsed=False, total_count=total_sources, selected_count=selected_sources_event_count) if source_checkboxes else None,
+        # Categories filter - collapsible (collapsed by default) with summary
+        filter_section_collapsible('categories', 'Categories', category_checkboxes, collapsed=True, total_count=total_categories, selected_count=selected_categories_event_count),
+        # Venues filter - collapsible (collapsed by default) with summary
+        filter_section_collapsible('venues', 'Venues', source_checkboxes, collapsed=True, total_count=total_sources, selected_count=selected_sources_event_count) if source_checkboxes else None,
         id='filter-tallies'
     )
 

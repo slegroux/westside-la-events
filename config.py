@@ -320,6 +320,76 @@ EVENT_SOURCES = {
         'name': 'Culver City',
         'url': 'https://www.culvercity.org/Services/Events',
         'enabled': True
+    },
+    'getty_center': {
+        'name': 'Getty Center',
+        'url': 'https://www.getty.edu/visit/calendar/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Major art museum in Brentwood featuring exhibitions, film screenings, lectures, and tours. Free admission.'
+    },
+    'getty_villa': {
+        'name': 'Getty Villa',
+        'url': 'https://www.getty.edu/visit/calendar/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Ancient art museum in Pacific Palisades with exhibitions and educational programs. Free admission with timed tickets.'
+    },
+    'skirball': {
+        'name': 'Skirball Cultural Center',
+        'url': 'https://www.skirball.org/programs/public-programs',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Cultural center in Brentwood featuring film, music, performances, lectures, and special events'
+    },
+    'geffen_playhouse': {
+        'name': 'Geffen Playhouse',
+        'url': 'https://geffenplayhouse.org/tickets/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Premier theater in Westwood presenting new and classic plays'
+    },
+    'broad_stage': {
+        'name': 'The Broad Stage',
+        'url': 'https://www.thebroadstage.org/events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Performing arts venue at SMC featuring theater, dance, music, and comedy'
+    },
+    'nuart_theatre': {
+        'name': 'Nuart Theatre',
+        'url': 'https://www.landmarktheatres.com/los-angeles/nuart-theatre',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Classic independent cinema in West LA showing art house and cult films'
+    },
+    'mccabes': {
+        'name': "McCabe's Guitar Shop",
+        'url': 'https://www.mccabes.com/concerts-landing/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Legendary folk music venue in Santa Monica featuring intimate concerts'
+    },
+    'bergamot_station': {
+        'name': 'Bergamot Station Arts Center',
+        'url': 'https://bergamotstation.com/exhibitions',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Gallery complex in Santa Monica hosting art exhibitions across multiple galleries'
+    },
+    'fowler_museum': {
+        'name': 'UCLA Fowler Museum',
+        'url': 'https://fowler.ucla.edu/events/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'UCLA museum featuring global arts and cultures with lectures, screenings, and workshops'
+    },
+    'sm_farmers_market': {
+        'name': 'Santa Monica Farmers Markets',
+        'url': 'https://www.santamonica.gov/categories/programs/farmers-market',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Weekly farmers markets at multiple Santa Monica locations (Wednesday, Saturday, Sunday)'
     }
 }
 

@@ -1,15 +1,15 @@
 """
 Scraper for Aero Theater (American Cinematheque) events.
-Source: https://www.americancinematheque.com/now-showing/?event_location=54
+Source: https://www.americancinematheque.com/wp-json/wp/v2/event
 
-Note: This site uses WooCommerce FooEvents plugin with JavaScript rendering.
-The events are loaded dynamically, so we use Playwright with extended wait times.
+Note: This site uses WordPress REST API. We fetch events directly from the
+event API (not the product API) which includes images via _embed parameter.
 """
 from datetime import datetime
 from typing import List, Optional
 from dateutil import parser as date_parser
 import re
-import time
+import requests
 
 from .base import BaseScraper
 from src.data.models import Event
@@ -21,12 +21,11 @@ class AeroTheaterScraper(BaseScraper):
     def __init__(self):
         super().__init__('Aero Theater')
         self.base_url = 'https://www.americancinematheque.com'
-        self.events_url = f'{self.base_url}/now-showing/?event_location=54&view_type=list'
+        self.api_url = f'{self.base_url}/wp-json/wp/v2/event'
 
     def scrape(self) -> List[Event]:
         """
-        Scrape events from Aero Theater website.
-        Uses Playwright for JavaScript rendering with custom logic.
+        Scrape events from Aero Theater using WordPress REST API.
 
         Returns:
             List of Event objects
@@ -35,33 +34,47 @@ class AeroTheaterScraper(BaseScraper):
         events = []
 
         try:
-            # Use custom Playwright fetch with longer waits for dynamic content
-            html = self._fetch_with_playwright()
+            # Fetch events from API (paginated)
+            page = 1
+            per_page = 50  # Use smaller page size since _embed is slower
 
-            if not html:
-                self.log("Failed to fetch events page")
-                return events
+            while True:
+                params = {
+                    'per_page': per_page,
+                    'page': page,
+                    'event_location': 54,  # Aero Theatre location ID for event API
+                    '_embed': 1  # Include embedded media data (images)
+                }
 
-            soup = self.parse_html(html)
+                self.log(f"Fetching page {page} from API...")
+                response = requests.get(self.api_url, params=params, timeout=120)
 
-            # Try multiple selectors for event cards
-            event_cards = soup.find_all('article', class_='card')
-            if not event_cards:
-                event_cards = soup.find_all('div', class_=lambda x: x and 'event' in str(x).lower())
-            if not event_cards:
-                event_cards = soup.find_all('div', class_=lambda x: x and 'film' in str(x).lower())
+                if response.status_code != 200:
+                    self.log(f"API returned status {response.status_code}")
+                    break
 
-            self.log(f"Found {len(event_cards)} event cards")
+                event_data = response.json()
 
-            for i, card in enumerate(event_cards, 1):
-                try:
-                    event = self._parse_event_card(card)
-                    if event:
-                        events.append(event)
-                        self.log(f"Event {i}/{len(event_cards)}: {event.title}")
-                except Exception as e:
-                    self.log(f"Error parsing event {i}: {e}")
-                    continue
+                if not event_data:
+                    break
+
+                self.log(f"Found {len(event_data)} events on page {page}")
+
+                for item in event_data:
+                    try:
+                        event = self._parse_event(item)
+                        if event:
+                            events.append(event)
+                            self.log(f"Parsed: {event.title}")
+                    except Exception as e:
+                        self.log(f"Error parsing event: {e}")
+                        continue
+
+                # Check if there are more pages
+                if len(event_data) < per_page:
+                    break
+
+                page += 1
 
             self.log(f"Successfully scraped {len(events)} events")
 
@@ -70,98 +83,85 @@ class AeroTheaterScraper(BaseScraper):
 
         return events
 
-    def _parse_event_card(self, card) -> Optional[Event]:
+    def _parse_event(self, event: dict) -> Optional[Event]:
         """
-        Parse an event card from the listing page.
+        Parse an event from the WordPress API response.
 
         Args:
-            card: BeautifulSoup element representing an event card
+            event: Dictionary containing event data from API
 
         Returns:
             Event object or None
         """
         try:
-            # Extract title - try multiple patterns
-            title = None
-            title_elem = (
-                card.find('h2') or
-                card.find('h3') or
-                card.find(class_=lambda x: x and 'title' in str(x).lower())
-            )
-            if title_elem:
-                title = self.clean_text(title_elem.get_text())
+            # Extract title
+            raw_title = event.get('title', {}).get('rendered', '')
+            if not raw_title:
+                return None
 
-            if not title:
-                self.log("No title found, skipping event")
+            # Clean up HTML entities
+            import html
+            from bs4 import BeautifulSoup
+            title = html.unescape(BeautifulSoup(raw_title, 'html.parser').get_text())
+
+            # Extract ACF (Advanced Custom Fields) data
+            acf_data = event.get('acf', {})
+
+            # Extract date and time - MUST have a date to be a valid event
+            # The event API uses different field names than product API
+            event_date = None
+
+            # Try to get date from event_start_date or event_start_time fields
+            date_fields = ['event_start_date', 'event_start_time', 'event_date']
+            for field in date_fields:
+                date_str = acf_data.get(field, '')
+                if date_str:
+                    try:
+                        event_date = date_parser.parse(date_str)
+                        break
+                    except:
+                        continue
+
+            # If no date found in ACF, try the post date
+            if not event_date:
+                date_str = event.get('date', '')
+                if date_str:
+                    try:
+                        event_date = date_parser.parse(date_str)
+                    except:
+                        pass
+
+            if not event_date:
+                self.log(f"No date found for event: {title}")
+                return None
+
+            # Skip past events (older than yesterday)
+            if event_date < datetime.now().replace(hour=0, minute=0, second=0, microsecond=0):
                 return None
 
             # Extract description
             description = ""
-            desc_elem = (
-                card.find('p', class_=lambda x: x and 'description' in str(x).lower()) or
-                card.find('div', class_=lambda x: x and 'excerpt' in str(x).lower()) or
-                card.find('p')
-            )
-            if desc_elem:
-                description = self.clean_text(desc_elem.get_text())
+            content = event.get('content', {}).get('rendered', '')
+            if content:
+                soup = BeautifulSoup(content, 'html.parser')
+                description = self.clean_text(soup.get_text())
 
             # Extract URL
-            url = self.events_url
-            link_elem = card.find('a', href=True)
-            if link_elem:
-                url = self.normalize_url(link_elem['href'], self.base_url)
+            url = event.get('link', '')
 
-            # Extract date/time
-            event_date = None
-            end_date = None
-
-            # Look for time element
-            time_elem = card.find('time')
-            if time_elem:
-                datetime_str = time_elem.get('datetime')
-                if datetime_str:
-                    try:
-                        event_date = date_parser.parse(datetime_str)
-                    except:
-                        pass
-
-            # If no time element, look for date text
-            if not event_date:
-                date_elem = card.find(class_=lambda x: x and ('date' in str(x).lower() or 'time' in str(x).lower()))
-                if date_elem:
-                    date_text = self.clean_text(date_elem.get_text())
-                    event_date = self._parse_date_text(date_text)
-
-            # Extract image
+            # Extract image from embedded data
             image_url = ""
-            img_elem = card.find('img')
-            if img_elem:
-                image_url = (
-                    img_elem.get('src') or
-                    img_elem.get('data-src') or
-                    img_elem.get('data-lazy-src') or
-                    ""
-                )
-                if image_url and not image_url.startswith('http'):
-                    image_url = self.normalize_url(image_url, self.base_url)
+            try:
+                embedded = event.get('_embedded', {})
+                featured_media = embedded.get('wp:featuredmedia', [])
+                if featured_media and len(featured_media) > 0:
+                    image_url = featured_media[0].get('source_url', '')
+            except:
+                pass
 
-            # Extract price
-            price = None
-            is_free = False
-            price_elem = card.find(class_=lambda x: x and 'price' in str(x).lower())
-            if price_elem:
-                price_text = self.clean_text(price_elem.get_text()).lower()
-                if 'free' in price_text:
-                    is_free = True
-                    price = 0.0
-                else:
-                    # Try to extract numeric price
-                    price_match = re.search(r'\$?\s*(\d+(?:\.\d{2})?)', price_text)
-                    if price_match:
-                        try:
-                            price = float(price_match.group(1))
-                        except:
-                            pass
+            # Extract price info
+            is_free = acf_data.get('event_free', False) or acf_data.get('product_free_event', False)
+            price = 0.0 if is_free else None
 
             # Venue details
             venue_name = "Aero Theatre"
@@ -173,7 +173,7 @@ class AeroTheaterScraper(BaseScraper):
                 venue_name=venue_name,
                 address=address,
                 event_date=event_date,
-                end_date=end_date,
+                end_date=None,
                 url=url,
                 image_url=image_url,
                 category="Film",
@@ -182,107 +182,5 @@ class AeroTheaterScraper(BaseScraper):
             )
 
         except Exception as e:
-            self.log(f"Error parsing event card: {e}")
-            return None
-
-    def _parse_date_text(self, date_text: str) -> Optional[datetime]:
-        """
-        Parse date from text string.
-
-        Args:
-            date_text: Date text to parse
-
-        Returns:
-            datetime object or None
-        """
-        if not date_text:
-            return None
-
-        try:
-            # Try standard parsing first
-            return date_parser.parse(date_text, fuzzy=True)
-        except:
-            pass
-
-        # Try to extract month/day patterns
-        patterns = [
-            r'(\w+)\s+(\d{1,2})(?:st|nd|rd|th)?',  # "January 15th"
-            r'(\d{1,2})/(\d{1,2})/(\d{2,4})',       # "1/15/2024"
-            r'(\d{1,2})-(\d{1,2})-(\d{2,4})',       # "1-15-2024"
-        ]
-
-        for pattern in patterns:
-            match = re.search(pattern, date_text)
-            if match:
-                try:
-                    return date_parser.parse(match.group(0))
-                except:
-                    pass
-
-        return None
-
-    def _fetch_with_playwright(self) -> Optional[str]:
-        """
-        Fetch page using Playwright with custom wait logic for dynamic content.
-        Falls back to regular HTTP fetch if Playwright fails.
-
-        Returns:
-            HTML content or None on failure
-        """
-        # First, try regular HTTP fetch as it's faster and more reliable
-        self.log("Trying regular HTTP fetch first...")
-        html = self.fetch_page(self.events_url)
-
-        if html and len(html) > 5000:  # Check if we got substantial content
-            self.log(f"Successfully fetched page via HTTP ({len(html)} bytes)")
-            return html
-
-        # Fallback to Playwright if regular fetch didn't work
-        self.log("Regular fetch didn't work, trying Playwright...")
-        try:
-            from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
-
-            with sync_playwright() as p:
-                browser = p.chromium.launch(
-                    headless=True,
-                    args=[
-                        '--disable-blink-features=AutomationControlled',
-                        '--disable-dev-shm-usage',
-                        '--no-sandbox'
-                    ]
-                )
-
-                context = browser.new_context(
-                    viewport={'width': 1920, 'height': 1080},
-                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    ignore_https_errors=True
-                )
-
-                page = context.new_page()
-
-                # Navigate to page
-                try:
-                    self.log(f"Navigating to {self.events_url}")
-                    page.goto(self.events_url, wait_until='domcontentloaded', timeout=30000)
-                    self.log("Page loaded")
-                except Exception as e:
-                    self.log(f"Navigation error: {e}")
-                    browser.close()
-                    return None
-
-                # Wait for content to load
-                self.log("Waiting for dynamic content to load...")
-                time.sleep(5)  # Give JS time to execute
-
-                # Get HTML
-                html = page.content()
-                browser.close()
-
-                # Rate limiting
-                time.sleep(2)
-
-                return html
-
-        except Exception as e:
-            self.log(f"Error in Playwright fetch: {e}")
+            self.log(f"Error parsing event: {e}")
             return None

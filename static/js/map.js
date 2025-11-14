@@ -320,9 +320,12 @@ function openVenueMapPopup(venueName, latitude, longitude, address) {
                     <button class="venue-map-close" onclick="closeVenueMapPopup()">&times;</button>
                 </div>
                 <div id="venue-popup-map" style="height: 400px; width: 100%;"></div>
-                <div class="venue-map-modal-footer">
-                    <p id="venue-map-address"></p>
-                    <a id="venue-map-directions-btn" class="btn-primary" target="_blank" rel="noopener noreferrer">
+                <div class="venue-map-modal-footer" style="flex-direction: row; align-items: center; justify-content: space-between;">
+                    <p id="venue-map-address" style="margin: 0; flex: 1;"></p>
+                    <a id="venue-map-directions-btn" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1rem; background: #4285F4; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.9rem; white-space: nowrap; transition: background 0.2s ease;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
+                        </svg>
                         Get Directions
                     </a>
                 </div>
@@ -342,6 +345,14 @@ function openVenueMapPopup(venueName, latitude, longitude, address) {
     } else {
         directionsBtn.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueName)}`;
     }
+
+    // Add hover effect
+    directionsBtn.addEventListener('mouseenter', function() {
+        this.style.background = '#357AE8';
+    });
+    directionsBtn.addEventListener('mouseleave', function() {
+        this.style.background = '#4285F4';
+    });
 
     // Show modal
     modal.style.display = 'flex';

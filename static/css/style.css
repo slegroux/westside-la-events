@@ -1,29 +1,101 @@
 /* Westside LA Events Aggregator - Enhanced Styles */
 
 :root {
-    --primary-color: #6366f1;
-    --primary-dark: #4f46e5;
-    --primary-light: #818cf8;
+    /* Modern Color Palette - Vibrant and Contemporary */
+    --primary-color: #8b5cf6;
+    --primary-dark: #7c3aed;
+    --primary-light: #a78bfa;
+    --primary-lighter: #c4b5fd;
     --secondary-color: #ec4899;
+    --secondary-dark: #db2777;
+    --secondary-light: #f472b6;
     --accent-color: #f59e0b;
+    --accent-light: #fbbf24;
     --success-color: #10b981;
-    --bg-color: #f8fafc;
-    --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --success-light: #34d399;
+    --info-color: #06b6d4;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+
+    /* Category Colors - Consolidated (6 core colors) */
+    --category-purple: #8b5cf6;      /* Music, Nightlife */
+    --category-pink: #ec4899;        /* Art, Date Night, Theater */
+    --category-orange: #f59e0b;      /* Food & Drink, Comedy */
+    --category-green: #10b981;       /* Sports, Wellness, Outdoors, Family */
+    --category-blue: #3b82f6;        /* Community, Education */
+    --category-indigo: #6366f1;      /* Film, Tech */
+    --category-default: #64748b;     /* Other */
+
+    /* Background Colors */
+    --bg-color: #fafbfc;
+    --bg-secondary: #f1f5f9;
+    --bg-tertiary: #e2e8f0;
     --card-bg: #ffffff;
-    --text-color: #1e293b;
+    --surface-overlay: rgba(255, 255, 255, 0.95);
+
+    /* Gradient Palettes - Consolidated */
+    --gradient-primary: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    --gradient-subtle: linear-gradient(135deg, #f8f9ff 0%, #fefeff 100%);
+    --gradient-card: linear-gradient(145deg, #ffffff 0%, #fdfeff 100%);
+
+    /* Text Colors */
+    --text-color: #0f172a;
+    --text-secondary: #334155;
     --text-light: #64748b;
     --text-lighter: #94a3b8;
+    --text-muted: #cbd5e1;
+
+    /* Typography Scale - Consistent Sizes */
+    --text-xs: 0.75rem;    /* 12px - tiny labels, tags */
+    --text-sm: 0.875rem;   /* 14px - small body text, captions */
+    --text-base: 1rem;     /* 16px - body text */
+    --text-lg: 1.25rem;    /* 20px - section headings, card titles */
+    --text-xl: 1.5rem;     /* 24px - page titles */
+    --text-2xl: 2rem;      /* 32px - hero titles */
+    --text-3xl: 3rem;      /* 48px - main header */
+
+    /* Border & Dividers */
     --border-color: #e2e8f0;
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    --shadow-md: 0 6px 12px -2px rgba(0, 0, 0, 0.12);
-    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    --border-light: #f1f5f9;
+    --border-dark: #cbd5e1;
+    --divider-color: rgba(148, 163, 184, 0.2);
+
+    /* Shadows - Neutral and Subtle */
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 2px 4px -1px rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 8px 16px -2px rgba(0, 0, 0, 0.12), 0 4px 8px -2px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.14), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
     --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --shadow-2xl: 0 35px 60px -15px rgba(0, 0, 0, 0.3);
+    --shadow-colored: 0 4px 12px -2px rgba(0, 0, 0, 0.12);
+    --shadow-hover: 0 12px 24px -6px rgba(0, 0, 0, 0.16), 0 6px 12px -4px rgba(0, 0, 0, 0.1);
+
+    /* Border Radius */
+    --radius-xs: 0.25rem;
     --radius-sm: 0.375rem;
     --radius: 0.5rem;
-    --radius-lg: 0.75rem;
-    --radius-xl: 1rem;
-    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --radius-md: 0.625rem;
+    --radius-lg: 0.875rem;
+    --radius-xl: 1.125rem;
+    --radius-2xl: 1.5rem;
+    --radius-3xl: 2rem;
+    --radius-full: 9999px;
+
+    /* Transitions & Animations */
+    --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* Spacing Scale */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+    --space-3xl: 4rem;
 }
 
 * {
@@ -33,11 +105,17 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    line-height: 1.6;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.65;
     color: var(--text-color);
-    background-color: var(--bg-color);
+    background: var(--bg-color);
+    background-image:
+        radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.03) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.03) 0px, transparent 50%);
+    background-attachment: fixed;
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .container {
@@ -92,25 +170,12 @@ body {
     min-width: 0;
 }
 
-/* Header with Gradient Hero */
+/* Header with Gradient Hero - Simplified */
 header {
-    background: var(--bg-gradient);
+    background: var(--gradient-primary);
     box-shadow: var(--shadow-lg);
-    padding: 1.5rem 0 2.5rem;
+    padding: 2rem 0 3rem;
     position: relative;
-    overflow: hidden;
-}
-
-header::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="rgba(255,255,255,0.1)" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') bottom no-repeat;
-    background-size: cover;
-    opacity: 0.3;
 }
 
 .header-content {
@@ -149,12 +214,13 @@ header::before {
 }
 
 h1 {
-    font-size: 3rem;
+    font-size: var(--text-3xl);
     font-weight: 800;
     color: white;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    letter-spacing: -0.025em;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15);
+    letter-spacing: -0.03em;
     margin-bottom: 0;
+    line-height: 1.1;
 }
 
 .header-title {
@@ -162,7 +228,7 @@ h1 {
 }
 
 .header-subtitle {
-    font-size: 1.25rem;
+    font-size: var(--text-lg);
     color: rgba(255, 255, 255, 0.95);
     font-weight: 400;
     max-width: 600px;
@@ -170,17 +236,24 @@ h1 {
 
 /* Search Section - Sidebar Design */
 .search-section {
-    background-color: var(--card-bg);
-    padding: 1.5rem;
+    background: var(--gradient-card);
+    padding: 1.75rem;
     margin: 0;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-light);
     position: relative;
     z-index: 10;
+    backdrop-filter: blur(10px);
+    transition: var(--transition);
+}
+
+.search-section:hover {
+    box-shadow: var(--shadow-lg);
 }
 
 .search-section h2 {
-    font-size: 1.25rem;
+    font-size: var(--text-lg);
     font-weight: 700;
     margin-bottom: 1.25rem;
     color: var(--text-color);
@@ -199,7 +272,7 @@ h1 {
     padding: 0.875rem 1rem;
     border: 2px solid var(--border-color);
     border-radius: var(--radius);
-    font-size: 0.95rem;
+    font-size: var(--text-base);
     transition: var(--transition);
     background-color: var(--bg-color);
 }
@@ -218,24 +291,45 @@ h1 {
 .search-box button {
     width: 100%;
     padding: 0.875rem 1rem;
-    background: var(--bg-gradient);
+    background: var(--gradient-primary);
     color: white;
     border: none;
-    border-radius: var(--radius);
-    font-size: 0.95rem;
+    border-radius: var(--radius-lg);
+    font-size: var(--text-base);
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-colored);
+    position: relative;
+    overflow: hidden;
+}
+
+.search-box button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.search-box button:hover::before {
+    width: 300px;
+    height: 300px;
 }
 
 .search-box button:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-hover);
 }
 
 .search-box button:active {
     transform: translateY(0);
+    box-shadow: var(--shadow-sm);
 }
 
 /* Filters - Sidebar Design */
@@ -251,7 +345,7 @@ h1 {
 }
 
 .filter-group label {
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
     font-weight: 700;
     margin-bottom: 0.625rem;
     color: var(--text-color);
@@ -263,7 +357,7 @@ h1 {
     padding: 0.75rem 1rem;
     border: 2px solid var(--border-color);
     border-radius: var(--radius);
-    font-size: 0.95rem;
+    font-size: var(--text-base);
     background-color: white;
     transition: var(--transition);
     cursor: pointer;
@@ -334,21 +428,21 @@ h1 {
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--text-color);
-    padding: 0.75rem 1rem;
-    background-color: white;
-    border: 2px solid var(--border-color);
-    border-radius: var(--radius);
+    padding: 0.875rem 1.25rem;
+    background: white;
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-xl);
     transition: var(--transition);
     text-transform: none;
     letter-spacing: normal;
-    box-shadow: none;
+    box-shadow: var(--shadow-xs);
 }
 
 .checkbox-label:hover {
-    border-color: var(--success-color);
-    background-color: rgba(16, 185, 129, 0.05);
+    border-color: var(--success-light);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(52, 211, 153, 0.05) 100%);
     transform: translateY(-2px);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-sm);
 }
 
 .checkbox-label.free-events-checkbox:has(input[type="checkbox"]:checked) {
@@ -370,6 +464,53 @@ h1 {
     flex-direction: column;
 }
 
+/* Filter Presets - Quick access pills */
+.filter-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.preset-pill {
+    padding: 0.625rem 1.25rem;
+    background: white;
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-full);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: var(--transition-spring);
+    box-shadow: var(--shadow-xs);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.preset-pill:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-light);
+}
+
+.preset-pill.active {
+    background: var(--gradient-primary);
+    color: white;
+    border-color: transparent;
+    box-shadow: var(--shadow-colored);
+}
+
+.preset-pill.active:hover {
+    box-shadow: var(--shadow-hover);
+}
+
+.preset-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
 /* Primary filters row (Date picker and Free events) */
 .filters-primary-row {
     display: flex;
@@ -379,11 +520,17 @@ h1 {
 
 /* Category Checkboxes Filter Group */
 .category-filter-group {
-    background: var(--bg-color);
-    padding: 1rem;
-    border-radius: var(--radius);
-    border: 1px solid var(--border-color);
-    box-shadow: none;
+    background: var(--gradient-subtle);
+    padding: 1.25rem;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-xs);
+    transition: var(--transition);
+}
+
+.category-filter-group:hover {
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-sm);
 }
 
 .filter-header-simple {
@@ -466,17 +613,18 @@ h1 {
     align-items: center;
     gap: 0.5rem;
     cursor: pointer;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: var(--text-color);
-    padding: 0.5rem 0.875rem;
-    background-color: white;
-    border: 2px solid var(--border-color);
-    border-radius: 2rem;
-    transition: var(--transition);
+    padding: 0.625rem 1rem;
+    background: white;
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-full);
+    transition: var(--transition-spring);
     text-transform: none;
     letter-spacing: normal;
     user-select: none;
+    box-shadow: var(--shadow-xs);
 }
 
 /* Different styling for source labels */
@@ -486,9 +634,9 @@ h1 {
 
 .category-checkbox-label:hover,
 .source-checkbox-label:hover {
-    border-color: var(--primary-color);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
+    border-color: var(--primary-light);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: var(--shadow-md);
 }
 
 .category-checkbox-label input[type="checkbox"],
@@ -529,7 +677,7 @@ h1 {
 
 .category-checkbox-label:has(input[type="checkbox"]:checked),
 .source-checkbox-label:has(input[type="checkbox"]:checked) {
-    background: var(--bg-gradient);
+    background: var(--gradient-primary);
     color: white;
     border-color: transparent;
     box-shadow: var(--shadow-md);
@@ -548,228 +696,145 @@ h1 {
     transform: scale(1);
 }
 
-/* Category-specific colors for filter checkboxes */
-.category-checkbox-label[data-category="Music"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
-}
-
-.category-checkbox-label[data-category="Art"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
-}
-
-.category-checkbox-label[data-category="Food & Drink"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
-}
-
-.category-checkbox-label[data-category="Sports"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.category-checkbox-label[data-category="Family"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%);
-}
-
-.category-checkbox-label[data-category="Theater"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-}
-
-.category-checkbox-label[data-category="Comedy"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-}
-
-.category-checkbox-label[data-category="Film"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-}
-
+/* Category-specific colors for filter checkboxes - Consolidated */
+/* Purple group: Music, Nightlife */
+.category-checkbox-label[data-category="Music"]:has(input[type="checkbox"]:checked),
 .category-checkbox-label[data-category="Nightlife"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    background: var(--category-purple);
 }
 
-.category-checkbox-label[data-category="Wellness"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+.category-checkbox-label[data-category="Music"],
+.category-checkbox-label[data-category="Nightlife"] {
+    border-color: var(--category-purple);
+    background-color: rgba(139, 92, 246, 0.05);
 }
 
-.category-checkbox-label[data-category="Community"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-}
-
-.category-checkbox-label[data-category="Education"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
-}
-
-.category-checkbox-label[data-category="Date Night"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
-}
-
-.category-checkbox-label[data-category="Other"]:has(input[type="checkbox"]:checked) {
-    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
-}
-
-/* Default states for category checkboxes with matching colors */
-.category-checkbox-label[data-category="Music"] {
-    border-color: #a855f7;
-    background-color: rgba(168, 85, 247, 0.05);
-}
-
-/* Hover states for category checkboxes - slightly enhanced */
-.category-checkbox-label[data-category="Music"]:hover {
-    border-color: #a855f7;
-    background-color: rgba(168, 85, 247, 0.1);
+.category-checkbox-label[data-category="Music"]:hover,
+.category-checkbox-label[data-category="Nightlife"]:hover {
+    border-color: var(--category-purple);
+    background-color: rgba(139, 92, 246, 0.1);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
 
-.category-checkbox-label[data-category="Art"] {
-    border-color: #ec4899;
+/* Pink group: Art, Theater, Date Night */
+.category-checkbox-label[data-category="Art"]:has(input[type="checkbox"]:checked),
+.category-checkbox-label[data-category="Theater"]:has(input[type="checkbox"]:checked),
+.category-checkbox-label[data-category="Date Night"]:has(input[type="checkbox"]:checked) {
+    background: var(--category-pink);
+}
+
+.category-checkbox-label[data-category="Art"],
+.category-checkbox-label[data-category="Theater"],
+.category-checkbox-label[data-category="Date Night"] {
+    border-color: var(--category-pink);
     background-color: rgba(236, 72, 153, 0.05);
 }
 
-.category-checkbox-label[data-category="Art"]:hover {
-    border-color: #ec4899;
+.category-checkbox-label[data-category="Art"]:hover,
+.category-checkbox-label[data-category="Theater"]:hover,
+.category-checkbox-label[data-category="Date Night"]:hover {
+    border-color: var(--category-pink);
     background-color: rgba(236, 72, 153, 0.1);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
 
-.category-checkbox-label[data-category="Food & Drink"] {
-    border-color: #f59e0b;
+/* Orange group: Food & Drink, Comedy */
+.category-checkbox-label[data-category="Food & Drink"]:has(input[type="checkbox"]:checked),
+.category-checkbox-label[data-category="Comedy"]:has(input[type="checkbox"]:checked) {
+    background: var(--category-orange);
+}
+
+.category-checkbox-label[data-category="Food & Drink"],
+.category-checkbox-label[data-category="Comedy"] {
+    border-color: var(--category-orange);
     background-color: rgba(245, 158, 11, 0.05);
 }
 
-.category-checkbox-label[data-category="Food & Drink"]:hover {
-    border-color: #f59e0b;
+.category-checkbox-label[data-category="Food & Drink"]:hover,
+.category-checkbox-label[data-category="Comedy"]:hover {
+    border-color: var(--category-orange);
     background-color: rgba(245, 158, 11, 0.1);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
 
-.category-checkbox-label[data-category="Sports"] {
-    border-color: #10b981;
+/* Green group: Sports, Wellness, Outdoors, Family */
+.category-checkbox-label[data-category="Sports"]:has(input[type="checkbox"]:checked),
+.category-checkbox-label[data-category="Wellness"]:has(input[type="checkbox"]:checked),
+.category-checkbox-label[data-category="Outdoors"]:has(input[type="checkbox"]:checked),
+.category-checkbox-label[data-category="Family"]:has(input[type="checkbox"]:checked) {
+    background: var(--category-green);
+}
+
+.category-checkbox-label[data-category="Sports"],
+.category-checkbox-label[data-category="Wellness"],
+.category-checkbox-label[data-category="Outdoors"],
+.category-checkbox-label[data-category="Family"] {
+    border-color: var(--category-green);
     background-color: rgba(16, 185, 129, 0.05);
 }
 
-.category-checkbox-label[data-category="Sports"]:hover {
-    border-color: #10b981;
+.category-checkbox-label[data-category="Sports"]:hover,
+.category-checkbox-label[data-category="Wellness"]:hover,
+.category-checkbox-label[data-category="Outdoors"]:hover,
+.category-checkbox-label[data-category="Family"]:hover {
+    border-color: var(--category-green);
     background-color: rgba(16, 185, 129, 0.1);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
 
-.category-checkbox-label[data-category="Family"] {
-    border-color: #14b8a6;
-    background-color: rgba(20, 184, 166, 0.05);
+/* Blue group: Community, Education */
+.category-checkbox-label[data-category="Community"]:has(input[type="checkbox"]:checked),
+.category-checkbox-label[data-category="Education"]:has(input[type="checkbox"]:checked) {
+    background: var(--category-blue);
 }
 
-.category-checkbox-label[data-category="Family"]:hover {
-    border-color: #14b8a6;
-    background-color: rgba(20, 184, 166, 0.1);
+.category-checkbox-label[data-category="Community"],
+.category-checkbox-label[data-category="Education"] {
+    border-color: var(--category-blue);
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+.category-checkbox-label[data-category="Community"]:hover,
+.category-checkbox-label[data-category="Education"]:hover {
+    border-color: var(--category-blue);
+    background-color: rgba(59, 130, 246, 0.1);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
 
-.category-checkbox-label[data-category="Theater"] {
-    border-color: #dc2626;
-    background-color: rgba(220, 38, 38, 0.05);
-}
-
-.category-checkbox-label[data-category="Theater"]:hover {
-    border-color: #dc2626;
-    background-color: rgba(220, 38, 38, 0.1);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
-}
-
-.category-checkbox-label[data-category="Comedy"] {
-    border-color: #fbbf24;
-    background-color: rgba(251, 191, 36, 0.05);
-}
-
-.category-checkbox-label[data-category="Comedy"]:hover {
-    border-color: #fbbf24;
-    background-color: rgba(251, 191, 36, 0.1);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
+/* Indigo group: Film, Tech */
+.category-checkbox-label[data-category="Film"]:has(input[type="checkbox"]:checked) {
+    background: var(--category-indigo);
 }
 
 .category-checkbox-label[data-category="Film"] {
-    border-color: #1f2937;
-    background-color: rgba(31, 41, 55, 0.05);
-}
-
-.category-checkbox-label[data-category="Film"]:hover {
-    border-color: #1f2937;
-    background-color: rgba(31, 41, 55, 0.1);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
-}
-
-.category-checkbox-label[data-category="Nightlife"] {
-    border-color: #6366f1;
+    border-color: var(--category-indigo);
     background-color: rgba(99, 102, 241, 0.05);
 }
 
-.category-checkbox-label[data-category="Nightlife"]:hover {
-    border-color: #6366f1;
+.category-checkbox-label[data-category="Film"]:hover {
+    border-color: var(--category-indigo);
     background-color: rgba(99, 102, 241, 0.1);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
 
-.category-checkbox-label[data-category="Wellness"] {
-    border-color: #84cc16;
-    background-color: rgba(132, 204, 22, 0.05);
-}
-
-.category-checkbox-label[data-category="Wellness"]:hover {
-    border-color: #84cc16;
-    background-color: rgba(132, 204, 22, 0.1);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
-}
-
-.category-checkbox-label[data-category="Community"] {
-    border-color: #60a5fa;
-    background-color: rgba(96, 165, 250, 0.05);
-}
-
-.category-checkbox-label[data-category="Community"]:hover {
-    border-color: #60a5fa;
-    background-color: rgba(96, 165, 250, 0.1);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
-}
-
-.category-checkbox-label[data-category="Education"] {
-    border-color: #0891b2;
-    background-color: rgba(8, 145, 178, 0.05);
-}
-
-.category-checkbox-label[data-category="Education"]:hover {
-    border-color: #0891b2;
-    background-color: rgba(8, 145, 178, 0.1);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
-}
-
-.category-checkbox-label[data-category="Date Night"] {
-    border-color: #f472b6;
-    background-color: rgba(244, 114, 182, 0.05);
-}
-
-.category-checkbox-label[data-category="Date Night"]:hover {
-    border-color: #f472b6;
-    background-color: rgba(244, 114, 182, 0.1);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
+/* Default/Other */
+.category-checkbox-label[data-category="Other"]:has(input[type="checkbox"]:checked) {
+    background: var(--category-default);
 }
 
 .category-checkbox-label[data-category="Other"] {
-    border-color: #64748b;
+    border-color: var(--category-default);
     background-color: rgba(100, 116, 139, 0.05);
 }
 
 .category-checkbox-label[data-category="Other"]:hover {
-    border-color: #64748b;
+    border-color: var(--category-default);
     background-color: rgba(100, 116, 139, 0.1);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
@@ -794,7 +859,7 @@ h1 {
 }
 
 .category-tag:hover {
-    background: var(--bg-gradient);
+    background: var(--gradient-primary);
     color: white;
     border-color: transparent;
     transform: translateY(-2px);
@@ -802,7 +867,7 @@ h1 {
 }
 
 .category-tag.active {
-    background: var(--bg-gradient);
+    background: var(--gradient-primary);
     color: white;
     border-color: transparent;
     box-shadow: var(--shadow);
@@ -811,34 +876,49 @@ h1 {
 /* View Toggle - Segmented Control Style */
 .view-toggle {
     display: inline-flex;
-    gap: 0;
+    gap: 0.25rem;
     margin: 0;
-    background-color: var(--bg-color);
-    padding: 0.375rem;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
+    background: var(--bg-secondary);
+    padding: 0.5rem;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xs);
+    border: 1px solid var(--border-light);
 }
 
 .view-toggle button {
-    padding: 0.75rem 1.75rem;
+    padding: 0.875rem 2rem;
     background-color: transparent;
     border: none;
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     cursor: pointer;
     transition: var(--transition);
     font-weight: 600;
     color: var(--text-light);
     font-size: 0.95rem;
+    position: relative;
 }
 
 .view-toggle button:hover:not(.active) {
     color: var(--text-color);
+    background: rgba(255, 255, 255, 0.5);
 }
 
 .view-toggle button.active {
-    background-color: white;
+    background: white;
     color: var(--primary-color);
     box-shadow: var(--shadow-sm);
+}
+
+.view-toggle button.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40%;
+    height: 2px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
 }
 
 /* Map Container */
@@ -864,20 +944,80 @@ h1 {
 }
 
 .event-card {
-    background-color: var(--card-bg);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow);
+    background: white;
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-sm);
     overflow: hidden;
     transition: var(--transition);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-light);
     display: flex;
     flex-direction: column;
+    position: relative;
+}
+
+.event-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--category-default);
+    opacity: 1;
+    transition: var(--transition);
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    z-index: 1;
 }
 
 .event-card:hover {
-    transform: translateY(-8px);
-    box-shadow: var(--shadow-xl);
-    border-color: var(--primary-light);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-color);
+}
+
+.event-card:hover::before {
+    height: 4px;
+}
+
+/* Category-Specific Card Accents - Consolidated Colors */
+.event-card[data-category="Music"]::before,
+.event-card[data-category="Nightlife"]::before,
+.event-card[data-category="entertainment"]::before {
+    background: var(--category-purple);
+}
+
+.event-card[data-category="Art"]::before,
+.event-card[data-category="Art Shows & Galleries"]::before,
+.event-card[data-category="Date Night"]::before,
+.event-card[data-category="Theater"]::before,
+.event-card[data-category="Theatre"]::before {
+    background: var(--category-pink);
+}
+
+.event-card[data-category="Food & Drink"]::before,
+.event-card[data-category="Food"]::before,
+.event-card[data-category="Comedy"]::before {
+    background: var(--category-orange);
+}
+
+.event-card[data-category="Sports"]::before,
+.event-card[data-category="Wellness"]::before,
+.event-card[data-category="Outdoors"]::before,
+.event-card[data-category="Family"]::before,
+.event-card[data-category="Free"]::before {
+    background: var(--category-green);
+}
+
+.event-card[data-category="Community"]::before,
+.event-card[data-category="Education"]::before,
+.event-card[data-category="Educational"]::before,
+.event-card[data-category="Bookstore Events"]::before {
+    background: var(--category-blue);
+}
+
+.event-card[data-category="Film"]::before,
+.event-card[data-category="Tech"]::before {
+    background: var(--category-indigo);
 }
 
 .event-image {
@@ -915,7 +1055,7 @@ h1 {
 }
 
 .event-title {
-    font-size: 1.25rem;
+    font-size: var(--text-lg);
     font-weight: 700;
     color: var(--text-color);
     line-height: 1.3;
@@ -935,7 +1075,7 @@ h1 {
 .event-price {
     padding: 0.5rem 1rem;
     border-radius: 2rem;
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
     font-weight: 700;
     white-space: nowrap;
     flex-shrink: 0;
@@ -1026,7 +1166,7 @@ a:hover .calendar-download-icon {
 
 .event-description {
     color: var(--text-light);
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
     line-height: 1.5;
     margin-bottom: 1rem;
     display: -webkit-box;
@@ -1034,6 +1174,19 @@ a:hover .calendar-download-icon {
     -webkit-box-orient: vertical;
     overflow: hidden;
     flex: 1;
+}
+
+/* Link wrapper for event description - maintains styling while making clickable */
+.event-content > a {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    flex: 1;
+}
+
+.event-content > a:hover .event-description {
+    color: var(--accent-color);
+    transition: color 0.2s ease;
 }
 
 .event-footer {
@@ -1048,10 +1201,10 @@ a:hover .calendar-download-icon {
 
 .event-category {
     padding: 0.375rem 1rem;
-    background: var(--bg-gradient);
+    background: var(--category-default);
     color: white;
     border-radius: 2rem;
-    font-size: 0.8rem;
+    font-size: var(--text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -1070,61 +1223,49 @@ a:hover .calendar-download-icon {
     opacity: 0.9;
 }
 
-/* Category-specific colors */
-.event-category[data-category="Music"] {
-    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+/* Category-specific badge colors - Consolidated */
+.event-category[data-category="Music"],
+.event-category[data-category="Nightlife"],
+.event-category[data-category="entertainment"] {
+    background: var(--category-purple);
 }
 
-.event-category[data-category="Art"] {
-    background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+.event-category[data-category="Art"],
+.event-category[data-category="Art Shows & Galleries"],
+.event-category[data-category="Date Night"],
+.event-category[data-category="Theater"],
+.event-category[data-category="Theatre"] {
+    background: var(--category-pink);
 }
 
-.event-category[data-category="Food & Drink"] {
-    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
-}
-
-.event-category[data-category="Sports"] {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.event-category[data-category="Family"] {
-    background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%);
-}
-
-.event-category[data-category="Theater"] {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-}
-
+.event-category[data-category="Food & Drink"],
+.event-category[data-category="Food"],
 .event-category[data-category="Comedy"] {
-    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    background: var(--category-orange);
 }
 
-.event-category[data-category="Film"] {
-    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+.event-category[data-category="Sports"],
+.event-category[data-category="Wellness"],
+.event-category[data-category="Outdoors"],
+.event-category[data-category="Family"],
+.event-category[data-category="Free"] {
+    background: var(--category-green);
 }
 
-.event-category[data-category="Nightlife"] {
-    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+.event-category[data-category="Community"],
+.event-category[data-category="Education"],
+.event-category[data-category="Educational"],
+.event-category[data-category="Bookstore Events"] {
+    background: var(--category-blue);
 }
 
-.event-category[data-category="Wellness"] {
-    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-}
-
-.event-category[data-category="Community"] {
-    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-}
-
-.event-category[data-category="Education"] {
-    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
-}
-
-.event-category[data-category="Date Night"] {
-    background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+.event-category[data-category="Film"],
+.event-category[data-category="Tech"] {
+    background: var(--category-indigo);
 }
 
 .event-category[data-category="Other"] {
-    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+    background: var(--category-default);
 }
 
 .event-source-container {
@@ -1196,15 +1337,27 @@ a:hover .calendar-download-icon {
     display: inline-block;
     width: 48px;
     height: 48px;
-    border: 4px solid var(--border-color);
+    border: 4px solid var(--border-light);
     border-top-color: var(--primary-color);
+    border-right-color: var(--secondary-color);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
     margin-bottom: 1rem;
+    box-shadow: var(--shadow-sm);
 }
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+/* Pulse animation for loading states */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.htmx-request {
+    animation: pulse 1.5s ease-in-out infinite;
 }
 
 /* Empty State - Friendly Message */
@@ -1281,6 +1434,11 @@ footer p {
 }
 
 @media (max-width: 768px) {
+    /* Better touch targets for mobile */
+    * {
+        -webkit-tap-highlight-color: rgba(139, 92, 246, 0.1);
+    }
+
     .header-title-row {
         gap: 0.75rem;
     }
@@ -1296,13 +1454,15 @@ footer p {
     }
 
     h1 {
-        font-size: 1.5rem;
+        font-size: 1.75rem;
         line-height: 1.2;
+        letter-spacing: -0.02em;
     }
 
     .header-subtitle {
-        font-size: 0.95rem;
+        font-size: 1rem;
         padding: 0 1rem;
+        line-height: 1.5;
     }
 
     header {
@@ -1314,9 +1474,10 @@ footer p {
     }
 
     .search-section {
-        padding: 1.25rem;
+        padding: 1.5rem;
         margin: -2rem 0.5rem 1.5rem;
-        border-radius: var(--radius-lg);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-lg);
     }
 
     .search-section h2 {
@@ -1397,11 +1558,17 @@ footer p {
     }
 
     .event-card {
-        border-radius: var(--radius-lg);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .event-card:active {
+        transform: scale(0.98);
     }
 
     .event-title {
         font-size: 1.25rem;
+        line-height: 1.35;
     }
 
     .event-header {
@@ -1540,15 +1707,285 @@ footer p {
     width: 48px;
     height: 48px;
     margin: 0 auto;
-    border: 4px solid var(--border-color);
+    border: 4px solid var(--border-light);
     border-top-color: var(--primary-color);
+    border-right-color: var(--secondary-color);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+    box-shadow: var(--shadow-sm);
 }
 
 @keyframes spin {
     to {
         transform: rotate(360deg);
+    }
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.event-card {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+.event-card:nth-child(1) { animation-delay: 0.05s; }
+.event-card:nth-child(2) { animation-delay: 0.1s; }
+.event-card:nth-child(3) { animation-delay: 0.15s; }
+.event-card:nth-child(4) { animation-delay: 0.2s; }
+.event-card:nth-child(5) { animation-delay: 0.25s; }
+.event-card:nth-child(6) { animation-delay: 0.3s; }
+
+/* Skeleton Loading Screens */
+.skeleton-card {
+    background: var(--gradient-card);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.skeleton-image {
+    width: 100%;
+    height: 180px;
+    background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-content {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.skeleton-title {
+    height: 1.5rem;
+    background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius);
+    width: 80%;
+}
+
+.skeleton-text {
+    height: 1rem;
+    background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius);
+}
+
+.skeleton-text.short {
+    width: 60%;
+}
+
+.skeleton-text.medium {
+    width: 75%;
+}
+
+.skeleton-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    gap: 0.75rem;
+}
+
+.skeleton-badge {
+    height: 1.75rem;
+    width: 5rem;
+    background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius-full);
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Toast Notifications */
+#toast-container {
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    pointer-events: none;
+}
+
+.toast {
+    background: white;
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    border-left: 4px solid var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 300px;
+    max-width: 400px;
+    pointer-events: auto;
+    animation: slideInRight 0.3s ease-out;
+    transition: var(--transition);
+}
+
+.toast.hiding {
+    animation: slideOutRight 0.3s ease-out forwards;
+}
+
+.toast-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.toast-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.toast-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    line-height: 1.3;
+}
+
+.toast-message {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    line-height: 1.4;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: var(--text-lighter);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.toast-close:hover {
+    color: var(--text-color);
+}
+
+/* Toast Types */
+.toast.success {
+    border-left-color: var(--success-color);
+}
+
+.toast.success .toast-icon {
+    color: var(--success-color);
+}
+
+.toast.error {
+    border-left-color: var(--danger-color);
+}
+
+.toast.error .toast-icon {
+    color: var(--danger-color);
+}
+
+.toast.info {
+    border-left-color: var(--info-color);
+}
+
+.toast.info .toast-icon {
+    color: var(--info-color);
+}
+
+.toast.warning {
+    border-left-color: var(--warning-color);
+}
+
+.toast.warning .toast-icon {
+    color: var(--warning-color);
+}
+
+/* Toast Animations */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Mobile toast positioning */
+@media (max-width: 768px) {
+    #toast-container {
+        top: auto;
+        bottom: 1rem;
+        right: 1rem;
+        left: 1rem;
+    }
+
+    .toast {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    @keyframes slideInRight {
+        from {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideOutRight {
+        from {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateY(100%);
+            opacity: 0;
+        }
     }
 }
 
@@ -1749,5 +2186,16 @@ footer p {
     .venue-map-modal-header,
     .venue-map-modal-footer {
         padding: 1rem;
+    }
+
+    .venue-map-modal-footer {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.75rem !important;
+    }
+
+    #venue-map-directions-btn {
+        width: 100% !important;
+        justify-content: center !important;
     }
 }

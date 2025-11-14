@@ -190,6 +190,29 @@ Quick reference for deployed instance:
 - **Cloud Storage**: gs://westside-la-events-data/
 - **Automated Scraping**: Daily at 2 AM UTC via Cloud Scheduler
 
+### Updating Production Data
+
+To update the production database with fresh scraped events:
+
+```bash
+# Option 1: Run scrapers and sync in one command (recommended)
+./scripts/sync_db_to_cloud.sh --run-scrapers --force
+
+# Option 2: Sync existing local database
+./scripts/sync_db_to_cloud.sh
+
+# Option 3: Test first with dry-run
+./scripts/sync_db_to_cloud.sh --run-scrapers --dry-run
+```
+
+The script will:
+1. Back up the current production database
+2. (Optional) Run scrapers to update local database
+3. Upload updated database to Cloud Storage
+4. Cloud Run automatically uses the new data on next request
+
+**Note:** This updates only the data, not the code. To deploy code changes, use `./scripts/deploy.sh`
+
 ## Documentation
 
 The project includes comprehensive documentation:

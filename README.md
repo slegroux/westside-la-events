@@ -83,12 +83,17 @@ See [docs/EVENT_SOURCES.md](docs/EVENT_SOURCES.md) for complete list and impleme
 Deploy your own instance to Google Cloud Run (free tier):
 
 ```bash
-gcloud run deploy westside-events --source . --region us-west1
+# Deploy code
+./scripts/deploy.sh
+
+# Update production data (after deployment)
+./scripts/sync_db_to_cloud.sh --run-scrapers --force
 ```
 
 See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for complete deployment guide covering:
 - Google Cloud Run (recommended)
 - Railway
+- Database syncing workflow
 - Custom domains
 - Monitoring and cost management
 
