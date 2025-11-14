@@ -110,16 +110,30 @@ class LaemmleMonicaScraper(BaseScraper):
 
         # Extract image URL - look for main film poster
         image_url = ''
-        # Look for the film poster - Laemmle uses the title as alt text
-        img = film_soup.find('img', alt=title)
+
+        # Strategy 1: Look for images in /sites/default/files/images/ (most reliable)
+        # This avoids logos, tracking pixels, and other non-poster images
+        img = film_soup.find('img', src=re.compile(r'/sites/default/files/images/'))
+
         if not img:
-            # Try to find poster by common patterns
+            # Strategy 2: Look for the film poster - try matching alt text (case-insensitive partial match)
+            # This handles cases like "The Addiction of Hope" vs "Addiction of Hope"
+            for img_tag in film_soup.find_all('img'):
+                alt_text = img_tag.get('alt', '').lower()
+                if title.lower() in alt_text or alt_text in title.lower():
+                    img = img_tag
+                    break
+
+        if not img:
+            # Strategy 3: Try to find poster by common patterns
             img = film_soup.find('img', class_=re.compile(r'poster|film-image'))
+
         if not img:
-            # Fallback to any img in the main content that's not the logo
+            # Strategy 4: Fallback to any img in the main content that's not the logo
             img = film_soup.find('div', class_='field--name-field-poster-image')
             if img:
                 img = img.find('img')
+
         if img:
             image_url = img.get('src', '')
             # Prefer the original image URL over thumbnails

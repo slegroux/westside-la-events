@@ -233,11 +233,11 @@ def page_head(title: str, description: Optional[str] = None):
         Script(src='/static/js/analytics.js', defer=True) if config.ENABLE_ANALYTICS else None,
         # Filter collapse/expand functionality with state persistence
         Script('''
-            // Get saved collapse state from localStorage (defaults to collapsed)
+            // Get saved collapse state from localStorage
             function getCollapseState(sectionId) {
                 const saved = localStorage.getItem('filter_collapse_' + sectionId);
-                // Default to collapsed if no saved state
-                if (saved === null) return false;
+                // Return null if no saved state (let the existing DOM state be preserved)
+                if (saved === null) return null;
                 return saved === 'expanded';
             }
 
@@ -252,7 +252,10 @@ def page_head(title: str, description: Optional[str] = None):
                 const button = document.querySelector(`[aria-controls="${sectionId}-content"]`);
                 const icon = button.querySelector('.collapse-icon');
 
-                if (content.style.display === 'none' || content.style.display === '') {
+                // Check current state based on display style
+                const isCurrentlyHidden = content.style.display === 'none';
+
+                if (isCurrentlyHidden) {
                     content.style.display = 'flex';
                     button.setAttribute('aria-expanded', 'true');
                     icon.textContent = '▼';
@@ -273,18 +276,26 @@ def page_head(title: str, description: Optional[str] = None):
                     const button = document.querySelector(`[aria-controls="${sectionId}-content"]`);
 
                     if (content && button) {
-                        const isExpanded = getCollapseState(sectionId);
+                        const savedState = getCollapseState(sectionId);
                         const icon = button.querySelector('.collapse-icon');
-                        console.log(`Section ${sectionId}: isExpanded=${isExpanded}`);
+                        console.log(`Section ${sectionId}: savedState=${savedState}`);
 
-                        if (isExpanded) {
-                            content.style.display = 'flex';
-                            button.setAttribute('aria-expanded', 'true');
-                            if (icon) icon.textContent = '▼';
+                        // Only apply saved state if it exists, otherwise preserve current DOM state
+                        if (savedState !== null) {
+                            if (savedState) {
+                                content.style.display = 'flex';
+                                button.setAttribute('aria-expanded', 'true');
+                                if (icon) icon.textContent = '▼';
+                            } else {
+                                content.style.display = 'none';
+                                button.setAttribute('aria-expanded', 'false');
+                                if (icon) icon.textContent = '▶';
+                            }
                         } else {
-                            content.style.display = 'none';
-                            button.setAttribute('aria-expanded', 'false');
-                            if (icon) icon.textContent = '▶';
+                            // No saved state - preserve current DOM state and save it
+                            const isCurrentlyExpanded = content.style.display !== 'none';
+                            saveCollapseState(sectionId, isCurrentlyExpanded);
+                            console.log(`Section ${sectionId}: No saved state, preserving current state (expanded=${isCurrentlyExpanded})`);
                         }
                     } else {
                         console.log(`Section ${sectionId}: NOT FOUND (content=${!!content}, button=${!!button})`);
@@ -979,10 +990,10 @@ def filter_tallies_section(date_filter: str = 'upcoming', category: List[str] = 
             ),
             cls='filter-group checkbox-filter',
         ),
-        # Categories filter - collapsible (collapsed by default) with summary
-        filter_section_collapsible('categories', 'Categories', category_checkboxes, collapsed=True, total_count=total_categories, selected_count=selected_categories_event_count),
-        # Venues filter - collapsible (collapsed by default) with summary
-        filter_section_collapsible('venues', 'Venues', source_checkboxes, collapsed=True, total_count=total_sources, selected_count=selected_sources_event_count) if source_checkboxes else None,
+        # Categories filter - collapsible (state managed by JavaScript/localStorage) with summary
+        filter_section_collapsible('categories', 'Categories', category_checkboxes, collapsed=False, total_count=total_categories, selected_count=selected_categories_event_count),
+        # Venues filter - collapsible (state managed by JavaScript/localStorage) with summary
+        filter_section_collapsible('venues', 'Venues', source_checkboxes, collapsed=False, total_count=total_sources, selected_count=selected_sources_event_count) if source_checkboxes else None,
         id='filter-tallies'
     )
 

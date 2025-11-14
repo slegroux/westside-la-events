@@ -149,14 +149,22 @@ class AeroTheaterScraper(BaseScraper):
             # Extract URL
             url = event.get('link', '')
 
-            # Extract image from embedded data
+            # Extract image from ACF event_card_image field (primary) or embedded data (fallback)
             image_url = ""
             try:
-                embedded = event.get('_embedded', {})
-                featured_media = embedded.get('wp:featuredmedia', [])
-                if featured_media and len(featured_media) > 0:
-                    image_url = featured_media[0].get('source_url', '')
-            except:
+                # Try ACF event_card_image first (this is what American Cinematheque uses)
+                event_card_image = acf_data.get('event_card_image', {})
+                if isinstance(event_card_image, dict) and 'url' in event_card_image:
+                    image_url = event_card_image['url']
+
+                # Fallback to embedded featured media if no ACF image
+                if not image_url:
+                    embedded = event.get('_embedded', {})
+                    featured_media = embedded.get('wp:featuredmedia', [])
+                    if featured_media and len(featured_media) > 0:
+                        image_url = featured_media[0].get('source_url', '')
+            except Exception as e:
+                self.log(f"Error extracting image: {e}")
                 pass
 
             # Extract price info
