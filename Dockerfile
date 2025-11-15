@@ -16,9 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 
 # Install Python dependencies with optimizations
-# Use pip cache mount for faster rebuilds (if BuildKit is enabled)
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Playwright browsers (this is the slowest step - ~500MB)
 # Cache this layer separately so it only rebuilds if requirements change

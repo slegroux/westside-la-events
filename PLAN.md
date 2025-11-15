@@ -21,6 +21,17 @@
 - 📝 Comprehensive test coverage
 - 🎨 UI/UX refinements
 
+### Known UI Issues
+- [ ] **Collapsible Filter Arrow State** - Arrow icons for Categories and Venues filters don't preserve expanded/collapsed state during HTMX OOB swaps when checkboxes are toggled. Arrow reverts to collapsed icon (▶) even when section is expanded.
+  - **Root Cause**: Server renders fresh HTML with default collapsed icon; JavaScript restoration happens after DOM swap causing visual inconsistency
+  - **Impact**: Minor UX issue - confusing visual feedback but functionality works (content stays expanded/collapsed correctly)
+  - **Priority**: Low (cosmetic issue, doesn't affect core functionality)
+  - **Fix Options**:
+    1. Server-side state preservation (read from localStorage on server somehow - not feasible)
+    2. CSS-only solution using checkbox states
+    3. Refactor to avoid OOB swaps for filter sections
+  - **Status**: Investigated multiple approaches (beforeSwap HTML modification, beforeRequest state storage, afterSwap restoration) - none fully resolved the timing issue
+
 ### Key Metrics
 - **Scrapers**: 47 total (25 active, 3 pending fixes, 19 supporting/utilities)
 - **Events**: 466 total in database
