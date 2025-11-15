@@ -10,15 +10,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gnupg \
     curl \
+    ca-certificates \
+    lsb-release \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
 # Install Google Cloud SDK for gsutil (needed to download database from Cloud Storage)
-RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
-    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - \
-    && apt-get update && apt-get install -y google-cloud-cli \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+# Using the official install script which is more reliable than apt
+RUN curl https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir=/opt \
+    && /opt/google-cloud-sdk/bin/gcloud components install gsutil --quiet
+
+# Add gcloud to PATH
+ENV PATH="/opt/google-cloud-sdk/bin:${PATH}"
 
 # Copy requirements first for better caching
 COPY requirements.txt .
