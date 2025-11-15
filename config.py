@@ -62,7 +62,7 @@ ANALYTICS_RETENTION_DAYS = int(os.getenv('ANALYTICS_RETENTION_DAYS', '365'))  # 
 #           Inglewood (SoFi Stadium, Intuit Dome, Kia Forum)
 # Excludes: Downtown LA, Echo Park, Silver Lake, Koreatown, Hollywood
 WESTSIDE_BOUNDS = {
-    'min_lat': 33.93,   # South boundary (includes Inglewood venues)
+    'min_lat': 33.90,   # South boundary (includes Inglewood and El Segundo venues)
     'max_lat': 34.15,   # North boundary (Santa Monica Mountains, includes Malibu)
     'min_lng': -118.75, # West boundary (Pacific coast, includes Malibu)
     'max_lng': -118.33  # East boundary (west of La Cienega, excludes Downtown/Echo Park)
@@ -390,6 +390,27 @@ EVENT_SOURCES = {
         'enabled': True,
         'uses_api': False,
         'note': 'Weekly farmers markets at multiple Santa Monica locations (Wednesday, Saturday, Sunday)'
+    },
+    'william_turner': {
+        'name': 'William Turner Gallery',
+        'url': 'https://www.williamturnergallery.com/events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Contemporary art gallery at Bergamot Station featuring exhibitions and art events'
+    },
+    'sounds_like_la': {
+        'name': 'Sounds Like LA',
+        'url': 'https://soundslikela.org/calendar/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Free public music series in LA parks featuring local artists'
+    },
+    'old_town_music_hall': {
+        'name': 'Old Town Music Hall',
+        'url': 'https://prod5.agileticketing.net/websales/pages/list.aspx?epguid=046f24e9-20f3-4095-9ab6-2596f53377e0&',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Historic cinema and music venue in El Segundo showing classic films and live performances with Wurlitzer organ'
     }
 }
 

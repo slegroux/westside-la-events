@@ -217,28 +217,40 @@ class LaemmleMonicaScraper(BaseScraper):
                             elif period == 'am' and hour == 12:
                                 hour = 0
 
-                            # Create datetime for today (we'll update if we find date info)
+                            # Create datetime for today at this showtime
+                            # Laemmle only shows current/future showtimes
                             now = datetime.now()
-                            showtime_dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                            showtime_dt = today_start.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
-                            # If the showtime is in the past, assume it's for today or tomorrow
-                            if showtime_dt < now:
-                                showtime_dt = showtime_dt + timedelta(days=1)
-
+                            # Store showtime info (we'll determine if it's today or future later)
                             showtimes.append({
                                 'time': showtime_text,
-                                'datetime': showtime_dt,
+                                'hour': hour,
+                                'minute': minute,
                                 'url': ticket_url
                             })
-
-                            # Track earliest showtime
-                            if earliest_date is None or showtime_dt < earliest_date:
-                                earliest_date = showtime_dt
                     except Exception as e:
                         self.log(f"Error parsing showtime '{showtime_text}': {e}")
 
             # Break after finding Monica Film Center section
             break
+
+        # Calculate event_date from showtimes
+        # Use the earliest showtime for today/tomorrow as the event date
+        if showtimes:
+            now = datetime.now()
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            # Find earliest showtime and determine if it's today or tomorrow
+            earliest_showtime = min(showtimes, key=lambda x: (x['hour'], x['minute']))
+            earliest_dt = today_start.replace(hour=earliest_showtime['hour'], minute=earliest_showtime['minute'])
+
+            # If the earliest showtime has passed, assume all showtimes are for tomorrow
+            if earliest_dt < now:
+                earliest_date = earliest_dt + timedelta(days=1)
+            else:
+                earliest_date = earliest_dt
 
         # Build full movie URL
         full_url = self.normalize_url(film_url, self.base_url)
@@ -256,7 +268,7 @@ class LaemmleMonicaScraper(BaseScraper):
             showtime_list = ', '.join([st['time'] for st in showtimes[:10]])  # Show up to 10 showtimes
             if len(showtimes) > 10:
                 showtime_list += f' and {len(showtimes) - 10} more'
-            description_parts.append(f"Additional showtimes: {showtime_list}")
+            description_parts.append(f"Showtimes: {showtime_list}")
 
         # Add venue context
         description_parts.append(f"Film screening at {self.venue_name}")

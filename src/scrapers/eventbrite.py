@@ -60,7 +60,11 @@ class EventbriteScraper(BaseScraper):
 
     def _scrape_general_page(self) -> List[Event]:
         """
-        Scrape the general LA events page using JSON-LD structured data.
+        Scrape the general LA events page by extracting event URLs and fetching
+        individual event pages for accurate time data.
+
+        Note: The list page JSON-LD only contains dates (2025-11-16) without times,
+        so we must fetch individual event pages to get full timestamps (2025-11-16T14:00:00-08:00).
 
         Returns:
             List of Event objects
@@ -76,29 +80,45 @@ class EventbriteScraper(BaseScraper):
 
             soup = self.parse_html(html)
 
-            # Extract JSON-LD structured data
+            # Extract event URLs from the page
+            event_urls = set()
+
+            # Method 1: Extract from JSON-LD itemList to get URLs
             json_ld = soup.find('script', type='application/ld+json')
-            if not json_ld:
-                self.log("No JSON-LD data found")
-                return events
+            if json_ld:
+                data = json.loads(json_ld.string)
+                if data.get('@type') == 'ItemList':
+                    event_items = data.get('itemListElement', [])
+                    for item in event_items:
+                        event_data = item.get('item', {})
+                        url = event_data.get('url', '')
+                        if url:
+                            event_urls.add(url.split('?')[0])  # Remove query params
 
-            data = json.loads(json_ld.string)
+            # Method 2: Also extract from href attributes as backup
+            event_links = soup.find_all('a', href=re.compile(r'eventbrite\.com/e/[^/]+-tickets-\d+'))
+            for link in event_links:
+                href = link.get('href', '')
+                if '/e/' in href and '-tickets-' in href:
+                    if href.startswith('http'):
+                        clean_url = href.split('?')[0]
+                    elif href.startswith('/e/'):
+                        clean_url = f"{self.base_url}{href.split('?')[0]}"
+                    else:
+                        continue
+                    event_urls.add(clean_url)
 
-            if data.get('@type') != 'ItemList':
-                self.log(f"Unexpected JSON-LD type: {data.get('@type')}")
-                return events
+            self.log(f"Found {len(event_urls)} unique event URLs in general page")
 
-            event_items = data.get('itemListElement', [])
-            self.log(f"Found {len(event_items)} events in JSON-LD")
-
-            for i, item in enumerate(event_items, 1):
+            # Fetch each event page and extract full data with correct times
+            for i, event_url in enumerate(sorted(event_urls), 1):
                 try:
-                    event_data = item.get('item', {})
-                    event = self._parse_event_from_structured_data(event_data)
+                    event = self._scrape_event_page(event_url)
                     if event:
                         events.append(event)
+                        self.log(f"  [{i}/{len(event_urls)}] ✓ {event.title}")
                 except Exception as e:
-                    self.log(f"Error parsing event {i}: {e}")
+                    self.log(f"  [{i}/{len(event_urls)}] ✗ Error: {e}")
                     continue
 
             self.log(f"Scraped {len(events)} events from general page")

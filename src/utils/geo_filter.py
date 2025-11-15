@@ -28,8 +28,8 @@ WESTSIDE_NEIGHBORHOODS = {
     'playa del rey', 'westchester', 'brentwood', 'west la',
     'west los angeles', 'palms', 'mar vista', 'culver city',
     'westwood', 'sawtelle', 'pacific palisades', 'beverly hills',
-    'west hollywood', 'weho', 'century city', 'inglewood', 'malibu',
-    'topanga', 'topanga beach', 'el matador', 'zuma beach',
+    'west hollywood', 'weho', 'century city', 'inglewood', 'el segundo',
+    'malibu', 'topanga', 'topanga beach', 'el matador', 'zuma beach',
     'point dume', 'carbon beach', 'surfrider beach',
     'ucla', 'ucla campus'  # UCLA campus is in Westwood
 }
@@ -50,6 +50,8 @@ WESTSIDE_ZIP_CODES = {
     '90049',
     # Westchester
     '90045',
+    # El Segundo
+    '90245',
     # Culver City
     '90230', '90232',
     # Inglewood
@@ -198,7 +200,7 @@ def is_westside_address(address: str, city: str = None, venue_name: str = None) 
     if city:
         city_lower = city.lower()
         if city_lower in {'santa monica', 'venice', 'culver city',
-                          'beverly hills', 'west hollywood', 'inglewood', 'malibu'}:
+                          'beverly hills', 'west hollywood', 'inglewood', 'el segundo', 'malibu'}:
             return True
 
     # Check for neighborhoods in any text

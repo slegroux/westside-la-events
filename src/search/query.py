@@ -59,10 +59,6 @@ class EventSearch:
         Returns:
             List of Event objects
         """
-        # Process date filter
-        if date_filter:
-            start_date, end_date = self._parse_date_filter(date_filter)
-
         # Apply Westside geographic filtering by default if enabled and no custom bounds provided
         if self.enable_geo_filter and min_lat is None and max_lat is None and min_lng is None and max_lng is None:
             min_lat = config.WESTSIDE_BOUNDS['min_lat']
@@ -70,9 +66,11 @@ class EventSearch:
             min_lng = config.WESTSIDE_BOUNDS['min_lng']
             max_lng = config.WESTSIDE_BOUNDS['max_lng']
 
-        # Search database
+        # Search database - pass date_filter directly to use SQLite's timezone handling
+        # This ensures consistency with the tallies calculation
         return self.db.search_events(
             query=query,
+            date_filter=date_filter,
             start_date=start_date,
             end_date=end_date,
             categories=categories,

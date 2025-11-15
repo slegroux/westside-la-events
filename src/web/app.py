@@ -791,11 +791,10 @@ def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = Non
             base_conditions = ["source IS NOT NULL", "category IS NOT NULL"]
 
             # Apply Westside geographic filtering if enabled
+            # Allow events with NULL coordinates to pass through (can't be geographically filtered)
             if config.ENABLE_GEOGRAPHIC_FILTERING:
-                base_conditions.append(f"latitude >= {config.WESTSIDE_BOUNDS['min_lat']}")
-                base_conditions.append(f"latitude <= {config.WESTSIDE_BOUNDS['max_lat']}")
-                base_conditions.append(f"longitude >= {config.WESTSIDE_BOUNDS['min_lng']}")
-                base_conditions.append(f"longitude <= {config.WESTSIDE_BOUNDS['max_lng']}")
+                base_conditions.append(f"(latitude IS NULL OR (latitude >= {config.WESTSIDE_BOUNDS['min_lat']} AND latitude <= {config.WESTSIDE_BOUNDS['max_lat']}))")
+                base_conditions.append(f"(longitude IS NULL OR (longitude >= {config.WESTSIDE_BOUNDS['min_lng']} AND longitude <= {config.WESTSIDE_BOUNDS['max_lng']}))")
 
             # Date filter
             if date_filter == 'specific_date' and specific_date:
@@ -809,15 +808,16 @@ def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = Non
                     # Fall back to upcoming if date parsing fails
                     conditions.append("event_date >= datetime('now')")
             elif date_filter == 'today':
-                conditions.append("date(event_date) = date('now', 'localtime')")
+                # Strip timezone suffix with substr() to handle both '2025-11-15 19:00:00' and '2025-11-15 19:00:00-08:00'
+                conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime')")
             elif date_filter == 'tomorrow':
-                conditions.append("date(event_date) = date('now', 'localtime', '+1 day')")
+                conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime', '+1 day')")
             elif date_filter == 'this_week':
                 conditions.append("event_date >= date('now', 'localtime') AND event_date < date('now', 'localtime', 'weekday 0', '+7 days')")
             elif date_filter == 'this_weekend':
-                conditions.append("date(event_date) IN (date('now', 'localtime', 'weekday 6'), date('now', 'localtime', 'weekday 0', '+7 days'))")
+                conditions.append("date(substr(event_date, 1, 19)) IN (date('now', 'localtime', 'weekday 6'), date('now', 'localtime', 'weekday 0', '+7 days'))")
             elif date_filter == 'this_month':
-                conditions.append("strftime('%Y-%m', event_date) = strftime('%Y-%m', 'now', 'localtime')")
+                conditions.append("strftime('%Y-%m', substr(event_date, 1, 19)) = strftime('%Y-%m', 'now', 'localtime')")
             else:  # upcoming or default
                 conditions.append("event_date >= datetime('now', 'localtime')")
 
@@ -881,13 +881,14 @@ def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = Non
                 except ValueError:
                     free_conditions.append("event_date >= datetime('now')")
             elif date_filter == 'today':
-                free_conditions.append("date(event_date) = date('now', 'localtime')")
+                # Strip timezone suffix to handle both formats
+                free_conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime')")
             elif date_filter == 'this_week':
                 free_conditions.append("event_date >= date('now', 'localtime') AND event_date < date('now', 'localtime', 'weekday 0', '+7 days')")
             elif date_filter == 'this_weekend':
-                free_conditions.append("date(event_date) IN (date('now', 'localtime', 'weekday 6'), date('now', 'localtime', 'weekday 0', '+7 days'))")
+                free_conditions.append("date(substr(event_date, 1, 19)) IN (date('now', 'localtime', 'weekday 6'), date('now', 'localtime', 'weekday 0', '+7 days'))")
             elif date_filter == 'this_month':
-                free_conditions.append("strftime('%Y-%m', event_date) = strftime('%Y-%m', 'now', 'localtime')")
+                free_conditions.append("strftime('%Y-%m', substr(event_date, 1, 19)) = strftime('%Y-%m', 'now', 'localtime')")
             else:
                 free_conditions.append("event_date >= datetime('now', 'localtime')")
 

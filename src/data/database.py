@@ -304,6 +304,7 @@ class Database:
         query: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
+        date_filter: Optional[str] = None,
         categories: Optional[List[str]] = None,
         sources: Optional[List[str]] = None,
         min_lat: Optional[float] = None,
@@ -314,7 +315,25 @@ class Database:
         limit: int = 100,
         offset: int = 0
     ) -> List[Event]:
-        """Search events with various filters."""
+        """
+        Search events with various filters.
+
+        Args:
+            query: Full-text search query
+            start_date: Start date (datetime object) - for backwards compatibility
+            end_date: End date (datetime object) - for backwards compatibility
+            date_filter: SQLite-based date filter ('today', 'tomorrow', 'this_week', etc.)
+                        This takes precedence over start_date/end_date for consistency with tallies
+            categories: List of category filters
+            sources: List of source filters
+            min_lat: Minimum latitude
+            max_lat: Maximum latitude
+            min_lng: Minimum longitude
+            max_lng: Maximum longitude
+            is_free: Filter for free events
+            limit: Maximum results
+            offset: Pagination offset
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
@@ -329,13 +348,34 @@ class Database:
                 # Sanitize query to prevent FTS syntax errors
                 params.append(sanitize_fts_query(query))
 
-            # Date range
-            if start_date:
-                conditions.append("event_date >= ?")
-                params.append(start_date)
-            if end_date:
-                conditions.append("event_date < ?")
-                params.append(end_date)
+            # Date filtering - use SQLite date functions for consistency with tallies
+            # NOTE: Events are stored in local time with inconsistent timezone formats:
+            # - Some as '2025-11-15 19:00:00' (no timezone)
+            # - Some as '2025-11-15 19:00:00-08:00' (with Pacific timezone)
+            # We use substr() to strip timezone suffix, then compare dates
+            if date_filter:
+                if date_filter == 'today':
+                    conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime')")
+                elif date_filter == 'tomorrow':
+                    conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime', '+1 day')")
+                elif date_filter == 'today_tomorrow':
+                    conditions.append("date(substr(event_date, 1, 19)) <= date('now', 'localtime', '+1 day')")
+                elif date_filter == 'this_week':
+                    conditions.append("event_date >= date('now', 'localtime') AND event_date < date('now', 'localtime', 'weekday 0', '+7 days')")
+                elif date_filter == 'this_weekend':
+                    conditions.append("date(substr(event_date, 1, 19)) IN (date('now', 'localtime', 'weekday 6'), date('now', 'localtime', 'weekday 0', '+7 days'))")
+                elif date_filter == 'this_month':
+                    conditions.append("strftime('%Y-%m', substr(event_date, 1, 19)) = strftime('%Y-%m', 'now', 'localtime')")
+                elif date_filter == 'upcoming':
+                    conditions.append("event_date >= datetime('now', 'localtime')")
+            elif start_date or end_date:
+                # Fall back to Python datetime for backwards compatibility
+                if start_date:
+                    conditions.append("event_date >= ?")
+                    params.append(start_date)
+                if end_date:
+                    conditions.append("event_date < ?")
+                    params.append(end_date)
 
             # Categories
             if categories:

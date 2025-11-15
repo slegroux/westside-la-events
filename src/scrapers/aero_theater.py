@@ -108,21 +108,37 @@ class AeroTheaterScraper(BaseScraper):
             acf_data = event.get('acf', {})
 
             # Extract date and time - MUST have a date to be a valid event
-            # The event API uses different field names than product API
+            # The API provides date in YYYYMMDD format and time as separate field
             event_date = None
 
-            # Try to get date from event_start_date or event_start_time fields
-            date_fields = ['event_start_date', 'event_start_time', 'event_date']
-            for field in date_fields:
-                date_str = acf_data.get(field, '')
+            # Get date and time from ACF fields
+            date_str = acf_data.get('event_start_date', '')  # Format: YYYYMMDD (e.g., "20251116")
+            time_str = acf_data.get('event_start_time', '')  # Format: "11:00 am"
+
+            if date_str:
+                try:
+                    # Combine date and time for accurate parsing
+                    if time_str:
+                        # Parse YYYYMMDD format and combine with time
+                        combined = f"{date_str} {time_str}"
+                        event_date = date_parser.parse(combined)
+                    else:
+                        # Parse just the date in YYYYMMDD format
+                        event_date = datetime.strptime(date_str, '%Y%m%d')
+                except Exception as e:
+                    self.log(f"Error parsing date '{date_str}' with time '{time_str}': {e}")
+                    pass
+
+            # Fallback: try event_date field
+            if not event_date:
+                date_str = acf_data.get('event_date', '')
                 if date_str:
                     try:
                         event_date = date_parser.parse(date_str)
-                        break
                     except:
-                        continue
+                        pass
 
-            # If no date found in ACF, try the post date
+            # Fallback: try post date
             if not event_date:
                 date_str = event.get('date', '')
                 if date_str:

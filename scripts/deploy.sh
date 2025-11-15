@@ -159,10 +159,17 @@ echo ""
 echo "🔨 Building container image..."
 if [ "$NO_CACHE" = true ]; then
     echo "⚠️  No-cache mode: forcing clean rebuild (this will take longer)..."
+    # Use standard Docker build without cache
     gcloud builds submit --tag ${IMAGE_NAME} --no-cache
 else
-    echo "Using cached layers for faster builds (use --no-cache to force clean rebuild)..."
-    gcloud builds submit --tag ${IMAGE_NAME}
+    echo "Using Kaniko with layer caching for faster builds (typically 2-3 minutes)..."
+    # Use cloudbuild.yaml with Kaniko for efficient caching
+    if [ -f "cloudbuild.yaml" ]; then
+        gcloud builds submit --config cloudbuild.yaml
+    else
+        echo "⚠️  cloudbuild.yaml not found, falling back to standard build..."
+        gcloud builds submit --tag ${IMAGE_NAME}
+    fi
 fi
 
 # Prepare environment variables

@@ -39,6 +39,7 @@ Each scraper implements:
 - `scrape()` method returning standardized event data
 - Error handling and rate limiting
 - Geocoding for addresses without coordinates
+- **Pricing convention**: When price information is not available, set `price_note` to `"TBD"` (not "Visit website for pricing" or similar). This provides a consistent user experience across all scrapers.
 
 #### 3. Search & Filter Layer (`src/search/`)
 - Date range filtering (today, this week, this month, custom)

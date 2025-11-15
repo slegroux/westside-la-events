@@ -762,5 +762,37 @@
   "2218 s harvard blvd, los angeles, ca, 90018": {
     "lat": 34.0358599,
     "lng": -118.3064302
-  }
+  },
+  "5023 west pico boulevard, los angeles, ca 90019, los angeles, ca, 90019": null,
+  "216 alameda st, los angeles, ca 90013, los angeles, ca, 90013": null,
+  "811 wilshire boulevard #21st floor, los angeles, ca 90017, los angeles, ca, 90017": null,
+  "1078 lillian way, los angeles, ca 90038, los angeles, ca, 90038": null,
+  "606-614 north robertson boulevard, west hollywood, ca 90069, west hollywood, ca, 90069": null,
+  "1153 valencia street, los angeles, ca 90015, los angeles, ca, 90015": null,
+  "1020 north vermont avenue, los angeles, ca 90029, los angeles, ca, 90029": null,
+  "3510 pasadena avenue, los angeles, ca 90031, los angeles, ca, 90031": null,
+  "930 mateo street, los angeles, ca 90021, los angeles, ca, 90021": null,
+  "901 e. 1st st. , los angeles, ca, los angeles, ca": {
+    "lat": 34.0487467,
+    "lng": -118.2336858
+  },
+  "448 s. main st., los angeles, ca 90013, los angeles, ca, 90013": null,
+  "117 winston street, los angeles, ca 90013, los angeles, ca, 90013": null,
+  "2514 sunset blvd rear, los angeles, ca 90026, los angeles, ca, 90026": null,
+  "698 harlem place, los angeles, ca 90014, los angeles, ca, 90014": null,
+  "3040 sunset boulevard, los angeles, ca 90026, los angeles, ca, 90026": null,
+  "1040 south los angeles street unit #7, los angeles, ca 90015, los angeles, ca, 90015": null,
+  "6516 selma avenue, los angeles, ca 90028, los angeles, ca, 90028": null,
+  "1177 south beverly drive, los angeles, ca 90035, los angeles, ca, 90035": null,
+  "501 south spring street, los angeles, ca 90013, los angeles, ca, 90013": null,
+  "3040 sunset boulevard, los angeles, ca 90026, united states, los angeles, ca, 90026": null,
+  "2901 ocean park blvd, santa monica, ca 90405": {
+    "lat": 34.0200463,
+    "lng": -118.454191
+  },
+  "140 richmond street, el segundo, ca, 90245": {
+    "lat": 33.9176277,
+    "lng": -118.4170326
+  },
+  "2525 michigan ave, bergamot station arts center b5, santa monica, ca 90404": null
 }

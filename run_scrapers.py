@@ -73,6 +73,10 @@ from src.scrapers.mccabes import McCabesScraper
 from src.scrapers.bergamot_station import BergamotStationScraper
 from src.scrapers.fowler_museum import FowlerMuseumScraper
 from src.scrapers.sm_farmers_market import SantaMonicaFarmersMarketScraper
+from src.scrapers.william_turner import WilliamTurnerScraper
+from src.scrapers.sounds_like_la import SoundsLikeLAScraper
+from src.scrapers.brightside import BrightsideScraper
+from src.scrapers.old_town_music_hall import OldTownMusicHallScraper
 
 
 # Scraper class mapping
@@ -122,6 +126,10 @@ SCRAPER_MAP = {
     'bergamot_station': BergamotStationScraper,
     'fowler_museum': FowlerMuseumScraper,
     'sm_farmers_market': SantaMonicaFarmersMarketScraper,
+    'william_turner': WilliamTurnerScraper,
+    'sounds_like_la': SoundsLikeLAScraper,
+    'brightside': BrightsideScraper,
+    'old_town_music_hall': OldTownMusicHallScraper,
 }
 
 

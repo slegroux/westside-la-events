@@ -57,6 +57,8 @@ class LogoScraper:
         'West Hollywood': 'https://www.weho.org',
         'Culver City': 'https://www.culvercity.gov',
         'MUD\\WTR :gather': 'https://www.mudwtrgather.com',
+        'Brightside California Kitchen': 'https://brightsidecaliforniakitchen.com',
+        'Sounds Like LA': 'https://soundslikela.org',
     }
 
     # Known logo URLs (fallback if scraping fails)
@@ -92,6 +94,8 @@ class LogoScraper:
         'West Hollywood': 'https://www.weho.org/Home/ShowPublishedImage/6958/637444285636730000',
         'Culver City': 'https://www.culvercity.gov/files/assets/public/v/1/images/culver-city-logo.png',
         'MUD\\WTR :gather': 'https://images.squarespace-cdn.com/content/v1/655100b54c023d4139e41375/7f13fce4-ed7a-4844-a017-d5a1153bd5dc/gather-logo.png',
+        'Brightside California Kitchen': 'https://static.spotapps.co/website_images/ab_websites/19630_website_v1/logo.png',
+        'Sounds Like LA': 'https://soundslikela.org/wp-content/uploads/2024/06/logo-SLL-RGB.svg',
     }
 
     def __init__(self, cache_dir: str = "static/logos"):

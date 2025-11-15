@@ -1,0 +1,18 @@
+# Cloud Build configuration for efficient Docker layer caching
+# This uses Kaniko with cache-from to reuse previous builds
+
+steps:
+  # Build using Kaniko with caching enabled
+  - name: 'gcr.io/kaniko-project/executor:latest'
+    args:
+      - --destination=gcr.io/$PROJECT_ID/westside-events
+      - --cache=true
+      - --cache-ttl=168h  # 7 days
+      - --compressed-caching=false
+    timeout: 900s  # 15 minutes max
+
+options:
+  machineType: 'E2_HIGHCPU_8'  # Use faster machine for builds
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1200s  # 20 minutes total timeout
