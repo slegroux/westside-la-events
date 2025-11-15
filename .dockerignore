@@ -46,6 +46,18 @@ google-cloud-sdk
 # Data (will use Cloud Storage)
 data/*.db
 data/*.json
+data/backup
+
+# Scripts (not needed in production)
+scripts
 
 # Claude
 .claude
+
+# Micromamba environment
+.micromamba
+
+# Backup files
+*.bak
+*.backup
+*.tmp

@@ -261,11 +261,13 @@ def page_head(title: str, description: Optional[str] = None):
                     button.setAttribute('aria-expanded', 'true');
                     icon.textContent = '▼';
                     saveCollapseState(sectionId, true);
+                    console.log(`User expanded ${sectionId} - saved state`);
                 } else {
                     content.style.display = 'none';
                     button.setAttribute('aria-expanded', 'false');
                     icon.textContent = '▶';
                     saveCollapseState(sectionId, false);
+                    console.log(`User collapsed ${sectionId} - saved state`);
                 }
             }
 
@@ -277,27 +279,31 @@ def page_head(title: str, description: Optional[str] = None):
                     const button = document.querySelector(`[aria-controls="${sectionId}-content"]`);
 
                     if (content && button) {
-                        const savedState = getCollapseState(sectionId);
                         const icon = button.querySelector('.collapse-icon');
-                        console.log(`Section ${sectionId}: savedState=${savedState}`);
 
-                        // Only apply saved state if it exists, otherwise preserve current DOM state
-                        if (savedState !== null) {
-                            if (savedState) {
-                                content.style.display = 'flex';
-                                button.setAttribute('aria-expanded', 'true');
-                                if (icon) icon.textContent = '▼';
-                            } else {
-                                content.style.display = 'none';
-                                button.setAttribute('aria-expanded', 'false');
-                                if (icon) icon.textContent = '▶';
-                            }
-                        } else {
-                            // No saved state - preserve current DOM state and save it
-                            const isCurrentlyExpanded = content.style.display !== 'none';
-                            saveCollapseState(sectionId, isCurrentlyExpanded);
-                            console.log(`Section ${sectionId}: No saved state, preserving current state (expanded=${isCurrentlyExpanded})`);
+                        if (!icon) {
+                            console.warn(`Section ${sectionId}: Icon element not found!`);
+                            return;
                         }
+
+                        let savedState = getCollapseState(sectionId);
+
+                        // If no saved state, default to collapsed and save it
+                        if (savedState === null) {
+                            savedState = false;
+                            saveCollapseState(sectionId, false);
+                            console.log(`Section ${sectionId}: No saved state, defaulting to collapsed`);
+                        }
+
+                        const isExpanded = savedState;
+
+                        // Update all UI elements to match the saved state
+                        // ALWAYS update icon FIRST (before display changes) to prevent flashing
+                        icon.textContent = isExpanded ? '▼' : '▶';
+                        content.style.display = isExpanded ? 'flex' : 'none';
+                        button.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+
+                        console.log(`Section ${sectionId}: Restored to ${isExpanded ? 'expanded' : 'collapsed'}, icon="${icon.textContent}"`);
                     } else {
                         console.log(`Section ${sectionId}: NOT FOUND (content=${!!content}, button=${!!button})`);
                     }
@@ -310,19 +316,84 @@ def page_head(title: str, description: Optional[str] = None):
                 restoreCollapseStates();
             });
 
-            // Restore states after HTMX swaps (when filters update)
-            document.body.addEventListener('htmx:afterSwap', function(event) {
-                console.log('htmx:afterSwap event fired', event.detail);
-                // Restore states after any swap that might affect filter-tallies
-                // Use longer setTimeout to ensure DOM is fully updated
-                setTimeout(restoreCollapseStates, 100);
+            // Store collapse states before any HTMX request
+            document.body.addEventListener('htmx:beforeRequest', function(event) {
+                const isFilterUpdate = event.detail.requestConfig &&
+                    event.detail.requestConfig.path === '/filters/update-all';
+
+                if (isFilterUpdate) {
+                    // Store current visual state (what the user sees)
+                    window._preSwapStates = {};
+                    ['categories', 'venues'].forEach(sectionId => {
+                        const content = document.getElementById(sectionId + '-content');
+                        const button = document.querySelector(`[aria-controls="${sectionId}-content"]`);
+                        const icon = button?.querySelector('.collapse-icon');
+
+                        if (content && icon) {
+                            // Store the CURRENT visual state
+                            const isCurrentlyExpanded = content.style.display !== 'none';
+                            window._preSwapStates[sectionId] = {
+                                isExpanded: isCurrentlyExpanded,
+                                icon: isCurrentlyExpanded ? '▼' : '▶'
+                            };
+                            console.log(`Pre-request: Stored ${sectionId} state: expanded=${isCurrentlyExpanded}, icon="${window._preSwapStates[sectionId].icon}"`);
+                        }
+                    });
+                }
             });
 
-            // Also listen for OOB (out-of-band) swaps specifically
+            // Immediately fix icons after OOB swap using stored state
             document.body.addEventListener('htmx:oobAfterSwap', function(event) {
-                console.log('htmx:oobAfterSwap event fired', event.detail);
+                console.log('htmx:oobAfterSwap fired, target:', event.detail.target?.id);
+
                 if (event.detail.target && event.detail.target.id === 'filter-tallies') {
-                    setTimeout(restoreCollapseStates, 100);
+                    console.log('OOB swap detected for filter-tallies, _preSwapStates:', window._preSwapStates);
+
+                    // Immediately restore using the pre-swap state (synchronously, no delay)
+                    if (window._preSwapStates) {
+                        ['categories', 'venues'].forEach(sectionId => {
+                            const state = window._preSwapStates[sectionId];
+                            console.log(`Processing ${sectionId}, state:`, state);
+
+                            if (!state) {
+                                console.warn(`No state found for ${sectionId}`);
+                                return;
+                            }
+
+                            const content = document.getElementById(sectionId + '-content');
+                            const button = document.querySelector(`[aria-controls="${sectionId}-content"]`);
+                            const icon = button?.querySelector('.collapse-icon');
+
+                            console.log(`${sectionId} DOM elements - content:`, !!content, 'button:', !!button, 'icon:', !!icon);
+
+                            if (content && button && icon) {
+                                console.log(`BEFORE: ${sectionId} icon="${icon.textContent}", display="${content.style.display}"`);
+
+                                // Apply the stored state immediately
+                                icon.textContent = state.icon;
+                                content.style.display = state.isExpanded ? 'flex' : 'none';
+                                button.setAttribute('aria-expanded', state.isExpanded ? 'true' : 'false');
+
+                                console.log(`AFTER: ${sectionId} icon="${icon.textContent}", display="${content.style.display}"`);
+                            } else {
+                                console.error(`Missing DOM elements for ${sectionId}`);
+                            }
+                        });
+
+                        // Clear stored states
+                        delete window._preSwapStates;
+                    } else {
+                        console.warn('No _preSwapStates found!');
+                    }
+                }
+            });
+
+            // Fallback: Restore states after any HTMX swap
+            document.body.addEventListener('htmx:afterSwap', function(event) {
+                console.log('htmx:afterSwap event fired');
+                // Only restore if we don't have pre-swap states (i.e., not a filter update)
+                if (!window._preSwapStates) {
+                    restoreCollapseStates();
                 }
             });
 
@@ -341,6 +412,12 @@ def page_head(title: str, description: Optional[str] = None):
                         checkbox.checked = !checkbox.checked;
                         console.log(`Toggled category ${category}: ${checkbox.checked}`);
 
+                        // Manually show the loading indicator
+                        const indicator = document.getElementById('loading-indicator');
+                        if (indicator) {
+                            indicator.style.display = 'block';
+                        }
+
                         // Trigger HTMX to process this element
                         // Use htmx.trigger to dispatch a proper change event that HTMX will handle
                         if (typeof htmx !== 'undefined') {
@@ -358,6 +435,14 @@ def page_head(title: str, description: Optional[str] = None):
                     } else {
                         console.warn(`Checkbox not found for category: ${category}`);
                     }
+                }
+            });
+
+            // Ensure loading indicator is hidden after HTMX completes any request
+            document.body.addEventListener('htmx:afterRequest', function(event) {
+                const indicator = document.getElementById('loading-indicator');
+                if (indicator) {
+                    indicator.style.display = 'none';
                 }
             });
         ''')
@@ -869,11 +954,13 @@ def filter_section_collapsible(section_id: str, label: str, checkboxes_content, 
                 cls='filter-section-label'
             ),
             Button(
-                Span('▼' if not collapsed else '▶', cls='collapse-icon'),
+                # Always render collapsed icon - JavaScript will fix it immediately based on localStorage
+                Span('▶', cls='collapse-icon'),
                 type='button',
                 cls='collapse-toggle',
                 onclick=f"toggleFilterSection('{section_id}')",
-                **{'aria-expanded': 'true' if not collapsed else 'false', 'aria-controls': f'{section_id}-content'}
+                # Always set aria-expanded to false initially - JavaScript will update it
+                **{'aria-expanded': 'false', 'aria-controls': f'{section_id}-content'}
             ),
             cls='filter-header-collapsible'
         ),
@@ -881,7 +968,8 @@ def filter_section_collapsible(section_id: str, label: str, checkboxes_content, 
             *checkboxes_content,
             cls='category-checkboxes',
             id=f'{section_id}-content',
-            style='display: none;' if collapsed else 'display: flex;'
+            # Don't set inline style - let JavaScript manage display state via localStorage
+            # This prevents server-rendered state from overriding user's manual collapse/expand actions
         ),
         cls='filter-group category-filter-group',
         id=f'filter-section-{section_id}'
@@ -908,7 +996,7 @@ def filter_tallies_section(date_filter: str = 'upcoming', category: List[str] = 
                 hx_get='/filters/update-all',
                 hx_target='#events-container',
                 hx_trigger='change',
-                hx_include='[name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="favorites_only"], [name="specific_date"]',
+                hx_include='closest form',
                 hx_indicator='#loading-indicator'
             ),
             f' {cat} ({available_categories.get(cat, 0)})',
@@ -930,7 +1018,7 @@ def filter_tallies_section(date_filter: str = 'upcoming', category: List[str] = 
                 hx_get='/filters/update-all',
                 hx_target='#events-container',
                 hx_trigger='change',
-                hx_include='[name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="favorites_only"], [name="specific_date"]',
+                hx_include='closest form',
                 hx_indicator='#loading-indicator'
             ),
             f' {source_name} ({count})',
@@ -961,7 +1049,7 @@ def filter_tallies_section(date_filter: str = 'upcoming', category: List[str] = 
                     hx_get='/filters/update-all',
                     hx_target='#events-container',
                     hx_trigger='change',
-                    hx_include='this, [name="q"], [name="date_filter"], [name="category"], [name="source"], [name="favorites_only"], [name="specific_date"]',
+                    hx_include='closest form',
                     hx_indicator='#loading-indicator'
                 ),
                 f' Free Events Only ({free_events_count})',
@@ -982,7 +1070,7 @@ def filter_tallies_section(date_filter: str = 'upcoming', category: List[str] = 
                     hx_get='/filters/update-all',
                     hx_target='#events-container',
                     hx_trigger='change',
-                    hx_include='this, [name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="specific_date"]',
+                    hx_include='closest form',
                     hx_indicator='#loading-indicator'
                 ),
                 ' My Favorites Only',
@@ -1005,25 +1093,21 @@ def search_section():
         H2('Find Events'),
         Div(
             Input(
-                type='text',
+                type='search',
                 id='search-input',
                 name='q',
                 placeholder='Search events...',
                 hx_get='/filters/update-all',
                 hx_target='#events-container',
-                hx_trigger='keyup changed delay:500ms, search',
-                hx_include='[name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="favorites_only"], [name="specific_date"]',
-                hx_indicator='#loading-indicator',
-                hx_ext='loading-states',
-                **{'data-loading-class': 'htmx-request'}
+                hx_trigger='input changed delay:500ms, search',
+                hx_include='closest form',
+                hx_indicator='#loading-indicator'
             ),
-            Button('Search', type='submit',
+            Button('Search', type='button',
                    hx_get='/filters/update-all',
                    hx_target='#events-container',
-                   hx_include='[name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="favorites_only"], [name="specific_date"]',
-                   hx_indicator='#loading-indicator',
-                   hx_ext='loading-states',
-                   **{'data-loading-disable': 'true'}),
+                   hx_include='closest form',
+                   hx_indicator='#loading-indicator'),
             cls='search-box'
         ),
         Div(
@@ -1044,7 +1128,7 @@ def search_section():
                         hx_get='/filters/update-all',
                         hx_target='#events-container',
                         hx_trigger='change',
-                        hx_include='this, [name="q"], [name="category"], [name="source"], [name="free_only"], [name="favorites_only"], [name="specific_date"]',
+                        hx_include='closest form',
                         hx_indicator='#loading-indicator'
                     ),
                     cls='filter-group'
@@ -1057,10 +1141,7 @@ def search_section():
             filter_tallies_section(),
             cls='filters'
         ),
-        cls='search-section',
-        hx_get='/filters/update-all',
-        hx_target='#events-container',
-        hx_trigger='submit'
+        cls='search-section'
     )
 
 
@@ -1180,7 +1261,7 @@ def get_date_picker(date_filter: str = 'upcoming'):
                 name='specific_date',
                 hx_get='/filters/update-all',
                 hx_trigger='change',
-                hx_include='this, [name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="favorites_only"]',
+                hx_include='closest form',
                 hx_indicator='#loading-indicator'
             ),
             id='date-picker-container',
@@ -1310,9 +1391,14 @@ def update_all_filters(q: str = '', date_filter: str = 'upcoming', category: Lis
     """HTMX endpoint that updates all filter-related sections using OOB swaps."""
     from starlette.responses import HTMLResponse
     from fastcore.xml import to_xml
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"Search query: '{q}', date_filter: {date_filter}, categories: {category}, sources: {source}")
 
     # Get events list
     events = _fetch_events(q, date_filter, category, source, free_only, specific_date, favorites_only, session)
+    logger.info(f"Found {len(events)} events for query '{q}'")
 
     # Track search
     if config.ENABLE_ANALYTICS and state.analytics:
@@ -1347,7 +1433,7 @@ def update_all_filters(q: str = '', date_filter: str = 'upcoming', category: Lis
                 value=specific_date if specific_date else '',
                 hx_get='/filters/update-all',
                 hx_trigger='change',
-                hx_include='this, [name="q"], [name="date_filter"], [name="category"], [name="source"], [name="free_only"], [name="favorites_only"]',
+                hx_include='closest form',
                 hx_indicator='#loading-indicator'
             ),
             id='date-picker-container',

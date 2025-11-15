@@ -1,0 +1,66 @@
+# This file tells gcloud which files to ignore when uploading to Cloud Build
+# Similar to .dockerignore but specifically for gcloud builds submit
+
+# This file
+.gcloudignore
+.git
+.gitignore
+.github
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Environments
+.env
+.envrc
+venv/
+env/
+ENV/
+.micromamba/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Testing
+tests/
+*.log
+logs/
+
+# Data files (use Cloud Storage)
+data/*.db
+data/*.json
+data/backup/
+
+# Scripts (not needed in container)
+scripts/
+
+# Large downloads
+google-cloud-cli-linux-x86_64.tar.gz
+google-cloud-sdk/
+
+# Claude
+.claude/
+
+# Backup files
+*.bak
+*.backup
+*.tmp

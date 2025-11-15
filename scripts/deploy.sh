@@ -1,11 +1,12 @@
 #!/bin/bash
 # Deploy Westside LA Events to Google Cloud Run
-# Usage: ./scripts/deploy.sh [--run-tests] [--rollback] [--env-file PATH]
+# Usage: ./scripts/deploy.sh [--run-tests] [--rollback] [--env-file PATH] [--no-cache]
 #
 # Options:
 #   --run-tests     Run tests before deployment (tests are skipped by default)
 #   --rollback      Rollback to previous revision
 #   --env-file      Path to .env file with additional environment variables
+#   --no-cache      Force a clean rebuild without using Docker layer cache
 
 set -e  # Exit on error
 
@@ -20,6 +21,7 @@ BUCKET_NAME="westside-la-events-data"
 SKIP_TESTS=true  # Skip tests by default (use --run-tests to enable)
 ROLLBACK=false
 ENV_FILE=""
+NO_CACHE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -39,9 +41,13 @@ while [[ $# -gt 0 ]]; do
             ENV_FILE="$2"
             shift 2
             ;;
+        --no-cache)
+            NO_CACHE=true
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: ./scripts/deploy.sh [--run-tests] [--rollback] [--env-file PATH]"
+            echo "Usage: ./scripts/deploy.sh [--run-tests] [--rollback] [--env-file PATH] [--no-cache]"
             exit 1
             ;;
     esac
@@ -151,8 +157,13 @@ fi
 # Build the container image
 echo ""
 echo "🔨 Building container image..."
-echo "This may take a few minutes..."
-gcloud builds submit --tag ${IMAGE_NAME}
+if [ "$NO_CACHE" = true ]; then
+    echo "⚠️  No-cache mode: forcing clean rebuild (this will take longer)..."
+    gcloud builds submit --tag ${IMAGE_NAME} --no-cache
+else
+    echo "Using cached layers for faster builds (use --no-cache to force clean rebuild)..."
+    gcloud builds submit --tag ${IMAGE_NAME}
+fi
 
 # Prepare environment variables
 ENV_VARS="ENVIRONMENT=production"
