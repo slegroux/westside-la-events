@@ -1624,8 +1624,13 @@ def serve_static(filepath: str):
 @rt('/api/run-scrapers')
 async def post(request):
     """
-    API endpoint to trigger scrapers.
+    API endpoint to trigger scrapers and sync database to Cloud Storage.
     Used by Cloud Scheduler for automated scraping.
+
+    Process:
+    1. Run scrapers to update local database
+    2. Upload updated database to Cloud Storage
+    3. Next container restart will download the fresh database
     """
     import subprocess
     import os
@@ -1638,18 +1643,65 @@ async def post(request):
         return JSONResponse({'error': 'Unauthorized'}, status_code=401)
 
     try:
-        # Run scrapers in background
-        subprocess.Popen(
+        # Run scrapers synchronously and wait for completion
+        result = subprocess.run(
             ['python3', 'run_scrapers.py'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            cwd='/app'
+            cwd='/app',
+            timeout=600  # 10 minute timeout
         )
+
+        # Check if scrapers completed successfully
+        if result.returncode != 0:
+            return JSONResponse({
+                'status': 'error',
+                'message': f'Scrapers failed with return code {result.returncode}',
+                'stderr': result.stderr.decode('utf-8')[:1000]  # First 1000 chars
+            }, status_code=500)
+
+        # Upload database to Cloud Storage
+        bucket = 'gs://westside-la-events-data'
+        upload_result = subprocess.run(
+            ['gsutil', 'cp', '/app/data/events.db', f'{bucket}/events.db'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60
+        )
+
+        # Upload analytics database
+        subprocess.run(
+            ['gsutil', 'cp', '/app/data/analytics.db', f'{bucket}/analytics.db'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60
+        )
+
+        # Upload geocode cache
+        subprocess.run(
+            ['gsutil', 'cp', '/app/data/geocode_cache.json', f'{bucket}/geocode_cache.json'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60
+        )
+
+        if upload_result.returncode != 0:
+            return JSONResponse({
+                'status': 'partial',
+                'message': 'Scrapers completed but Cloud Storage sync failed',
+                'stderr': upload_result.stderr.decode('utf-8')[:1000]
+            }, status_code=500)
+
         return JSONResponse({
             'status': 'success',
-            'message': 'Scrapers started',
+            'message': 'Scrapers completed and database synced to Cloud Storage',
             'timestamp': datetime.now().isoformat()
         })
+    except subprocess.TimeoutExpired:
+        return JSONResponse({
+            'status': 'error',
+            'message': 'Scraper execution timed out'
+        }, status_code=500)
     except Exception as e:
         return JSONResponse({
             'status': 'error',
