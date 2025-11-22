@@ -794,5 +794,13 @@
     "lat": 33.9176277,
     "lng": -118.4170326
   },
-  "2525 michigan ave, bergamot station arts center b5, santa monica, ca 90404": null
+  "2525 michigan ave, bergamot station arts center b5, santa monica, ca 90404": null,
+  "317 s broadway, los angeles, ca, 90013": {
+    "lat": 34.0508855,
+    "lng": -118.2488566
+  },
+  "barker hangar, santa monica, ca": {
+    "lat": 34.014755,
+    "lng": -118.4495866
+  }
 }
