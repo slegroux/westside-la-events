@@ -42,9 +42,12 @@ COPY . .
 RUN mkdir -p /app/data
 
 # Set environment variables
+# IMPORTANT: Set timezone to America/Los_Angeles (PST/PDT) since events are in local LA time
+# This ensures SQLite's date('now', 'localtime') returns the correct local time
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8080
+    PORT=8080 \
+    TZ=America/Los_Angeles
 
 # Expose port (Cloud Run will set $PORT environment variable)
 EXPOSE 8080
