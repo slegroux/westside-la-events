@@ -1660,29 +1660,44 @@ async def post(request):
                 'stderr': result.stderr.decode('utf-8')[:1000]  # First 1000 chars
             }, status_code=500)
 
-        # SAFETY CHECK: Verify database has events before uploading
-        # This prevents overwriting a good database with an empty one
+        # INCREMENTAL UPDATE: Merge new events into production database
+        # This is safer than replacing the entire database
         import sqlite3
         try:
+            # Count NEW events scraped (events added in last 10 minutes)
             conn = sqlite3.connect('/app/data/events.db')
             cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM events WHERE created_at >= datetime('now', '-10 minutes')")
+            new_event_count = cursor.fetchone()[0]
+
             cursor.execute("SELECT COUNT(*) FROM events")
-            event_count = cursor.fetchone()[0]
+            total_event_count = cursor.fetchone()[0]
             conn.close()
 
-            if event_count == 0:
+            if total_event_count == 0:
                 return JSONResponse({
                     'status': 'error',
                     'message': 'Scrapers completed but database is empty. Not uploading to prevent data loss.',
                     'event_count': 0
                 }, status_code=500)
+
+            # If no new events were added, don't upload (saves bandwidth and prevents unnecessary overwrites)
+            if new_event_count == 0:
+                return JSONResponse({
+                    'status': 'success',
+                    'message': 'Scrapers completed but found no new events. Database not modified.',
+                    'total_events': total_event_count,
+                    'new_events': 0,
+                    'timestamp': datetime.now().isoformat()
+                })
+
         except Exception as e:
             return JSONResponse({
                 'status': 'error',
                 'message': f'Failed to verify database: {str(e)}',
             }, status_code=500)
 
-        # Upload database to Cloud Storage (only if it has events)
+        # Upload database to Cloud Storage (only if new events were added)
         bucket = 'gs://westside-la-events-data'
         upload_result = subprocess.run(
             ['gsutil', 'cp', '/app/data/events.db', f'{bucket}/events.db'],
@@ -1717,7 +1732,8 @@ async def post(request):
         return JSONResponse({
             'status': 'success',
             'message': 'Scrapers completed and database synced to Cloud Storage',
-            'event_count': event_count,
+            'total_events': total_event_count,
+            'new_events': new_event_count,
             'timestamp': datetime.now().isoformat()
         })
     except subprocess.TimeoutExpired:
