@@ -1660,7 +1660,29 @@ async def post(request):
                 'stderr': result.stderr.decode('utf-8')[:1000]  # First 1000 chars
             }, status_code=500)
 
-        # Upload database to Cloud Storage
+        # SAFETY CHECK: Verify database has events before uploading
+        # This prevents overwriting a good database with an empty one
+        import sqlite3
+        try:
+            conn = sqlite3.connect('/app/data/events.db')
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM events")
+            event_count = cursor.fetchone()[0]
+            conn.close()
+
+            if event_count == 0:
+                return JSONResponse({
+                    'status': 'error',
+                    'message': 'Scrapers completed but database is empty. Not uploading to prevent data loss.',
+                    'event_count': 0
+                }, status_code=500)
+        except Exception as e:
+            return JSONResponse({
+                'status': 'error',
+                'message': f'Failed to verify database: {str(e)}',
+            }, status_code=500)
+
+        # Upload database to Cloud Storage (only if it has events)
         bucket = 'gs://westside-la-events-data'
         upload_result = subprocess.run(
             ['gsutil', 'cp', '/app/data/events.db', f'{bucket}/events.db'],
@@ -1695,6 +1717,7 @@ async def post(request):
         return JSONResponse({
             'status': 'success',
             'message': 'Scrapers completed and database synced to Cloud Storage',
+            'event_count': event_count,
             'timestamp': datetime.now().isoformat()
         })
     except subprocess.TimeoutExpired:
