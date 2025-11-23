@@ -2,48 +2,64 @@
 
 echo "🚀 Starting Westside Events application..."
 
-# Download database from Cloud Storage if it exists
-BUCKET="gs://westside-la-events-data"
+# Skip database download during cold starts for faster startup
+# Database will be synced by the scheduled scraper job instead
+if [ "$SKIP_DB_DOWNLOAD" = "true" ]; then
+    echo "⏭️  Skipping database download (using bundled version for fast startup)"
+else
+    # Download database from Cloud Storage if it exists
+    BUCKET="gs://westside-la-events-data"
 
-echo "📥 Downloading database from Cloud Storage..."
-# Try to download events.db but only if it's larger than bundled version
-if gsutil -q stat "${BUCKET}/events.db" 2>/dev/null; then
-    # Get size of Cloud Storage database
-    cloud_size=$(gsutil ls -l "${BUCKET}/events.db" | awk '{print $1}')
+    echo "📥 Downloading database from Cloud Storage..."
+    # Try to download events.db but only if it's larger than bundled version
+    if gsutil -q stat "${BUCKET}/events.db" 2>/dev/null; then
+        # Get size of Cloud Storage database
+        cloud_size=$(gsutil ls -l "${BUCKET}/events.db" | awk '{print $1}')
 
-    # Get size of bundled database (if it exists)
-    if [ -f "/app/data/events.db" ]; then
-        bundled_size=$(stat -c%s "/app/data/events.db" 2>/dev/null || stat -f%z "/app/data/events.db" 2>/dev/null)
+        # Get size of bundled database (if it exists)
+        if [ -f "/app/data/events.db" ]; then
+            bundled_size=$(stat -c%s "/app/data/events.db" 2>/dev/null || stat -f%z "/app/data/events.db" 2>/dev/null)
+        else
+            bundled_size=0
+        fi
+
+        # Smart download logic:
+        # 1. If no bundled database exists, always download from Cloud Storage
+        # 2. If Cloud Storage database is larger, download it (more events)
+        # 3. Otherwise, keep bundled version
+        if [ "$bundled_size" -eq 0 ]; then
+            # No bundled database, download from Cloud Storage (even if small)
+            echo "📦 No bundled database found, downloading from Cloud Storage..."
+            gsutil cp "${BUCKET}/events.db" /app/data/events.db && echo "✓ Downloaded events.db (${cloud_size} bytes)"
+        elif [ "$cloud_size" -gt "$bundled_size" ]; then
+            # Cloud Storage has more events, download it
+            echo "📦 Cloud Storage database is larger (${cloud_size} > ${bundled_size}), updating..."
+            gsutil cp "${BUCKET}/events.db" /app/data/events.db && echo "✓ Downloaded events.db (${cloud_size} bytes)"
+        else
+            # Bundled version is larger or equal, keep it
+            echo "✅ Using bundled database (${bundled_size} bytes >= ${cloud_size} bytes)"
+        fi
     else
-        bundled_size=0
+        echo "⚠️  No events.db found in Cloud Storage, using bundled database"
     fi
 
-    # Only download if Cloud Storage version is larger (more events)
-    # This prevents overwriting good bundled database with empty Cloud Storage database
-    if [ "$cloud_size" -gt "$bundled_size" ] && [ "$cloud_size" -gt 100000 ]; then
-        gsutil cp "${BUCKET}/events.db" /app/data/events.db && echo "✓ Downloaded events.db (${cloud_size} bytes)"
+    # Try to download analytics.db (don't exit on failure)
+    if gsutil -q stat "${BUCKET}/analytics.db" 2>/dev/null; then
+        gsutil cp "${BUCKET}/analytics.db" /app/data/analytics.db && echo "✓ Downloaded analytics.db"
     else
-        echo "⚠️  Cloud Storage database is smaller ($cloud_size bytes) than bundled ($bundled_size bytes), keeping bundled version"
+        echo "⚠️  No analytics.db found in Cloud Storage, starting with empty analytics"
     fi
-else
-    echo "⚠️  No events.db found in Cloud Storage, using bundled database"
+
+    # Try to download geocode_cache.json (don't exit on failure)
+    if gsutil -q stat "${BUCKET}/geocode_cache.json" 2>/dev/null; then
+        gsutil cp "${BUCKET}/geocode_cache.json" /app/data/geocode_cache.json && echo "✓ Downloaded geocode_cache.json"
+    else
+        echo "⚠️  No geocode_cache.json found in Cloud Storage"
+    fi
+
+    echo "✅ Database sync complete"
 fi
 
-# Try to download analytics.db (don't exit on failure)
-if gsutil -q stat "${BUCKET}/analytics.db" 2>/dev/null; then
-    gsutil cp "${BUCKET}/analytics.db" /app/data/analytics.db && echo "✓ Downloaded analytics.db"
-else
-    echo "⚠️  No analytics.db found in Cloud Storage, starting with empty analytics"
-fi
-
-# Try to download geocode_cache.json (don't exit on failure)
-if gsutil -q stat "${BUCKET}/geocode_cache.json" 2>/dev/null; then
-    gsutil cp "${BUCKET}/geocode_cache.json" /app/data/geocode_cache.json && echo "✓ Downloaded geocode_cache.json"
-else
-    echo "⚠️  No geocode_cache.json found in Cloud Storage"
-fi
-
-echo "✅ Database sync complete"
 echo ""
 
 # Start the application
