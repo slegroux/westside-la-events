@@ -7,6 +7,12 @@
 #   --rollback      Rollback to previous revision
 #   --env-file      Path to .env file with additional environment variables
 #   --no-cache      Force a clean rebuild without using Docker layer cache
+#
+# IMPORTANT: Secrets are managed separately via Google Secret Manager
+# The SCRAPER_TOKEN is stored securely and automatically injected at runtime.
+# It persists across deployments. To rotate the token:
+#   1. Update the secret: echo -n "new-token" | gcloud secrets versions add scraper-token --data-file=-
+#   2. Redeploy (this script) - no additional steps needed
 
 set -e  # Exit on error
 
@@ -251,3 +257,6 @@ echo "    ./scripts/deploy.sh --rollback"
 echo ""
 echo "  • Check Cloud Storage:"
 echo "    gsutil ls gs://${BUCKET_NAME}/"
+echo ""
+echo "  • Verify secrets (SCRAPER_TOKEN):"
+echo "    gcloud run services describe ${SERVICE_NAME} --region ${REGION} --format='value(spec.template.spec.containers[0].env)'"

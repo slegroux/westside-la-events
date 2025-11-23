@@ -1723,16 +1723,12 @@ async def post(request):
     import os
 
     # Verify the request is authorized (basic security)
+    # SCRAPER_TOKEN is injected securely from Google Secret Manager
     auth_header = request.headers.get('Authorization', '')
     expected_token = os.getenv('SCRAPER_TOKEN', 'default-secret-token')
 
-    # Debug logging (remove after troubleshooting)
-    print(f"AUTH_DEBUG: Received header: '{auth_header[:20]}...' (len={len(auth_header)})")
-    print(f"AUTH_DEBUG: Expected token: '{expected_token[:20]}...' (len={len(expected_token)})")
-    print(f"AUTH_DEBUG: Match: {auth_header == f'Bearer {expected_token}'}")
-
     if auth_header != f'Bearer {expected_token}':
-        return JSONResponse({'error': 'Unauthorized', 'hint': 'Check SCRAPER_TOKEN env var'}, status_code=401)
+        return JSONResponse({'error': 'Unauthorized'}, status_code=401)
 
     try:
         # Run scrapers synchronously and wait for completion
