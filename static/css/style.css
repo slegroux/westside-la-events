@@ -1280,6 +1280,9 @@ a:hover .calendar-download-icon {
     gap: 0.5rem;
     text-decoration: none;
     transition: var(--transition);
+    /* Touch target size: ensure adequate touch area */
+    min-height: 44px;
+    padding: 0.5rem;
 }
 
 .event-source-link:hover {
@@ -1890,6 +1893,12 @@ footer p {
     line-height: 1;
     transition: var(--transition);
     flex-shrink: 0;
+    /* Touch target size: WCAG AAA minimum 44x44px */
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .toast-close:hover {
@@ -2009,6 +2018,12 @@ footer p {
     transition: var(--transition);
     color: var(--text-lighter);
     margin-left: 0.5rem;
+    /* Touch target size: WCAG AAA minimum 44x44px */
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .favorite-btn:hover {
@@ -2105,8 +2120,11 @@ footer p {
     color: var(--text-light);
     cursor: pointer;
     padding: 0;
-    width: 32px;
-    height: 32px;
+    /* Touch target size: WCAG AAA minimum 44x44px */
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;

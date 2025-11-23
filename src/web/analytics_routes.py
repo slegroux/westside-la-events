@@ -6,6 +6,7 @@ from fasthtml.common import *
 from datetime import datetime, timedelta
 from typing import Optional
 import config
+from src.web.security import check_admin_auth
 
 
 def analytics_page_head(title: str):
@@ -181,6 +182,13 @@ def setup_analytics_routes(app, rt, state):
     @rt('/admin/analytics')
     def analytics_dashboard(request, session, days: int = 7):
         """Main analytics dashboard."""
+        # Require authentication
+        if not check_admin_auth(request):
+            return RedirectResponse(
+                url='/admin/login?redirect=/admin/analytics',
+                status_code=303
+            )
+
         if not config.ENABLE_ANALYTICS or not state.analytics:
             return Html(
                 analytics_page_head('Analytics Disabled'),
@@ -380,9 +388,13 @@ def setup_analytics_routes(app, rt, state):
         )
 
     @rt('/admin/analytics/api')
-    def analytics_api(days: int = 7):
+    def analytics_api(request, days: int = 7):
         """API endpoint for analytics data."""
         from starlette.responses import JSONResponse
+
+        # Require authentication
+        if not check_admin_auth(request):
+            return JSONResponse({'error': 'Unauthorized'}, status_code=401)
 
         if not config.ENABLE_ANALYTICS or not state.analytics:
             return JSONResponse({'error': 'Analytics disabled'}, status_code=503)

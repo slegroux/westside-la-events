@@ -31,9 +31,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Playwright browsers (this is the slowest step - ~500MB)
 # Cache this layer separately so it only rebuilds if requirements change
+# Use --with-deps chromium for minimal footprint
 RUN playwright install --with-deps chromium && \
     rm -rf /var/lib/apt/lists/* && \
-    apt-get clean
+    apt-get clean && \
+    # Remove unnecessary Playwright files to reduce image size
+    rm -rf /root/.cache/ms-playwright/*/firefox* /root/.cache/ms-playwright/*/webkit*
 
 # Copy application code (this changes most frequently, so it's last)
 COPY . .
@@ -47,7 +50,9 @@ RUN mkdir -p /app/data
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8080 \
-    TZ=America/Los_Angeles
+    TZ=America/Los_Angeles \
+    # Reduce Python startup time
+    PYTHONHASHSEED=0
 
 # Expose port (Cloud Run will set $PORT environment variable)
 EXPOSE 8080
