@@ -99,14 +99,15 @@ gcloud run deploy westside-events \
 ### Step 5: Configure Automated Scraping
 
 ```bash
-# Create Cloud Scheduler job (runs daily at 2 AM UTC)
+# Create Cloud Scheduler job (runs daily at 4 AM PST / 12 PM UTC)
 gcloud scheduler jobs create http scrape-westside-events \
   --location us-west1 \
-  --schedule="0 2 * * *" \
+  --schedule="0 12 * * *" \
+  --time-zone="America/Los_Angeles" \
   --uri="https://YOUR_SERVICE_URL/api/run-scrapers" \
   --http-method=POST \
   --headers="Authorization=Bearer YOUR_SCRAPER_TOKEN" \
-  --description="Run event scrapers daily at 2 AM UTC"
+  --description="Run event scrapers daily at 4 AM PST"
 
 # Test the scheduler manually
 gcloud scheduler jobs run scrape-westside-events --location us-west1

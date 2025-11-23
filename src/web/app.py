@@ -1748,6 +1748,74 @@ async def post(request):
         }, status_code=500)
 
 
+@rt('/api/health/database')
+async def get():
+    """
+    Health check endpoint for database freshness.
+    Returns database statistics and age information.
+    """
+    try:
+        from datetime import datetime, timezone
+
+        db = state.db
+
+        # Get total event count and most recent update
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM events")
+            total_events = cursor.fetchone()[0]
+
+            # Get most recent event update
+            cursor.execute("SELECT MAX(updated_at) FROM events")
+            most_recent_update = cursor.fetchone()[0]
+
+        # Get database file modification time
+        import os
+        db_path = config.DATABASE_PATH
+        db_mtime = None
+        db_size = None
+        if os.path.exists(db_path):
+            db_mtime = datetime.fromtimestamp(os.path.getmtime(db_path), tz=timezone.utc)
+            db_size = os.path.getsize(db_path)
+
+        # Calculate age
+        now = datetime.now(timezone.utc)
+        if db_mtime:
+            age_hours = (now - db_mtime).total_seconds() / 3600
+        else:
+            age_hours = None
+
+        # Determine health status
+        status = 'healthy'
+        warnings = []
+
+        if total_events == 0:
+            status = 'error'
+            warnings.append('Database is empty')
+        elif age_hours and age_hours > 48:
+            status = 'warning'
+            warnings.append(f'Database is {age_hours:.1f} hours old (> 48 hours)')
+
+        return JSONResponse({
+            'status': status,
+            'database': {
+                'total_events': total_events,
+                'most_recent_update': most_recent_update,
+                'file_modified': db_mtime.isoformat() if db_mtime else None,
+                'age_hours': round(age_hours, 2) if age_hours else None,
+                'size_bytes': db_size,
+                'size_mb': round(db_size / 1024 / 1024, 2) if db_size else None
+            },
+            'warnings': warnings,
+            'timestamp': now.isoformat()
+        })
+    except Exception as e:
+        return JSONResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status_code=500)
+
+
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run(

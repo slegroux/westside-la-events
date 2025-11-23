@@ -197,7 +197,7 @@ For production deployment, see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** whic
 Quick reference for deployed instance:
 - **Service URL**: https://westside-events-406046958598.us-west1.run.app
 - **Cloud Storage**: gs://westside-la-events-data/
-- **Automated Scraping**: Daily at 2 AM UTC via Cloud Scheduler
+- **Automated Scraping**: Daily at 4 AM PST (12 PM UTC) via Cloud Scheduler
 
 ### Updating Production Data
 
