@@ -231,16 +231,6 @@ def page_head(title: str, description: Optional[str] = None):
         Meta(property='og:title', content=title),
         Meta(property='og:description', content=description or default_description),
         Meta(property='og:type', content='website'),
-        # PWA Meta Tags
-        Meta(name='theme-color', content='#8b5cf6'),
-        Meta(name='apple-mobile-web-app-capable', content='yes'),
-        Meta(name='apple-mobile-web-app-status-bar-style', content='black-translucent'),
-        Meta(name='apple-mobile-web-app-title', content='LA Events'),
-        Link(rel='manifest', href='/static/manifest.json'),
-        # Apple Touch Icons
-        Link(rel='apple-touch-icon', sizes='180x180', href='/static/icons/icon-192x192.png'),
-        Link(rel='icon', type='image/png', sizes='32x32', href='/static/icons/icon-192x192.png'),
-        Link(rel='icon', type='image/png', sizes='16x16', href='/static/icons/icon-192x192.png'),
         # Resource hints for performance - preconnect to external domains
         Link(rel='preconnect', href='https://unpkg.com'),
         Link(rel='dns-prefetch', href='https://unpkg.com'),
@@ -268,44 +258,6 @@ def page_head(title: str, description: Optional[str] = None):
         Script(src='/static/js/toast.js', defer=True),
         # Analytics tracking (if enabled)
         Script(src='/static/js/analytics.js', defer=True) if config.ENABLE_ANALYTICS else None,
-        # Service Worker Registration (PWA)
-        Script('''
-            // Register service worker for PWA functionality
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('/static/service-worker.js')
-                        .then((registration) => {
-                            console.log('Service Worker registered:', registration.scope);
-
-                            // Check for updates periodically
-                            setInterval(() => {
-                                registration.update();
-                            }, 60000); // Check every minute
-
-                            // Handle service worker updates
-                            registration.addEventListener('updatefound', () => {
-                                const newWorker = registration.installing;
-                                newWorker.addEventListener('statechange', () => {
-                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                        // New service worker available, show notification
-                                        if (window.showToast) {
-                                            showToast(
-                                                'Update Available',
-                                                'A new version is available. Refresh to update.',
-                                                'info',
-                                                10000
-                                            );
-                                        }
-                                    }
-                                });
-                            });
-                        })
-                        .catch((error) => {
-                            console.log('Service Worker registration failed:', error);
-                        });
-                });
-            }
-        '''),
         # Filter collapse/expand functionality with state persistence
         Script('''
             // Get saved collapse state from localStorage

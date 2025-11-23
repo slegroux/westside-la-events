@@ -2190,34 +2190,6 @@ footer p {
     }
 }
 
-/* Accessibility: Reduced Motion Support */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-    }
-
-    /* Disable specific animations that may cause issues */
-    .skeleton-image,
-    .skeleton-title,
-    .skeleton-text,
-    .skeleton-badge {
-        animation: none !important;
-    }
-
-    .event-card {
-        animation: none !important;
-    }
-
-    .spinner {
-        animation: spin 2s linear infinite !important; /* Keep spin but slow it down */
-    }
-}
-
 /* Responsive adjustments for mobile */
 @media (max-width: 768px) {
     .venue-map-modal-content {
