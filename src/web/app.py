@@ -225,12 +225,15 @@ def page_head(title: str, description: Optional[str] = None):
     return Head(
         Title(title),
         Meta(charset='UTF-8'),
-        Meta(name='viewport', content='width=device-width, initial-scale=1.0'),
+        Meta(name='viewport', content='width=device-width, initial-scale=1.0, viewport-fit=cover'),
         Meta(name='description', content=description or default_description),
         Meta(name='keywords', content='LA events, Westside LA, Santa Monica, activities, concerts, art, food'),
         Meta(property='og:title', content=title),
         Meta(property='og:description', content=description or default_description),
         Meta(property='og:type', content='website'),
+        # Resource hints for performance - preconnect to external domains
+        Link(rel='preconnect', href='https://unpkg.com'),
+        Link(rel='dns-prefetch', href='https://unpkg.com'),
         # HTMX for interactive features
         Script(src='https://unpkg.com/htmx.org@2.0.3'),
         # HTMX Extensions
