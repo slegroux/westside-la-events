@@ -111,29 +111,9 @@ app, rt = fast_app(
     secret_key=config.SESSION_SECRET_KEY
 )
 
-# Add security middleware
-from src.web.security import SecurityHeadersMiddleware, get_limiter
-from slowapi.errors import RateLimitExceeded
+# Starlette imports
 from starlette.responses import JSONResponse
 
-app.add_middleware(SecurityHeadersMiddleware)
-
-# Rate limiter setup
-limiter = get_limiter()
-app.state.limiter = limiter
-
-# Rate limit exceeded handler
-@app.exception_handler(RateLimitExceeded)
-async def rate_limit_handler(request, exc):
-    """Handle rate limit exceeded errors."""
-    return JSONResponse(
-        status_code=429,
-        content={"error": "Rate limit exceeded. Please try again later."}
-    )
-
-# Setup admin authentication routes
-from src.web.admin_routes import setup_admin_routes
-setup_admin_routes(app, rt)
 
 # Setup analytics routes
 from src.web.analytics_routes import setup_analytics_routes
@@ -1248,14 +1228,9 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str
 
 
 @rt('/events/list')
-@limiter.limit("30/minute")
 def get_events_list(request: Request, q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
     """HTMX endpoint to get events list HTML fragment."""
     from starlette.responses import HTMLResponse
-    from src.web.security import sanitize_input
-
-    # Sanitize search query
-    q = sanitize_input(q, max_length=200)
     from fastcore.xml import to_xml
     events = _fetch_events(q, date_filter, category, source, free_only, specific_date, favorites_only, session)
     # Return just the HTML fragment without full page wrapper
@@ -1555,13 +1530,8 @@ def remove_from_favorites(event_id: int, session):
 
 
 @rt('/api/events')
-@limiter.limit("60/minute")
 def get_events_json(request: Request, q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = ''):
     """API endpoint to get events as JSON."""
-    from src.web.security import sanitize_input
-
-    # Sanitize search query
-    q = sanitize_input(q, max_length=200)
 
     events = _fetch_events(q, date_filter, category, source, free_only, specific_date)
 
@@ -1660,7 +1630,6 @@ def serve_static(filepath: str):
 
 
 @rt('/api/run-scrapers')
-@limiter.limit("10/hour")
 async def post(request):
     """
     API endpoint to trigger scrapers and sync database to Cloud Storage.
