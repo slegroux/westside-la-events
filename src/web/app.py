@@ -1749,7 +1749,7 @@ async def post(request):
 
 
 @rt('/api/health/database')
-async def get():
+async def get_database_health():
     """
     Health check endpoint for database freshness.
     Returns database statistics and age information.
