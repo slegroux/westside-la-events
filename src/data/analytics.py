@@ -129,15 +129,15 @@ class Analytics:
 
             conn.commit()
 
+        # Enable WAL mode after schema is created
+        self._enable_wal_mode()
+
     @contextmanager
     def get_connection(self):
         """Get database connection context manager."""
-        # Use longer timeout and WAL mode for better concurrent access
+        # Use longer timeout for better concurrent access
         conn = sqlite3.connect(self.db_path, timeout=30.0)
         conn.row_factory = sqlite3.Row
-
-        # Enable WAL mode for concurrent reads and writes
-        conn.execute('PRAGMA journal_mode=WAL')
 
         # Set busy timeout to 30 seconds
         conn.execute('PRAGMA busy_timeout=30000')
@@ -146,6 +146,19 @@ class Analytics:
             yield conn
         finally:
             conn.close()
+
+    def _enable_wal_mode(self):
+        """Enable WAL mode for better concurrent access. Call once during initialization."""
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=30.0)
+            # Enable WAL mode for concurrent reads and writes
+            conn.execute('PRAGMA journal_mode=WAL')
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            # WAL mode enablement failed, but continue anyway
+            # (may not be supported on some filesystems)
+            pass
 
     def _hash_ip(self, ip: str) -> str:
         """Hash IP address for privacy."""

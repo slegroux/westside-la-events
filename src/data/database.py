@@ -63,12 +63,9 @@ class Database:
     @contextmanager
     def get_connection(self):
         """Context manager for database connections."""
-        # Use longer timeout and WAL mode for better concurrent access
+        # Use longer timeout for better concurrent access
         conn = sqlite3.connect(self.db_path, timeout=30.0)
         conn.row_factory = sqlite3.Row
-
-        # Enable WAL mode for concurrent reads and writes
-        conn.execute('PRAGMA journal_mode=WAL')
 
         # Set busy timeout to 30 seconds
         conn.execute('PRAGMA busy_timeout=30000')
@@ -81,6 +78,19 @@ class Database:
             raise e
         finally:
             conn.close()
+
+    def _enable_wal_mode(self):
+        """Enable WAL mode for better concurrent access. Call once during initialization."""
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=30.0)
+            # Enable WAL mode for concurrent reads and writes
+            conn.execute('PRAGMA journal_mode=WAL')
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            # WAL mode enablement failed, but continue anyway
+            # (may not be supported on some filesystems)
+            pass
 
     def init_db(self):
         """Initialize database schema."""
@@ -203,6 +213,9 @@ class Database:
                     VALUES (new.id, new.title, new.description, new.venue_name);
                 END
             """)
+
+        # Enable WAL mode after schema is created
+        self._enable_wal_mode()
 
     def insert_event(
         self,
