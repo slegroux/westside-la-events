@@ -44,7 +44,8 @@ google-cloud-cli-linux-x86_64.tar.gz
 google-cloud-sdk
 
 # Data (will use Cloud Storage)
-data/*.db
+# Bundle events.db as fallback, but exclude analytics and backups
+data/analytics.db
 data/*.json
 data/backup
 
