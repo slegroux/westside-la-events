@@ -2,10 +2,11 @@
 
 echo "🚀 Starting Westside Events application..."
 
-# Skip database download during cold starts for faster startup
-# Database will be synced by the scheduled scraper job instead
+# By default, skip database download and use bundled version (faster cold starts)
+# Set SKIP_DB_DOWNLOAD=false to force download from Cloud Storage
 if [ "$SKIP_DB_DOWNLOAD" = "true" ]; then
-    echo "⏭️  Skipping database download (using bundled version for fast startup)"
+    echo "⚡ Using bundled database (fast startup mode)"
+    echo "   Database is baked into the Docker image for instant cold starts"
 else
     # Download database from Cloud Storage if it exists
     BUCKET="gs://westside-la-events-data"

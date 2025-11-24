@@ -160,6 +160,48 @@ if [ -d .git ]; then
     fi
 fi
 
+# Download fresh database from Cloud Storage to bundle in Docker image
+echo ""
+echo "📥 Downloading fresh database for bundling..."
+mkdir -p data
+
+# Download events.db (required)
+if gsutil -q stat "gs://${BUCKET_NAME}/events.db" 2>/dev/null; then
+    echo "  Downloading events.db..."
+    gsutil cp "gs://${BUCKET_NAME}/events.db" data/events.db
+    DB_SIZE=$(ls -lh data/events.db | awk '{print $5}')
+    echo "  ✓ Downloaded events.db (${DB_SIZE})"
+else
+    echo "  ⚠️  No events.db in Cloud Storage"
+    if [ ! -f "data/events.db" ]; then
+        echo "  ❌ Error: No local events.db found either"
+        echo "  Run scrapers first: micromamba run -n la python run_scrapers.py"
+        exit 1
+    else
+        echo "  Using existing local events.db"
+    fi
+fi
+
+# Download analytics.db (optional)
+if gsutil -q stat "gs://${BUCKET_NAME}/analytics.db" 2>/dev/null; then
+    echo "  Downloading analytics.db..."
+    gsutil cp "gs://${BUCKET_NAME}/analytics.db" data/analytics.db
+    echo "  ✓ Downloaded analytics.db"
+else
+    echo "  ⚠️  No analytics.db in Cloud Storage (will start fresh)"
+fi
+
+# Download geocode_cache.json (optional)
+if gsutil -q stat "gs://${BUCKET_NAME}/geocode_cache.json" 2>/dev/null; then
+    echo "  Downloading geocode_cache.json..."
+    gsutil cp "gs://${BUCKET_NAME}/geocode_cache.json" data/geocode_cache.json
+    echo "  ✓ Downloaded geocode_cache.json"
+else
+    echo "  ⚠️  No geocode_cache.json in Cloud Storage"
+fi
+
+echo "✅ Database bundle ready for Docker build"
+
 # Build the container image
 echo ""
 echo "🔨 Building container image..."

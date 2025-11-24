@@ -44,6 +44,13 @@ COPY . .
 # Create data directory for SQLite
 RUN mkdir -p /app/data
 
+# Copy bundled database files if they exist (for faster cold starts)
+# These will be copied from local data/ directory during docker build
+# The deployment script should download fresh data before building
+RUN if [ -f data/events.db ]; then cp data/events.db /app/data/events.db; fi && \
+    if [ -f data/analytics.db ]; then cp data/analytics.db /app/data/analytics.db; fi && \
+    if [ -f data/geocode_cache.json ]; then cp data/geocode_cache.json /app/data/geocode_cache.json; fi
+
 # Set environment variables
 # IMPORTANT: Set timezone to America/Los_Angeles (PST/PDT) since events are in local LA time
 # This ensures SQLite's date('now', 'localtime') returns the correct local time
@@ -52,7 +59,9 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=8080 \
     TZ=America/Los_Angeles \
     # Reduce Python startup time
-    PYTHONHASHSEED=0
+    PYTHONHASHSEED=0 \
+    # Skip database download on startup (database is bundled in image)
+    SKIP_DB_DOWNLOAD=true
 
 # Expose port (Cloud Run will set $PORT environment variable)
 EXPOSE 8080
