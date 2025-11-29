@@ -78,6 +78,8 @@ from src.scrapers.sounds_like_la import SoundsLikeLAScraper
 from src.scrapers.brightside import BrightsideScraper
 from src.scrapers.old_town_music_hall import OldTownMusicHallScraper
 from src.scrapers.tripp import TrippScraper
+from src.scrapers.la_puglia import LaPugliaScraper
+from src.scrapers.recreation_cafe import RecreationCafeScraper
 
 
 # Scraper class mapping
@@ -132,6 +134,8 @@ SCRAPER_MAP = {
     'brightside': BrightsideScraper,
     'old_town_music_hall': OldTownMusicHallScraper,
     'tripp': TrippScraper,
+    'la_puglia': LaPugliaScraper,
+    'recreation_cafe': RecreationCafeScraper,
 }
 
 
@@ -405,6 +409,58 @@ async def main_async():
     all_events = db.get_all_events(limit=10000)
     print(f"\nTotal events in database: {len(all_events)}")
     print("="*60 + "\n")
+
+    # Upload to Cloud Storage if running in production
+    import os
+    if os.getenv('ENVIRONMENT') == 'production' and counts['saved'] > 0:
+        print("\n" + "="*60)
+        print("UPLOADING TO CLOUD STORAGE")
+        print("="*60)
+
+        import subprocess
+        bucket = 'gs://westside-la-events-data'
+
+        try:
+            # Upload events database
+            print("Uploading events.db...")
+            subprocess.run(
+                ['gsutil', 'cp', config.DATABASE_PATH, f'{bucket}/events.db'],
+                check=True,
+                timeout=60
+            )
+            print("✓ events.db uploaded")
+
+            # Upload analytics database
+            if os.path.exists('data/analytics.db'):
+                print("Uploading analytics.db...")
+                subprocess.run(
+                    ['gsutil', 'cp', 'data/analytics.db', f'{bucket}/analytics.db'],
+                    check=True,
+                    timeout=60
+                )
+                print("✓ analytics.db uploaded")
+
+            # Upload geocode cache
+            if os.path.exists('data/geocode_cache.json'):
+                print("Uploading geocode_cache.json...")
+                subprocess.run(
+                    ['gsutil', 'cp', 'data/geocode_cache.json', f'{bucket}/geocode_cache.json'],
+                    check=True,
+                    timeout=60
+                )
+                print("✓ geocode_cache.json uploaded")
+
+            print("\n✓ All files uploaded to Cloud Storage")
+            print("="*60 + "\n")
+
+        except subprocess.TimeoutExpired:
+            print("✗ Upload timed out")
+        except subprocess.CalledProcessError as e:
+            print(f"✗ Upload failed: {e}")
+        except Exception as e:
+            print(f"✗ Upload error: {e}")
+    elif os.getenv('ENVIRONMENT') == 'production':
+        print("\n⊘ No new events saved, skipping Cloud Storage upload\n")
 
 
 def main():
