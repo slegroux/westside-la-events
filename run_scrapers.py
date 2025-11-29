@@ -77,6 +77,7 @@ from src.scrapers.william_turner import WilliamTurnerScraper
 from src.scrapers.sounds_like_la import SoundsLikeLAScraper
 from src.scrapers.brightside import BrightsideScraper
 from src.scrapers.old_town_music_hall import OldTownMusicHallScraper
+from src.scrapers.tripp import TrippScraper
 
 
 # Scraper class mapping
@@ -130,6 +131,7 @@ SCRAPER_MAP = {
     'sounds_like_la': SoundsLikeLAScraper,
     'brightside': BrightsideScraper,
     'old_town_music_hall': OldTownMusicHallScraper,
+    'tripp': TrippScraper,
 }
 
 

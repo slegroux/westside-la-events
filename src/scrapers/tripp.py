@@ -52,7 +52,7 @@ class TrippScraper(BaseScraper):
     """Scraper for Tripp Santa Monica events using Playwright."""
 
     def __init__(self):
-        super().__init__(source_name='tripp')
+        super().__init__(source_name='Tripp')
         self.source_url = 'https://www.tripsantamonica.com/calendar'
         self.venue_name = 'Tripp'
         self.venue_address = '1431 3rd Street Promenade, Santa Monica, CA 90401'

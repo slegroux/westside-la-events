@@ -60,6 +60,7 @@ class LogoScraper:
         'Brightside California Kitchen': 'https://brightsidecaliforniakitchen.com',
         'Sounds Like LA': 'https://soundslikela.org',
         'Beyond Baroque': 'https://www.beyondbaroque.org',
+        'Tripp': 'https://www.tripsantamonica.com',
     }
 
     # Known logo URLs (fallback if scraping fails)
@@ -98,6 +99,7 @@ class LogoScraper:
         'Brightside California Kitchen': 'https://static.spotapps.co/website_images/ab_websites/19630_website_v1/logo.png',
         'Sounds Like LA': 'https://soundslikela.org/wp-content/uploads/2024/06/logo-SLL-RGB.svg',
         'Beyond Baroque': 'https://www.beyondbaroque.org/images/Logo%20for%20new%20website%20copy.jpg',
+        'Tripp': 'https://static.wixstatic.com/media/b1ebb4_8d9e8e4c1caa4e4c9f8d8e4c1caa4e4c~mv2.png',
     }
 
     def __init__(self, cache_dir: str = "static/logos"):
