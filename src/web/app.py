@@ -1636,9 +1636,12 @@ async def post(request):
     Used by Cloud Scheduler for automated scraping.
 
     Process:
-    1. Run scrapers to update local database
-    2. Upload updated database to Cloud Storage
-    3. Next container restart will download the fresh database
+    1. Start scrapers in background (non-blocking)
+    2. Return immediately with 202 Accepted
+    3. Scrapers run independently and upload when complete
+
+    This design allows Cloud Scheduler to succeed even with short timeouts,
+    while scrapers complete their work in the background.
     """
     import subprocess
     import os
@@ -1652,108 +1655,28 @@ async def post(request):
         return JSONResponse({'error': 'Unauthorized'}, status_code=401)
 
     try:
-        # Run scrapers synchronously and wait for completion
-        result = subprocess.run(
+        # Start scrapers in background (non-blocking)
+        # Use Popen instead of run() to avoid waiting for completion
+        subprocess.Popen(
             ['python3', 'run_scrapers.py'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd='/app',
-            timeout=600  # 10 minute timeout
+            start_new_session=True  # Detach from parent process
         )
 
-        # Check if scrapers completed successfully
-        if result.returncode != 0:
-            return JSONResponse({
-                'status': 'error',
-                'message': f'Scrapers failed with return code {result.returncode}',
-                'stderr': result.stderr.decode('utf-8')[:1000]  # First 1000 chars
-            }, status_code=500)
-
-        # INCREMENTAL UPDATE: Merge new events into production database
-        # This is safer than replacing the entire database
-        import sqlite3
-        try:
-            # Count NEW events scraped (events added in last 10 minutes)
-            conn = sqlite3.connect('/app/data/events.db')
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM events WHERE created_at >= datetime('now', '-10 minutes')")
-            new_event_count = cursor.fetchone()[0]
-
-            cursor.execute("SELECT COUNT(*) FROM events")
-            total_event_count = cursor.fetchone()[0]
-            conn.close()
-
-            if total_event_count == 0:
-                return JSONResponse({
-                    'status': 'error',
-                    'message': 'Scrapers completed but database is empty. Not uploading to prevent data loss.',
-                    'event_count': 0
-                }, status_code=500)
-
-            # If no new events were added, don't upload (saves bandwidth and prevents unnecessary overwrites)
-            if new_event_count == 0:
-                return JSONResponse({
-                    'status': 'success',
-                    'message': 'Scrapers completed but found no new events. Database not modified.',
-                    'total_events': total_event_count,
-                    'new_events': 0,
-                    'timestamp': datetime.now().isoformat()
-                })
-
-        except Exception as e:
-            return JSONResponse({
-                'status': 'error',
-                'message': f'Failed to verify database: {str(e)}',
-            }, status_code=500)
-
-        # Upload database to Cloud Storage (only if new events were added)
-        bucket = 'gs://westside-la-events-data'
-        upload_result = subprocess.run(
-            ['gsutil', 'cp', '/app/data/events.db', f'{bucket}/events.db'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=60
-        )
-
-        # Upload analytics database
-        subprocess.run(
-            ['gsutil', 'cp', '/app/data/analytics.db', f'{bucket}/analytics.db'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=60
-        )
-
-        # Upload geocode cache
-        subprocess.run(
-            ['gsutil', 'cp', '/app/data/geocode_cache.json', f'{bucket}/geocode_cache.json'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=60
-        )
-
-        if upload_result.returncode != 0:
-            return JSONResponse({
-                'status': 'partial',
-                'message': 'Scrapers completed but Cloud Storage sync failed',
-                'stderr': upload_result.stderr.decode('utf-8')[:1000]
-            }, status_code=500)
-
+        # Return immediately with 202 Accepted
+        # Scrapers will complete in background and upload results
         return JSONResponse({
-            'status': 'success',
-            'message': 'Scrapers completed and database synced to Cloud Storage',
-            'total_events': total_event_count,
-            'new_events': new_event_count,
+            'status': 'accepted',
+            'message': 'Scraper job started in background. Results will be uploaded when complete.',
             'timestamp': datetime.now().isoformat()
-        })
-    except subprocess.TimeoutExpired:
-        return JSONResponse({
-            'status': 'error',
-            'message': 'Scraper execution timed out'
-        }, status_code=500)
+        }, status_code=202)
+
     except Exception as e:
         return JSONResponse({
             'status': 'error',
-            'message': str(e)
+            'message': f'Failed to start scrapers: {str(e)}'
         }, status_code=500)
 
 
