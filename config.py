@@ -411,6 +411,27 @@ EVENT_SOURCES = {
         'enabled': True,
         'uses_api': False,
         'note': 'Historic cinema and music venue in El Segundo showing classic films and live performances with Wurlitzer organ'
+    },
+    'papille_gustative': {
+        'name': 'Papille Gustative',
+        'url': 'https://papillegustativela.com/santa-monica-main-street-santa-monica-papille-gustative-events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Farm-to-table cafe-restaurant on Santa Monica Blvd featuring seasonal events and holiday celebrations'
+    },
+    'recreation_cafe': {
+        'name': 'Recreation Cafe',
+        'url': 'https://www.recreation.cafe/events-1',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Social club and cafe in LA offering community events, workshops, and creative meetups'
+    },
+    'jamesons_pub': {
+        'name': "Jameson's Pub - Santa Monica",
+        'url': 'https://santamonica.jamesonsirishpub.com/santa-monica-jameson-s-pub-santa-monica-events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Authentic Irish pub in Santa Monica featuring sports viewing, holiday celebrations, live music, and pub events'
     }
 }
 

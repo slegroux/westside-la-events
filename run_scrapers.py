@@ -80,6 +80,9 @@ from src.scrapers.old_town_music_hall import OldTownMusicHallScraper
 from src.scrapers.tripp import TrippScraper
 from src.scrapers.la_puglia import LaPugliaScraper
 from src.scrapers.recreation_cafe import RecreationCafeScraper
+from src.scrapers.victorian import VictorianScraper
+from src.scrapers.papille_gustative import PapilleGustativeScraper
+from src.scrapers.jamesons_pub import JamesonsPubScraper
 
 
 # Scraper class mapping
@@ -136,6 +139,9 @@ SCRAPER_MAP = {
     'tripp': TrippScraper,
     'la_puglia': LaPugliaScraper,
     'recreation_cafe': RecreationCafeScraper,
+    'victorian': VictorianScraper,
+    'papille_gustative': PapilleGustativeScraper,
+    'jamesons_pub': JamesonsPubScraper,
 }
 
 

@@ -61,6 +61,10 @@ class LogoScraper:
         'Sounds Like LA': 'https://soundslikela.org',
         'Beyond Baroque': 'https://www.beyondbaroque.org',
         'Tripp': 'https://www.tripsantamonica.com',
+        'The Victorian': 'https://www.thevictorian.com',
+        'Papille Gustative': 'https://papillegustativela.com',
+        'Recreation Cafe': 'https://www.recreation.cafe',
+        'Jamesons Pub': 'https://santamonica.jamesonsirishpub.com',
     }
 
     # Known logo URLs (fallback if scraping fails)
@@ -100,6 +104,10 @@ class LogoScraper:
         'Sounds Like LA': 'https://soundslikela.org/wp-content/uploads/2024/06/logo-SLL-RGB.svg',
         'Beyond Baroque': 'https://www.beyondbaroque.org/images/Logo%20for%20new%20website%20copy.jpg',
         'Tripp': 'https://static.wixstatic.com/media/b1ebb4_8d9e8e4c1caa4e4c9f8d8e4c1caa4e4c~mv2.png',
+        'The Victorian': 'https://static.wixstatic.com/media/60d1c0_981c8cc2eca6480eb4ce978bc9c58db6~mv2.png/v1/fill/w_314,h_184,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/vic-logo_bw-SM-1.png',
+        'Papille Gustative': 'https://static.spotapps.co/website_images/ab_websites/72211_website/logo.png',
+        'Recreation Cafe': 'https://images.squarespace-cdn.com/content/v1/62c3a4bf2c1e2e57e6b0be39/8c2a7d45-7e0f-4c82-8a4c-4ba95a3f4c4d/recreation-cafe-logo.png',
+        'Jamesons Pub': 'https://static.spotapps.co/web/santamonica--jamesonsirishpub--com/custom/logo.png',
     }
 
     def __init__(self, cache_dir: str = "static/logos"):
