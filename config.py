@@ -174,11 +174,18 @@ EVENT_SOURCES = {
         'note': 'Comedy shows on Santa Monica 3rd Street Promenade'
     },
     'aviator_nation': {
+        'name': 'Aviator Nation (Eventbrite)',
+        'url': 'https://www.eventbrite.com/o/aviator-nation-77562713843',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Aviator Nation Venice events via Eventbrite (retail store events).'
+    },
+    'aviator_dreamland': {
         'name': 'Aviator Nation Dreamland',
         'url': 'https://aviatornationdreamland.com/pages/event-calendar-custom',
-        'enabled': False,  # Events captured via Eventbrite scraper instead
+        'enabled': True,
         'uses_api': False,
-        'note': 'Malibu music venue. Events posted on Eventbrite and Bandsintown. Eventbrite scraper catches these automatically.'
+        'note': 'Iconic Malibu music venue featuring live performances and ticketed events. Custom Shopify calendar with tixr.com ticketing.'
     },
     'gnarwhal': {
         'name': 'Gnarwhal Coffee',

@@ -45,6 +45,7 @@ from src.scrapers.venice_west import VeniceWestScraper
 from src.scrapers.winston_house import WinstonHouseScraper
 from src.scrapers.westside_comedy import WestsideComedyScraper
 from src.scrapers.aviator_nation import AviatorNationScraper
+from src.scrapers.aviator_dreamland import AviatorDreamlandScraper
 from src.scrapers.gnarwhal import GnarwhalScraper
 from src.scrapers.penmar import PenmarScraper
 from src.scrapers.itk_la import ITKLAScraper
@@ -104,6 +105,7 @@ SCRAPER_MAP = {
     'winston_house': WinstonHouseScraper,
     'westside_comedy': WestsideComedyScraper,
     'aviator_nation': AviatorNationScraper,
+    'aviator_dreamland': AviatorDreamlandScraper,
     'gnarwhal': GnarwhalScraper,
     'penmar': PenmarScraper,
     'itk_la': ITKLAScraper,
