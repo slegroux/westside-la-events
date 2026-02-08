@@ -80,8 +80,9 @@ temp/
 /*.db-wal
 /*.db-shm
 
-# Claude Code
-.claude/
+# Claude Code (keep skills tracked for version control)
+.claude/*
+!.claude/skills/
 
 # Google Cloud deployment info (contains sensitive tokens)
 .gcloud-deployment-info
