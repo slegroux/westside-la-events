@@ -17,9 +17,46 @@ You are running the **push** workflow. This commits and pushes code to GitHub wi
 
 ---
 
-## Step 1: Run Tests
+## Step 1: Preview - Show What Will Happen
 
-Run the test suite first. If tests fail (beyond known failures), STOP and report the failures. Do not commit broken code.
+Before doing anything, gather the full picture and present a summary to the user.
+
+Run these commands (in parallel where possible):
+
+1. `git status` and `git diff --stat` - uncommitted changes
+2. `git log origin/master..HEAD --oneline` - unpushed commits
+3. `conda run -n la gh issue list --state open --limit 50` - open issues for matching
+
+Then present a preview like this:
+
+```
+## /push Preview
+**Uncommitted changes:** N files modified, N new files
+  - src/scrapers/foo.py (modified)
+  - src/web/app.py (modified)
+  - tests/test_new.py (new)
+
+**Unpushed commits:** N commits
+  - abc1234 Previous commit message
+
+**Matching issues:** #35 UX Improvements, #44 Prefetching (or "no matches - will create new")
+
+**Plan:**
+1. Run tests
+2. Stage and commit with message: "<draft message>"
+3. Update issues: #35 (comment), create new issue for <topic>
+4. Push to origin/master
+```
+
+Wait for the user to confirm before proceeding. If the user says to adjust something (different commit message, skip a file, etc.), incorporate their feedback.
+
+If there are no changes AND no unpushed commits, tell the user "Nothing to push!" and stop.
+
+---
+
+## Step 2: Run Tests
+
+Run the test suite. If tests fail (beyond known failures), STOP and report the failures. Do not commit broken code.
 
 ```
 conda run -n la python -m pytest tests/ --ignore=tests/e2e -x -q --timeout=30
@@ -32,19 +69,7 @@ If there are NEW failures, stop and ask the user whether to proceed or fix first
 
 ---
 
-## Step 2: Analyze Changes
-
-Gather the full picture of what needs to be pushed:
-
-1. **Uncommitted changes**: Run `git status` and `git diff --stat` to see dirty working tree
-2. **Unpushed commits**: Run `git log origin/master..HEAD --oneline` to see commits not yet on remote
-3. **Recent commit messages**: Run `git log --oneline -10` for style reference
-
-If there are no changes AND no unpushed commits, tell the user "Nothing to push!" and stop.
-
----
-
-## Step 3: Stage and Commit (if dirty working tree)
+## Step 3: Stage and Commit (if uncommitted changes)
 
 If there are uncommitted changes:
 
