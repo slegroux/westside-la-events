@@ -120,6 +120,12 @@ async function loadMapEvents() {
             params.append('free_only', 'true');
         }
 
+        // Add favorites_only filter if checked
+        const favoritesOnlyCheckbox = document.querySelector('input[name="favorites_only"]');
+        if (favoritesOnlyCheckbox && favoritesOnlyCheckbox.checked) {
+            params.append('favorites_only', 'true');
+        }
+
         // Fetch events with error handling
         const response = await fetch('/api/events?' + params.toString());
 

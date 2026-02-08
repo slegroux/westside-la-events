@@ -73,7 +73,8 @@ class BaseScraper(ABC):
         results = client.fetch_all_sync(uncached, cookies=cookies)
 
         for url, content in zip(uncached, results):
-            self._page_cache[url] = content
+            if content is not None:
+                self._page_cache[url] = content
 
         fetched = sum(1 for c in results if c is not None)
         self.log(f"Pre-fetched {fetched}/{len(uncached)} pages successfully")
@@ -89,9 +90,12 @@ class BaseScraper(ABC):
         Returns:
             Page HTML content or None if fetch fails
         """
-        # Check prefetch cache first
+        # Check prefetch cache first (only use if successfully fetched)
         if url in self._page_cache:
-            return self._page_cache.pop(url)
+            cached = self._page_cache.pop(url)
+            if cached is not None:
+                return cached
+            # Prefetch failed for this URL, fall through to sequential fetch
 
         for attempt in range(retry):
             try:

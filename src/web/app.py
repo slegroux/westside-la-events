@@ -488,6 +488,18 @@ def page_head(title: str, description: Optional[str] = None):
                     closeFilterSheet();
                 }
             });
+
+            // Scroll-to-top button visibility
+            window.addEventListener('scroll', function() {
+                const btn = document.getElementById('scroll-to-top');
+                if (btn) {
+                    if (window.scrollY > 400) {
+                        btn.classList.add('visible');
+                    } else {
+                        btn.classList.remove('visible');
+                    }
+                }
+            });
         ''')
     )
 
@@ -507,11 +519,12 @@ def page_footer():
     """Shared page footer component."""
     return Footer(
         Div(
-            P('Westside LA Events Aggregator'),
-            P('Aggregating events from Santa Monica, Timeout LA, KCRW, and more.'),
+            P('Westside LA Events', cls='footer-title'),
+            P('Aggregating events from Santa Monica, Timeout LA, KCRW, and 30+ sources.', cls='footer-sources'),
             P(
-                'Made with love by ',
-                A('Sisyphe.ai', href='https://ccrma.stanford.edu/~slegroux/', target='_blank', rel='noopener noreferrer')
+                'Made with \u2764 by ',
+                A('Sisyphe.ai', href='https://ccrma.stanford.edu/~slegroux/', target='_blank', rel='noopener noreferrer'),
+                cls='footer-credit'
             ),
             cls='container'
         )
@@ -717,8 +730,9 @@ def events_list(events: List[Event], session=None):
     """Component to render the events grid."""
     if not events:
         return Div(
-            H2('🔍 No events found'),
+            H2('No events found'),
             P('Try adjusting your search filters or check back later for new events.'),
+            Span('Tip: Clear all filters to see upcoming events', cls='empty-hint'),
             cls='empty-state'
         )
 
@@ -773,14 +787,16 @@ def home_page(request, session):
                     Div(
                         # View Toggle
                         Div(
-                            Button('List View', type='button', id='list-view-btn', cls='view-btn active',
+                            Button(Span('\u2630', style='margin-right: 0.4rem; font-size: 1.1em;'), 'List', type='button', id='list-view-btn', cls='view-btn active',
                                    hx_get='/view/list',
                                    hx_target='#view-container',
-                                   hx_swap='innerHTML'),
-                            Button('Map View', type='button', id='map-view-btn', cls='view-btn',
+                                   hx_swap='innerHTML',
+                                   hx_include='.search-section'),
+                            Button(Span('\U0001F5FA', style='margin-right: 0.4rem; font-size: 1.1em;'), 'Map', type='button', id='map-view-btn', cls='view-btn',
                                    hx_get='/view/map',
                                    hx_target='#view-container',
-                                   hx_swap='innerHTML'),
+                                   hx_swap='innerHTML',
+                                   hx_include='.search-section'),
                             cls='view-toggle',
                             id='view-toggle'
                         ),
@@ -805,6 +821,8 @@ def home_page(request, session):
             htmx_loading_indicator(),
             # Toast notification container
             Div(id='toast-container'),
+            # Scroll-to-top button
+            Button('\u2191', cls='scroll-to-top', id='scroll-to-top', onclick='window.scrollTo({top: 0, behavior: "smooth"})', type='button', title='Back to top'),
             page_footer(),
             # Add script to show skeleton during HTMX requests
             Script('''
@@ -1365,13 +1383,13 @@ def filter_by_category(category: str, session):
 
 
 @rt('/view/list')
-def get_list_view(session):
+def get_list_view(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
     """HTMX endpoint to switch to list view."""
     from starlette.responses import HTMLResponse
     from fastcore.xml import to_xml
 
-    # Get current events based on filters (default to upcoming)
-    events = _fetch_events(date_filter='upcoming', session=session)
+    # Get current events based on active filters
+    events = _fetch_events(q, date_filter, category, source, free_only, specific_date, favorites_only, session)
 
     result = Div(
         # Map Container (hidden)
@@ -1380,14 +1398,16 @@ def get_list_view(session):
         Div(events_list(events, session), id='events-container'),
         # OOB swap to update button states
         Div(
-            Button('List View', type='button', id='list-view-btn', cls='view-btn active',
+            Button(Span('\u2630', style='margin-right: 0.4rem; font-size: 1.1em;'), 'List', type='button', id='list-view-btn', cls='view-btn active',
                    hx_get='/view/list',
                    hx_target='#view-container',
-                   hx_swap='innerHTML'),
-            Button('Map View', type='button', id='map-view-btn', cls='view-btn',
+                   hx_swap='innerHTML',
+                   hx_include='.search-section'),
+            Button(Span('\U0001F5FA', style='margin-right: 0.4rem; font-size: 1.1em;'), 'Map', type='button', id='map-view-btn', cls='view-btn',
                    hx_get='/view/map',
                    hx_target='#view-container',
-                   hx_swap='innerHTML'),
+                   hx_swap='innerHTML',
+                   hx_include='.search-section'),
             cls='view-toggle',
             id='view-toggle',
             hx_swap_oob='true'
@@ -1398,13 +1418,13 @@ def get_list_view(session):
 
 
 @rt('/view/map')
-def get_map_view(session):
+def get_map_view(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
     """HTMX endpoint to switch to map view."""
     from starlette.responses import HTMLResponse
     from fastcore.xml import to_xml
 
-    # Get current events based on filters (default to upcoming)
-    events = _fetch_events(date_filter='upcoming', session=session)
+    # Get current events based on active filters
+    events = _fetch_events(q, date_filter, category, source, free_only, specific_date, favorites_only, session)
 
     result = Div(
         # Map Container (visible) - explicit height required for Leaflet
@@ -1413,14 +1433,16 @@ def get_map_view(session):
         Div(events_list(events, session), id='events-container', style='display: none;'),
         # OOB swap to update button states
         Div(
-            Button('List View', type='button', id='list-view-btn', cls='view-btn',
+            Button(Span('\u2630', style='margin-right: 0.4rem; font-size: 1.1em;'), 'List', type='button', id='list-view-btn', cls='view-btn',
                    hx_get='/view/list',
                    hx_target='#view-container',
-                   hx_swap='innerHTML'),
-            Button('Map View', type='button', id='map-view-btn', cls='view-btn active',
+                   hx_swap='innerHTML',
+                   hx_include='.search-section'),
+            Button(Span('\U0001F5FA', style='margin-right: 0.4rem; font-size: 1.1em;'), 'Map', type='button', id='map-view-btn', cls='view-btn active',
                    hx_get='/view/map',
                    hx_target='#view-container',
-                   hx_swap='innerHTML'),
+                   hx_swap='innerHTML',
+                   hx_include='.search-section'),
             cls='view-toggle',
             id='view-toggle',
             hx_swap_oob='true'
@@ -1584,10 +1606,10 @@ def remove_from_favorites(event_id: int, session):
 
 
 @rt('/api/events')
-def get_events_json(request: Request, q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = ''):
+def get_events_json(request: Request, q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
     """API endpoint to get events as JSON."""
 
-    events = _fetch_events(q, date_filter, category, source, free_only, specific_date)
+    events = _fetch_events(q, date_filter, category, source, free_only, specific_date, favorites_only, session)
 
     from starlette.responses import JSONResponse
     return JSONResponse([event.to_dict() for event in events])
