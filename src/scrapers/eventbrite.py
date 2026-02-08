@@ -110,6 +110,10 @@ class EventbriteScraper(BaseScraper):
 
             self.log(f"Found {len(event_urls)} unique event URLs in general page")
 
+            # Prefetch all event pages concurrently
+            if event_urls:
+                self.prefetch_pages(sorted(event_urls))
+
             # Fetch each event page and extract full data with correct times
             for i, event_url in enumerate(sorted(event_urls), 1):
                 try:
@@ -175,6 +179,10 @@ class EventbriteScraper(BaseScraper):
 
             self.log(f"Found {len(event_urls)} unique event URLs in collection")
 
+            # Prefetch all event pages concurrently
+            if event_urls:
+                self.prefetch_pages(sorted(event_urls))
+
             # Fetch each event page and extract JSON-LD data
             for i, event_url in enumerate(sorted(event_urls), 1):
                 try:
@@ -233,6 +241,10 @@ class EventbriteScraper(BaseScraper):
                     event_urls.add(clean_url)
 
             self.log(f"Found {len(event_urls)} unique event URLs in organizer profile")
+
+            # Prefetch all event pages concurrently
+            if event_urls:
+                self.prefetch_pages(sorted(event_urls))
 
             # Fetch each event page and extract data
             for i, event_url in enumerate(sorted(event_urls), 1):

@@ -328,6 +328,10 @@ class KinnScraper(BaseScraper):
 
             self.log(f"Found {len(event_urls)} unique event URLs in HTML")
 
+            # Prefetch all event pages concurrently
+            if event_urls:
+                self.prefetch_pages(sorted(event_urls))
+
             # Fetch each event page
             for i, event_url in enumerate(sorted(event_urls), 1):
                 try:

@@ -211,6 +211,10 @@ def page_head(title: str, description: Optional[str] = None):
         Meta(property='og:title', content=title),
         Meta(property='og:description', content=description or default_description),
         Meta(property='og:type', content='website'),
+        # Google Fonts - Inter for polished typography
+        Link(rel='preconnect', href='https://fonts.googleapis.com'),
+        Link(rel='preconnect', href='https://fonts.gstatic.com', crossorigin='anonymous'),
+        Link(rel='stylesheet', href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'),
         # Resource hints for performance - preconnect to external domains
         Link(rel='preconnect', href='https://unpkg.com'),
         Link(rel='dns-prefetch', href='https://unpkg.com'),
@@ -450,6 +454,38 @@ def page_head(title: str, description: Optional[str] = None):
                 const indicator = document.getElementById('loading-indicator');
                 if (indicator) {
                     indicator.style.display = 'none';
+                }
+            });
+
+            // Mobile Bottom Sheet Filter Drawer
+            function openFilterSheet() {
+                const sidebar = document.querySelector('.sidebar');
+                const overlay = document.getElementById('bottom-sheet-overlay');
+                const fab = document.getElementById('filter-fab');
+                if (sidebar && overlay) {
+                    overlay.classList.add('active');
+                    sidebar.classList.add('sheet-open');
+                    document.body.classList.add('bottom-sheet-open');
+                    if (fab) fab.classList.add('hidden');
+                }
+            }
+
+            function closeFilterSheet() {
+                const sidebar = document.querySelector('.sidebar');
+                const overlay = document.getElementById('bottom-sheet-overlay');
+                const fab = document.getElementById('filter-fab');
+                if (sidebar && overlay) {
+                    sidebar.classList.remove('sheet-open');
+                    overlay.classList.remove('active');
+                    document.body.classList.remove('bottom-sheet-open');
+                    if (fab) fab.classList.remove('hidden');
+                }
+            }
+
+            // Close bottom sheet on Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeFilterSheet();
                 }
             });
         ''')
@@ -706,11 +742,29 @@ def home_page(request, session):
         page_head('Westside LA Events'),
         Body(
             page_header(),
+            # Mobile filter bottom sheet overlay
+            Div(cls='bottom-sheet-overlay', id='bottom-sheet-overlay', onclick='closeFilterSheet()'),
+            # Mobile filter FAB button
+            Button(
+                Span('\u2699', cls='filter-fab-icon'),
+                ' Filters',
+                cls='filter-fab',
+                onclick='openFilterSheet()',
+                type='button',
+                id='filter-fab'
+            ),
             # Two-column layout wrapper
             Div(
                 Div(
-                    # Left Sidebar - Search and Filters
+                    # Left Sidebar - Search and Filters (becomes bottom sheet on mobile)
                     Div(
+                        # Bottom sheet handle & header (hidden on desktop, shown on mobile)
+                        Div(cls='bottom-sheet-handle'),
+                        Div(
+                            Span('Filters', cls='bottom-sheet-title'),
+                            Button('\u00d7', cls='bottom-sheet-close', onclick='closeFilterSheet()', type='button'),
+                            cls='bottom-sheet-header'
+                        ),
                         search_section(),
                         cls='sidebar'
                     ),

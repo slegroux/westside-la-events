@@ -26,7 +26,7 @@ def analytics_page_head(title: str):
                 padding: 0 2rem;
             }
             .analytics-header {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
                 color: white;
                 padding: 2rem;
                 border-radius: 1rem;
@@ -44,12 +44,12 @@ def analytics_page_head(title: str):
                 padding: 1.5rem;
                 border-radius: 0.75rem;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                border-left: 4px solid #667eea;
+                border-left: 4px solid #0891b2;
             }
             .metric-value {
                 font-size: 2.5rem;
                 font-weight: 800;
-                color: #667eea;
+                color: #0891b2;
                 margin: 0.5rem 0;
             }
             .metric-label {
@@ -124,12 +124,12 @@ def analytics_page_head(title: str):
                 transition: all 0.2s;
             }
             .date-range-selector button.active {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
                 color: white;
                 border-color: transparent;
             }
             .date-range-selector button:hover:not(.active) {
-                border-color: #667eea;
+                border-color: #0891b2;
             }
         ''')
     )

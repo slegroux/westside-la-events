@@ -44,6 +44,15 @@ class TimeoutScraper(BaseScraper):
             event_cards = soup.find_all('article', class_='tile')
             self.log(f"Found {len(event_cards)} event cards on listing page")
 
+            # Collect all detail URLs and prefetch them concurrently
+            card_urls = []
+            for card in event_cards:
+                link_elem = card.find('a', {'data-testid': 'tile-link_testID'})
+                if link_elem and link_elem.get('href'):
+                    card_urls.append(self.normalize_url(link_elem['href'], self.base_url))
+            if card_urls:
+                self.prefetch_pages(card_urls)
+
             for i, card in enumerate(event_cards, 1):
                 try:
                     # Get URL from card
@@ -54,7 +63,7 @@ class TimeoutScraper(BaseScraper):
 
                     event_url = self.normalize_url(link_elem['href'], self.base_url)
 
-                    # Fetch detail page for complete data
+                    # Fetch detail page for complete data (hits prefetch cache)
                     self.log(f"Event {i}/{len(event_cards)}: Fetching {event_url}")
                     event = self._fetch_and_parse_detail(event_url, card)
 

@@ -47,6 +47,15 @@ class ITKLAScraper(BaseScraper):
 
             self.log(f"Found {len(event_items)} list items")
 
+            # Collect detail URLs and prefetch them concurrently
+            detail_urls = []
+            for item in event_items:
+                link = item.find('a', href=lambda x: x and '/events/' in x)
+                if link and link.get('href'):
+                    detail_urls.append(self.normalize_url(link['href'], self.base_url))
+            if detail_urls:
+                self.prefetch_pages(detail_urls)
+
             # Track current date section for parsing
             current_date = None
 

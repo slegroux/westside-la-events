@@ -42,6 +42,15 @@ class DiscoverLAScraper(BaseScraper):
             event_articles = soup.find_all('article', class_=lambda x: x and 'node--type-event' in str(x))
             self.log(f"Found {len(event_articles)} event articles")
 
+            # Collect detail URLs and prefetch them concurrently
+            detail_urls = []
+            for article in event_articles:
+                link = article.find('a', href=True)
+                if link:
+                    detail_urls.append(self.normalize_url(link.get('href', ''), self.base_url))
+            if detail_urls:
+                self.prefetch_pages(detail_urls)
+
             for article in event_articles:
                 try:
                     event = self._parse_event(article)

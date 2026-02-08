@@ -82,6 +82,10 @@ class ParksCaliforniaScraper(BaseScraper):
 
             self.log(f"Found {len(event_urls)} event URLs in Angeles District")
 
+            # Prefetch all event detail pages concurrently
+            if event_urls:
+                self.prefetch_pages(list(event_urls))
+
             # Process each event detail page
             for i, url in enumerate(event_urls, 1):
                 try:

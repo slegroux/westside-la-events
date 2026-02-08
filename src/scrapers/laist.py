@@ -51,6 +51,15 @@ class LAistScraper(BaseScraper):
 
             self.log(f"Found {len(event_items)} event items")
 
+            # Collect detail URLs and prefetch them concurrently
+            detail_urls = []
+            for item in event_items:
+                link_elem = item.find('a', class_='Link')
+                if link_elem and link_elem.get('href'):
+                    detail_urls.append(self.normalize_url(link_elem['href'], self.base_url))
+            if detail_urls:
+                self.prefetch_pages(detail_urls)
+
             for item in event_items:
                 try:
                     event = self._parse_event(item)

@@ -34,6 +34,7 @@ class BaseScraper(ABC):
         self.session.headers.update({
             'User-Agent': config.SCRAPER_CONFIG['user_agent']
         })
+        self._page_cache = {}
 
         # Download and cache logo locally for this source
         self.source_logo_url = self.logo_scraper.download_logo(source_name)
@@ -48,9 +49,38 @@ class BaseScraper(ABC):
         """
         pass
 
+    def prefetch_pages(self, urls: List[str], max_concurrent: int = 5) -> None:
+        """
+        Pre-fetch multiple URLs concurrently and cache results.
+        Subsequent fetch_page() calls for these URLs will return instantly from cache.
+
+        Args:
+            urls: List of URLs to pre-fetch
+            max_concurrent: Maximum concurrent requests (default 5 for politeness)
+        """
+        from src.utils.async_scraper import AsyncHTTPClient
+
+        # Filter out already-cached URLs
+        uncached = [u for u in urls if u and u not in self._page_cache]
+        if not uncached:
+            return
+
+        self.log(f"Pre-fetching {len(uncached)} pages concurrently...")
+        client = AsyncHTTPClient(max_concurrent=max_concurrent, delay=0.2)
+        # Pass session cookies and headers so sites that require them work
+        client.headers = dict(self.session.headers)
+        cookies = {c.name: c.value for c in self.session.cookies} if self.session.cookies else None
+        results = client.fetch_all_sync(uncached, cookies=cookies)
+
+        for url, content in zip(uncached, results):
+            self._page_cache[url] = content
+
+        fetched = sum(1 for c in results if c is not None)
+        self.log(f"Pre-fetched {fetched}/{len(uncached)} pages successfully")
+
     def fetch_page(self, url: str, retry: int = 3) -> Optional[str]:
         """
-        Fetch a web page with retries.
+        Fetch a web page with retries. Returns from cache if pre-fetched.
 
         Args:
             url: URL to fetch
@@ -59,6 +89,10 @@ class BaseScraper(ABC):
         Returns:
             Page HTML content or None if fetch fails
         """
+        # Check prefetch cache first
+        if url in self._page_cache:
+            return self._page_cache.pop(url)
+
         for attempt in range(retry):
             try:
                 response = self.session.get(

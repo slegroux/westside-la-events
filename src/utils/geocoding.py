@@ -27,6 +27,7 @@ class GeocodingService:
         # Use Nominatim with a user agent (required by OpenStreetMap's usage policy)
         self.geolocator = Nominatim(user_agent="westside_la_events/1.0")
         self.cache = self._load_cache()
+        self._dirty = False
 
     def _load_cache(self) -> dict:
         """Load geocoding cache from file."""
@@ -84,17 +85,17 @@ class GeocodingService:
 
                 if location:
                     result = (location.latitude, location.longitude)
-                    # Cache successful result
+                    # Cache successful result (deferred save)
                     self.cache[cache_key] = {
                         'lat': location.latitude,
                         'lng': location.longitude
                     }
-                    self._save_cache()
+                    self._dirty = True
                     return result
                 else:
                     # Cache negative result to avoid repeated lookups
                     self.cache[cache_key] = None
-                    self._save_cache()
+                    self._dirty = True
                     return None
 
             except GeocoderTimedOut:
@@ -143,10 +144,17 @@ class GeocodingService:
             print(f"Reverse geocoding error for ({latitude}, {longitude}): {e}")
             return None
 
+    def flush_cache(self):
+        """Save geocoding cache to disk if there are unsaved changes."""
+        if self._dirty:
+            self._save_cache()
+            self._dirty = False
+
     def clear_cache(self):
         """Clear the geocoding cache."""
         self.cache = {}
         self._save_cache()
+        self._dirty = False
 
     def is_in_westside(self, latitude: float, longitude: float) -> bool:
         """

@@ -62,6 +62,10 @@ class LaemmleMonicaScraper(BaseScraper):
 
             self.log(f"Found {len(unique_films)} unique films")
 
+            # Prefetch all film detail pages concurrently
+            if unique_films:
+                self.prefetch_pages(list(unique_films.keys()))
+
             # Process each unique film once by fetching its detail page
             for i, film_url in enumerate(unique_films.keys(), 1):
                 try:

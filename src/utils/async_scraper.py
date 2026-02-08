@@ -12,14 +12,16 @@ import config
 class AsyncHTTPClient:
     """Async HTTP client for faster concurrent requests."""
 
-    def __init__(self, max_concurrent: int = 10):
+    def __init__(self, max_concurrent: int = 5, delay: float = 0.2):
         """
         Initialize async HTTP client.
 
         Args:
             max_concurrent: Maximum number of concurrent requests
+            delay: Delay in seconds between requests for rate limiting
         """
         self.max_concurrent = max_concurrent
+        self.delay = delay
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.headers = {
             'User-Agent': config.SCRAPER_CONFIG['user_agent']
@@ -42,6 +44,9 @@ class AsyncHTTPClient:
         """
         async with self.semaphore:
             try:
+                # Small delay between requests for politeness
+                if self.delay > 0:
+                    await asyncio.sleep(self.delay)
                 timeout_obj = aiohttp.ClientTimeout(total=timeout)
                 async with session.get(url, timeout=timeout_obj, headers=self.headers) as response:
                     response.raise_for_status()
@@ -50,31 +55,34 @@ class AsyncHTTPClient:
                 print(f"Error fetching {url}: {e}")
                 return None
 
-    async def fetch_multiple(self, urls: List[str]) -> List[Optional[str]]:
+    async def fetch_multiple(self, urls: List[str], cookies: Optional[Dict[str, str]] = None) -> List[Optional[str]]:
         """
         Fetch multiple URLs concurrently.
 
         Args:
             urls: List of URLs to fetch
+            cookies: Optional cookies dict to include with requests
 
         Returns:
             List of HTML contents (None for failed requests)
         """
-        async with aiohttp.ClientSession() as session:
+        connector = aiohttp.TCPConnector(limit_per_host=self.max_concurrent)
+        async with aiohttp.ClientSession(connector=connector, cookies=cookies) as session:
             tasks = [self.fetch(session, url) for url in urls]
             return await asyncio.gather(*tasks)
 
-    def fetch_all_sync(self, urls: List[str]) -> List[Optional[str]]:
+    def fetch_all_sync(self, urls: List[str], cookies: Optional[Dict[str, str]] = None) -> List[Optional[str]]:
         """
         Synchronous wrapper for async fetch_multiple.
 
         Args:
             urls: List of URLs to fetch
+            cookies: Optional cookies dict to include with requests
 
         Returns:
             List of HTML contents
         """
-        return asyncio.run(self.fetch_multiple(urls))
+        return asyncio.run(self.fetch_multiple(urls, cookies=cookies))
 
 
 class BatchScraper:

@@ -216,7 +216,7 @@ async def run_scraper_async(
 
 async def run_all_scrapers_async(
     scraper_names: List[str],
-    max_concurrent: int = 10
+    max_concurrent: int = 15
 ) -> List[ScraperResult]:
     """
     Run all scrapers concurrently with a concurrency limit.
@@ -317,8 +317,8 @@ async def main_async():
     parser.add_argument(
         '--max-concurrent',
         type=int,
-        default=10,
-        help='Maximum concurrent scrapers (default: 10)'
+        default=15,
+        help='Maximum concurrent scrapers (default: 15)'
     )
     parser.add_argument(
         '--scrapers',
@@ -364,6 +364,10 @@ async def main_async():
 
     scrape_time = (datetime.now() - total_start).total_seconds()
     print(f"\n✓ Scraping completed in {scrape_time:.2f}s")
+
+    # Flush geocoding cache (deferred saves during scraping)
+    from src.utils.geocoding import get_geocoding_service
+    get_geocoding_service().flush_cache()
 
     # Insert events into database
     insert_start = datetime.now()

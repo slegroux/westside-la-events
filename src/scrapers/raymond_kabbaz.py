@@ -57,6 +57,17 @@ class RaymondKabbazScraper(BaseScraper):
 
             self.log(f"Found {len(event_containers)} event containers")
 
+            # Collect detail URLs and prefetch them concurrently
+            detail_urls = []
+            for item in event_containers:
+                title_elem = item.find(class_='eventlist-title')
+                if title_elem:
+                    link = title_elem.find('a', class_='eventlist-title-link')
+                    if link and link.get('href'):
+                        detail_urls.append(self.normalize_url(link['href'], self.base_url))
+            if detail_urls:
+                self.prefetch_pages(detail_urls)
+
             for item in event_containers:
                 try:
                     event = self._parse_event_card(item)

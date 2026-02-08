@@ -71,6 +71,10 @@ class UCLABotanicalScraper(BaseScraper):
 
             self.log(f"Processing {len(event_urls)} unique event URLs")
 
+            # Prefetch all event detail pages concurrently
+            if event_urls:
+                self.prefetch_pages(list(event_urls))
+
             # Process each event detail page
             for i, url in enumerate(event_urls, 1):
                 try:

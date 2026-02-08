@@ -50,6 +50,19 @@ class RecreationCafeScraper(BaseScraper):
             event_cards = soup.find_all('li', {'data-hook': 'events-card'})
             self.log(f"Found {len(event_cards)} event cards")
 
+            # Collect detail URLs and prefetch them concurrently
+            detail_urls = []
+            for card in event_cards:
+                title_link = card.find('a', {'data-hook': 'title'})
+                if title_link:
+                    href = title_link.get('href', '')
+                    if href:
+                        if not href.startswith('http'):
+                            href = f'https://www.recreation.cafe{href}'
+                        detail_urls.append(href)
+            if detail_urls:
+                self.prefetch_pages(detail_urls)
+
             for i, card in enumerate(event_cards, 1):
                 try:
                     event = self._parse_event_card(card)

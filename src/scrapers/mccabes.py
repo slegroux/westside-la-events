@@ -49,6 +49,15 @@ class McCabesScraper(BaseScraper):
 
             self.log(f"Found {len(concert_items)} concert items")
 
+            # Collect detail URLs and prefetch them concurrently
+            detail_urls = []
+            for item in concert_items:
+                link = item.find('a', href=True)
+                if link:
+                    detail_urls.append(self.normalize_url(link['href'], self.base_url))
+            if detail_urls:
+                self.prefetch_pages(detail_urls)
+
             for item in concert_items:
                 try:
                     event = self._parse_event(item)

@@ -72,6 +72,11 @@ class WestsideComedyScraper(BaseScraper):
             event_ids = set(re.findall(r'single-event/e/(\d+)', html))
             self.log(f"Found {len(event_ids)} unique event IDs on website")
 
+            # Prefetch all Eventbrite event pages concurrently
+            if event_ids:
+                eb_urls = [f'https://www.eventbrite.com/e/{eid}' for eid in sorted(event_ids)]
+                self.prefetch_pages(eb_urls)
+
             for i, event_id in enumerate(sorted(event_ids), 1):
                 try:
                     # Fetch directly from Eventbrite using the event ID

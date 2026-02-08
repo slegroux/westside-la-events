@@ -47,6 +47,15 @@ class KCRWScraper(BaseScraper):
 
             self.log(f"Found {len(event_items)} event cards")
 
+            # Collect detail URLs and prefetch them concurrently
+            detail_urls = []
+            for item in event_items:
+                parent_link = item.find_parent('a')
+                if parent_link and parent_link.get('href'):
+                    detail_urls.append(self.normalize_url(parent_link['href'], self.base_url))
+            if detail_urls:
+                self.prefetch_pages(detail_urls)
+
             for item in event_items:
                 try:
                     event = self._parse_event(item)

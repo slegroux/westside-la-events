@@ -58,6 +58,10 @@ class IICLAScraper(BaseScraper):
                         seen_urls.add(url)
                         unique_links.append(url)
 
+                # Prefetch all event detail pages concurrently
+                if unique_links:
+                    self.prefetch_pages(unique_links)
+
                 for event_url in unique_links:
                     try:
                         event = self._scrape_event_detail(event_url)

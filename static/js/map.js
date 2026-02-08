@@ -157,10 +157,10 @@ async function loadMapEvents() {
                         ${event.venue_name ? `<div style="font-size: 0.9rem; color: #64748b; margin-bottom: 0.75rem;">📍 ${event.venue_name}</div>` : ''}
                         ${event.description ? `<p style="font-size: 0.85rem; margin: 0.75rem 0; color: #475569;">${event.description.substring(0, 100)}${event.description.length > 100 ? '...' : ''}</p>` : ''}
                         <div style="margin-top: 0.75rem;">
-                            <span style="display: inline-block; padding: 0.25rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 1rem; font-size: 0.75rem; font-weight: 700;">${event.category}</span>
+                            <span style="display: inline-block; padding: 0.25rem 0.75rem; background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); color: white; border-radius: 1rem; font-size: 0.75rem; font-weight: 700;">${event.category}</span>
                         </div>
                         <div style="margin-top: 0.75rem; display: flex; gap: 1rem;">
-                            ${event.url ? `<a href="${event.url}" target="_blank" rel="noopener noreferrer" style="color: #6366f1; font-weight: 600; text-decoration: none;">View Event →</a>` : ''}
+                            ${event.url ? `<a href="${event.url}" target="_blank" rel="noopener noreferrer" style="color: #0891b2; font-weight: 600; text-decoration: none;">View Event →</a>` : ''}
                             <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer" style="color: #10b981; font-weight: 600; text-decoration: none;">🗺️ Directions</a>
                         </div>
                     </div>
@@ -201,7 +201,7 @@ async function loadMapEvents() {
                 <div style="color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">
                     ${error.message || 'Please check your connection and try again'}
                 </div>
-                <button onclick="this.parentElement.remove(); loadMapEvents();" style="background: #6366f1; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.25rem; cursor: pointer; font-weight: 600;">
+                <button onclick="this.parentElement.remove(); loadMapEvents();" style="background: #0891b2; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.25rem; cursor: pointer; font-weight: 600;">
                     Retry
                 </button>
             `;

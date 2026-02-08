@@ -64,6 +64,10 @@ class LaPugliaScraper(BaseScraper):
 
             self.log(f"Found {len(event_links)} event page links")
 
+            # Prefetch all event pages concurrently
+            if event_links:
+                self.prefetch_pages([f'{self.base_url}{path}' for path in event_links])
+
             # Visit each event page and extract details
             for i, event_path in enumerate(event_links, 1):
                 try:
