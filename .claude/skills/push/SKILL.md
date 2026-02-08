@@ -3,16 +3,14 @@ name: push
 description: Use when the user wants to commit and push work to GitHub without deploying. Also use when the user says "push this", "commit and push", "update git", or "sync to github".
 ---
 
-# /push - Test, commit, track issues, and push
+# /push - Commit, track issues, and push
 
-You are running the **push** workflow. This commits and pushes code to GitHub with proper issue tracking, but does NOT deploy to production. Use `/ship` for the full pipeline including deploy.
+You are running the **push** workflow. This commits and pushes code to GitHub with proper issue tracking. It does NOT run tests or deploy. Use `/test` first to verify, and `/ship` after to deploy.
 
 ## Important context
 - This is a solo-dev project on `master` branch (no PRs needed)
 - Use `conda run -n la` for all Python/test commands (NOT micromamba)
 - Use `conda run -n la gh` for all GitHub CLI commands
-- Skip E2E tests: `--ignore=tests/e2e`
-- Pre-existing test failure `test_scraper_has_base_url[LATechEventsScraper]` can be ignored
 - The user's GitHub is authenticated via `gh auth`
 
 ---
@@ -45,10 +43,9 @@ Then present a preview as a **table mapping each changed file to its matching is
   - abc1234 Previous commit message
 
 **Plan:**
-1. Run tests
-2. Stage and commit: "<draft message>"
-3. Update issues: #35 (comment), close #44, create new for <topic>
-4. Push to origin/master
+1. Stage and commit: "<draft message>"
+2. Update issues: #35 (comment), close #44, create new for <topic>
+3. Push to origin/master
 ```
 
 Table conventions:
@@ -64,22 +61,7 @@ If there are no changes AND no unpushed commits, tell the user "Nothing to push!
 
 ---
 
-## Step 2: Run Tests
-
-Run the test suite. If tests fail (beyond known failures), STOP and report the failures. Do not commit broken code.
-
-```
-conda run -n la python -m pytest tests/ --ignore=tests/e2e -x -q --timeout=30
-```
-
-Known acceptable failures:
-- `test_scraper_has_base_url[LATechEventsScraper]` (pre-existing)
-
-If there are NEW failures, stop and ask the user whether to proceed or fix first.
-
----
-
-## Step 3: Stage and Commit (if uncommitted changes)
+## Step 2: Stage and Commit (if uncommitted changes)
 
 If there are uncommitted changes:
 
@@ -95,7 +77,7 @@ If there are uncommitted changes:
 
 ---
 
-## Step 4: Match Work to GitHub Issues
+## Step 3: Match Work to GitHub Issues
 
 Analyze ALL unpushed commits (including the one you just created) and match them to GitHub issues.
 
@@ -135,7 +117,7 @@ If you notice open issues that seem fully addressed by the codebase, flag them t
 
 ---
 
-## Step 5: Push
+## Step 4: Push
 
 Push to remote:
 ```
@@ -152,7 +134,6 @@ At the end, print a clear summary:
 
 ```
 ## Push Summary
-- Tests: passed/failed (N tests)
 - Commit: <short-sha> <message>
 - Issues created: #N, #N
 - Issues updated: #N, #N
