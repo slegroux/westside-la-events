@@ -95,7 +95,7 @@ For each piece of work in the unpushed commits, determine:
 Create new issues with:
 - Clear title (imperative mood, under 70 chars)
 - Appropriate labels from: `bug`, `enhancement`, `area: frontend`, `area: scrapers`, `area: database`, `area: maps`, `area: search`, `area: performance`, `design`, `type: feature`, `type: enhancement`, `priority: high/medium/low`, `testing`, `devops`
-- Appropriate milestone from: `Core Platform`, `Scrapers & Filters`, `Design & Performance`, `Testing & Quality`, `User Features & Integrations`
+- Appropriate milestone: pick from existing milestones fetched in Step 1. If none fit, create a new milestone with `conda run -n la gh api repos/{owner}/{repo}/milestones -f title="<name>" -f state="open"` and use it.
 - **Body must use checkbox format**:
   ```
   ## Summary
