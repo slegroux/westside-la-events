@@ -1,16 +1,11 @@
 ---
-name: ship
-description: Use when the user wants to commit, push, AND deploy to production. Also use when the user says "ship it", "deploy", or "ship to prod". For push-only (no deploy), use /push instead.
+name: push
+description: Use when the user wants to commit and push work to GitHub without deploying. Also use when the user says "push this", "commit and push", "update git", or "sync to github".
 ---
 
-# /ship - Test, commit, track issues, push, and deploy
+# /push - Test, commit, track issues, and push
 
-You are running the **ship** workflow. This is an automated pipeline that:
-1. Runs tests to catch breakage
-2. Stages and commits changes with proper issue references
-3. Creates/updates/closes GitHub issues to match the work done
-4. Pushes to remote
-5. Deploys to production (this is what distinguishes `/ship` from `/push`)
+You are running the **push** workflow. This commits and pushes code to GitHub with proper issue tracking, but does NOT deploy to production. Use `/ship` for the full pipeline including deploy.
 
 ## Important context
 - This is a solo-dev project on `master` branch (no PRs needed)
@@ -39,13 +34,13 @@ If there are NEW failures, stop and ask the user whether to proceed or fix first
 
 ## Step 2: Analyze Changes
 
-Gather the full picture of what needs to be shipped:
+Gather the full picture of what needs to be pushed:
 
 1. **Uncommitted changes**: Run `git status` and `git diff --stat` to see dirty working tree
 2. **Unpushed commits**: Run `git log origin/master..HEAD --oneline` to see commits not yet on remote
 3. **Recent commit messages**: Run `git log --oneline -10` for style reference
 
-If there are no changes AND no unpushed commits, tell the user "Nothing to ship!" and stop.
+If there are no changes AND no unpushed commits, tell the user "Nothing to push!" and stop.
 
 ---
 
@@ -67,7 +62,7 @@ If there are uncommitted changes:
 
 ## Step 4: Match Work to GitHub Issues
 
-Now analyze ALL unpushed commits (including the one you just created) and match them to GitHub issues.
+Analyze ALL unpushed commits (including the one you just created) and match them to GitHub issues.
 
 1. **List open issues**: `conda run -n la gh issue list --state open --limit 50`
 2. **List milestones**: `conda run -n la gh api repos/{owner}/{repo}/milestones --jq '.[] | "\(.number) \(.state) \(.title)"'`
@@ -102,29 +97,16 @@ If push fails (e.g., remote has new commits), tell the user and suggest `git pul
 
 ---
 
-## Step 6: Deploy to Production
-
-After a successful push, deploy:
-
-1. Sync the database: `conda run -n la bash scripts/sync_db_to_cloud.sh --force`
-2. Deploy code: `conda run -n la bash scripts/deploy.sh`
-3. Report the deployment status
-
-If either step fails, report the error and suggest next steps.
-
----
-
 ## Output Summary
 
 At the end, print a clear summary:
 
 ```
-## Ship Summary
+## Push Summary
 - Tests: passed/failed (N tests)
 - Commit: <short-sha> <message>
 - Issues created: #N, #N
 - Issues updated: #N, #N
 - Issues closed: #N, #N
 - Pushed: master -> origin/master
-- Deploy: [deployed / skipped]
 ```
