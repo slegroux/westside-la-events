@@ -660,7 +660,7 @@ def event_card(event: Event, session=None):
                 title='Download calendar event',
                 style='text-decoration: none; cursor: pointer; color: inherit;'
             ),
-            # Make venue name clickable to open map popup
+            # Make venue name clickable to open map popup (hide if source logo present)
             (Div(
                 A(
                     '📍 ',
@@ -677,7 +677,17 @@ def event_card(event: Event, session=None):
                     style='text-decoration: none; color: inherit; cursor: pointer;'
                 ),
                 cls='event-location'
-            ) if event.venue_name else None),
+            ) if event.venue_name and not event.source_logo_url else None),
+            # Directions link
+            (A(
+                '📍 ', event.venue_name or event.address,
+                href=f'https://www.google.com/maps/dir/?api=1&destination={event.address}',
+                target='_blank',
+                rel='noopener noreferrer',
+                cls='event-directions',
+                title=f'Get directions to {event.venue_name or event.address}',
+                style='text-decoration: none; color: inherit; cursor: pointer;'
+            ) if event.address else None),
             (A(
                 P(event.description, cls='event-description'),
                 **link_attrs,
