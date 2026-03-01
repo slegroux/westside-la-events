@@ -17,11 +17,15 @@ def test_arcana_books_scraper_parses_upcoming_event(mock_geocoding_service):
     html = f"""
     <html>
       <body>
-        <article>
-          <h2><a href="/blog/upcoming-signing">Upcoming Signing Night</a></h2>
-          <p>Join us on {date_text} at Arcana for an artist talk.</p>
+        <div class="blog-item">
+          <div class="blog-info">
+            <h1 class="blog-title"><a href="/blog/upcoming-signing">Upcoming Signing Night</a></h1>
+            <div class="blog-excerpt">
+              <p>Join us on {date_text} at Arcana for an artist talk.</p>
+            </div>
+          </div>
           <img src="/images/event.jpg" />
-        </article>
+        </div>
       </body>
     </html>
     """
@@ -46,10 +50,12 @@ def test_arcana_books_scraper_skips_past_event(mock_geocoding_service):
     html = f"""
     <html>
       <body>
-        <article>
-          <h2><a href="/blog/past-event">Past Event</a></h2>
-          <p>{date_text}</p>
-        </article>
+        <div class="blog-item">
+          <div class="blog-info">
+            <h1 class="blog-title"><a href="/blog/past-event">Past Event</a></h1>
+            <div class="blog-excerpt"><p>{date_text}</p></div>
+          </div>
+        </div>
       </body>
     </html>
     """

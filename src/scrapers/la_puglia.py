@@ -7,7 +7,7 @@ live music, themed dinners, and seasonal menus. Events are displayed as individu
 pages linked from the main events page.
 """
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from dateutil import parser as date_parser
 from bs4 import BeautifulSoup
@@ -83,7 +83,11 @@ class LaPugliaScraper(BaseScraper):
         except Exception as e:
             self.log(f"Error during scrape: {e}")
 
-        self.log(f"Scraped {len(events)} events")
+        # Filter out past events
+        now = datetime.now()
+        events = [e for e in events if e.event_date is None or e.event_date >= (now - timedelta(days=1))]
+
+        self.log(f"Scraped {len(events)} upcoming events")
         return events
 
     def _is_event_link(self, href: str) -> bool:
@@ -211,6 +215,36 @@ class LaPugliaScraper(BaseScraper):
             self.log(f"Error parsing event page {url}: {e}")
             return None
 
+    def _holiday_dates_for_year(self, year: int) -> dict:
+        """Return approximate holiday dates for the given year."""
+        import calendar
+        # Easter: compute via a simple algorithm (anonymous Gregorian)
+        a = year % 19
+        b, c = divmod(year, 100)
+        d, e = divmod(b, 4)
+        f = (b + 8) // 25
+        g = (b - f + 1) // 3
+        h = (19 * a + b - d - g + 15) % 30
+        i, k = divmod(c, 4)
+        l = (32 + 2 * e + 2 * i - h - k) % 7
+        m = (a + 11 * h + 22 * l) // 451
+        month = (h + l - 7 * m + 114) // 31
+        day = ((h + l - 7 * m + 114) % 31) + 1
+        easter_str = f'{year}-{month:02d}-{day:02d}'
+        # Thanksgiving: 4th Thursday of November
+        nov_first_weekday = calendar.weekday(year, 11, 1)
+        days_to_thursday = (3 - nov_first_weekday) % 7
+        thanksgiving_day = 1 + days_to_thursday + 21
+        thanksgiving_str = f'{year}-11-{thanksgiving_day:02d}'
+        return {
+            'valentine': f'{year}-02-14',
+            'easter': easter_str,
+            'thanksgiving': thanksgiving_str,
+            'christmas': f'{year}-12-25',
+            'nye': f'{year}-12-31',
+            'new-year': f'{year}-12-31',
+        }
+
     def _parse_date_from_context(self, url: str, title: str) -> Optional[datetime]:
         """
         Try to parse event date from URL slug or title.
@@ -222,46 +256,27 @@ class LaPugliaScraper(BaseScraper):
         Returns:
             datetime object or None if no date found
         """
-        # Common holiday/event date patterns
-        holiday_dates_2025 = {
-            'valentine': '2025-02-14',
-            'easter': '2025-04-20',
-            'thanksgiving': '2025-11-27',
-            'christmas': '2025-12-25',
-            'nye': '2025-12-31',
-            'new-year': '2025-12-31'
-        }
+        current_year = datetime.now().year
+        text = (url + ' ' + title).lower()
 
-        holiday_dates_2024 = {
-            'valentine': '2024-02-14',
-            'easter': '2024-03-31',
-            'thanksgiving': '2024-11-28',
-            'christmas': '2024-12-25',
-            'nye': '2024-12-31',
-            'new-year': '2024-12-31'
-        }
+        # Check for explicit year in URL or title (e.g. 2025, 2026, ...)
+        year_match = re.search(r'(20\d{2})', url + ' ' + title)
+        year = int(year_match.group(1)) if year_match else current_year
 
-        # Check for explicit year in URL or title
-        year_match = re.search(r'(202[45])', url + ' ' + title)
-        year = year_match.group(1) if year_match else '2025'  # Default to 2025
-
-        # Select appropriate holiday date mapping
-        holiday_dates = holiday_dates_2025 if year == '2025' else holiday_dates_2024
+        holiday_dates = self._holiday_dates_for_year(year)
 
         # Check if URL/title contains a holiday name
-        text = (url + ' ' + title).lower()
         for holiday, date_str in holiday_dates.items():
             if holiday in text:
                 try:
                     return date_parser.parse(date_str)
-                except:
+                except Exception:
                     pass
 
-        # Try to find date patterns in title or URL
-        # Format: "Month Day" or "Month Day, Year"
+        # Try to find explicit date patterns in title
         date_patterns = [
-            r'([A-Z][a-z]+)\s+(\d{1,2}),?\s*(202[45])?',  # "February 14, 2025" or "February 14"
-            r'(\d{1,2})[/-](\d{1,2})[/-](202[45])',  # "2/14/2025"
+            r'([A-Z][a-z]+)\s+(\d{1,2}),?\s*(20\d{2})?',  # "February 14, 2026"
+            r'(\d{1,2})[/-](\d{1,2})[/-](20\d{2})',        # "2/14/2026"
         ]
 
         for pattern in date_patterns:
@@ -269,12 +284,10 @@ class LaPugliaScraper(BaseScraper):
             if match:
                 try:
                     date_str = match.group(0)
-                    if not re.search(r'202[45]', date_str):
+                    if not re.search(r'20\d{2}', date_str):
                         date_str += f' {year}'
                     return date_parser.parse(date_str)
-                except:
+                except Exception:
                     continue
 
-        # If no specific date found, return None
-        # (Event will still be created, just without a specific date)
         return None

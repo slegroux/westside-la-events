@@ -57,14 +57,13 @@ class ArcanaBooksScraper(BaseScraper):
         """Parse events from one category page."""
         events: List[Event] = []
 
-        # WordPress posts are usually in <article>, but keep fallback generic.
-        post_nodes = soup.find_all('article')
-        if not post_nodes:
-            post_nodes = soup.find_all('div', class_=lambda x: x and 'post' in str(x).lower())
+        # Arcana uses div.blog-item as the post container.
+        post_nodes = soup.find_all('div', class_='blog-item')
 
         for node in post_nodes:
-            title_elem = node.find(['h1', 'h2', 'h3'])
-            link_elem = title_elem.find('a', href=True) if title_elem else node.find('a', href=True)
+            # Title and URL are in h1.blog-title > a
+            title_elem = node.find('h1', class_='blog-title')
+            link_elem = title_elem.find('a', href=True) if title_elem else None
             if not link_elem:
                 continue
 
@@ -74,7 +73,8 @@ class ArcanaBooksScraper(BaseScraper):
             seen_urls.add(url)
 
             title = self.clean_text(link_elem.get_text())
-            summary = self.clean_text(node.get_text(' ', strip=True))
+            excerpt_elem = node.find('div', class_='blog-excerpt')
+            summary = self.clean_text(excerpt_elem.get_text(' ', strip=True)) if excerpt_elem else ''
             event_date = self._extract_event_date(f"{title} {summary}")
 
             # Arcana's category contains many historical posts; keep only upcoming events.
