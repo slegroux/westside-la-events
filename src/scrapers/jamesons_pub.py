@@ -18,6 +18,8 @@ from src.data.models import Event
 class JamesonsPubScraper(BaseScraper):
     """Scraper for Jameson's Irish Pub Santa Monica events."""
 
+    VENUE_FALLBACK_IMAGE = 'https://static.spotapps.co/web/santamonica--jamesonsirishpub--com/custom/about_us_right.jpg'
+
     def __init__(self):
         super().__init__('Jamesons Pub')
         self.events_url = 'https://santamonica.jamesonsirishpub.com/santa-monica-jameson-s-pub-santa-monica-events'
@@ -137,6 +139,7 @@ class JamesonsPubScraper(BaseScraper):
                 address=self.venue_address,
                 event_date=event_date,
                 url=None,
+                image_url=self.VENUE_FALLBACK_IMAGE,
                 category='Nightlife',
                 price_note='TBD'
             )
