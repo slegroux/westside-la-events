@@ -101,7 +101,8 @@ LA/
 ├── CLAUDE.md                    # AI assistant instructions
 ├── SDD.md                       # This document
 ├── config.py                    # Configuration settings
-├── requirements.txt             # Python dependencies
+├── requirements.txt             # Runtime dependencies
+├── requirements-dev.txt         # Dev/test dependencies
 ├── pytest.ini                   # pytest configuration
 ├── run_scrapers.py              # Batch scraper execution script
 │
@@ -155,14 +156,24 @@ LA/
 │   │   └── logo_scraper.py      # Logo downloading
 │   │
 │   └── web/                     # Web application
-│       ├── app.py               # FastHTML application & routes
-│       └── analytics_routes.py  # Analytics admin dashboard
+│       ├── app.py               # App setup, lifespan, error handlers
+│       ├── state.py             # AppState singleton, session/analytics helpers
+│       ├── components.py        # All UI component functions
+│       ├── services.py          # Business logic (_fetch_events, tallies cache)
+│       ├── analytics_routes.py  # Analytics admin dashboard
+│       └── routes/              # Route modules
+│           ├── main.py          # Home page
+│           ├── events.py        # Event list, map, update-all, JSON API
+│           ├── filters.py       # Filter tallies, date picker, category
+│           ├── favorites.py     # Favorites add/remove
+│           └── api.py           # Admin API, static files, favicon
 │
 ├── static/                      # Frontend assets
 │   ├── css/
 │   │   └── style.css            # Main stylesheet (CSS variables)
 │   ├── js/
 │   │   ├── map.js               # Leaflet map integration
+│   │   ├── filters.js           # Filter collapse state & HTMX handlers
 │   │   └── analytics.js         # Client-side analytics tracking
 │   ├── logos/                   # Downloaded source logos (cached)
 │   │   ├── santa_monica.png

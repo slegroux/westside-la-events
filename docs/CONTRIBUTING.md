@@ -35,11 +35,11 @@ git clone https://github.com/YOUR_USERNAME/LA.git
 cd LA
 ```
 
-2. **Set up micromamba environment**:
+2. **Set up conda environment**:
 ```bash
-micromamba create -n la python=3.10 -y
-micromamba activate la
-pip install -r requirements.txt
+conda create -n la python=3.11 -y
+conda activate la
+pip install -r requirements.txt -r requirements-dev.txt
 ```
 
 3. **Configure environment variables**:
@@ -50,12 +50,12 @@ cp .env.example .env
 
 4. **Initialize the database**:
 ```bash
-micromamba run -n la python -c "from src.data.database import Database; Database('data/events.db')"
+conda run -n la python -c "from src.data.database import Database; Database('data/events.db')"
 ```
 
 5. **Run tests to verify setup**:
 ```bash
-env -u PYTHONPATH -u AMENT_PREFIX_PATH -u ROS_DISTRO PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/ -v
+conda run -n la python -m pytest tests/unit/ --ignore=tests/e2e -v
 ```
 
 ## Development Workflow
@@ -75,7 +75,7 @@ git checkout -b feature/my-new-feature
 # ... edit files ...
 
 # Run tests
-env -u PYTHONPATH -u AMENT_PREFIX_PATH -u ROS_DISTRO PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/ -v
+conda run -n la python -m pytest tests/unit/ --ignore=tests/e2e -v
 
 # Commit your changes
 git add .
@@ -260,7 +260,7 @@ micromamba run -n la python -c "from src.scrapers.source_name import SourceNameS
 ### Running Tests
 ```bash
 # All tests
-env -u PYTHONPATH -u AMENT_PREFIX_PATH -u ROS_DISTRO PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/ -v
+conda run -n la python -m pytest tests/unit/ --ignore=tests/e2e -v
 
 # Specific test file
 env -u PYTHONPATH -u AMENT_PREFIX_PATH -u ROS_DISTRO PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/test_database.py -v

@@ -14,20 +14,15 @@ This guide covers local development setup, adding scrapers, and working with the
 
 ## Environment Setup
 
-### Option 1: Using direnv + micromamba (Recommended)
+### Option 1: Using conda (Recommended)
 
-This project uses **direnv** to automatically activate the **micromamba environment** when you enter the project directory.
+This project uses a conda environment named `la`.
 
-**1. Install micromamba**:
+**1. Create the environment**:
 ```bash
-"${SHELL}" <(curl -L micro.mamba.pm/install.sh)
-```
-
-**2. Create the environment**:
-```bash
-micromamba create -n la python=3.10 -y
-micromamba activate la
-pip install -r requirements.txt
+conda create -n la python=3.11 -y
+conda activate la
+pip install -r requirements.txt -r requirements-dev.txt
 ```
 
 **3. Configure direnv**:
@@ -58,12 +53,12 @@ cp .env.example .env
 
 **6. Initialize the database**:
 ```bash
-micromamba run -n la python -c "from src.data.database import Database; Database('data/events.db')"
+conda run -n la python -c "from src.data.database import Database; Database('data/events.db')"
 ```
 
 ### Option 2: Using venv (Alternative)
 
-**Note:** Using micromamba (Option 1) is recommended as all documentation and scripts assume micromamba usage.
+**Note:** Using conda (Option 1) is recommended. All scripts use `conda run -n la`.
 
 **1. Create and activate environment**:
 ```bash
@@ -73,7 +68,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 **2. Install dependencies**:
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt
 ```
 
 **3. Set up environment variables**:
@@ -112,7 +107,12 @@ LA/
 │   │   ├── geocoding.py
 │   │   └── categorizer.py
 │   └── web/            # FastHTML web application
-│       └── app.py          # Main web app
+│       ├── app.py          # App setup, lifespan, error handlers
+│       ├── state.py        # AppState singleton, session helpers
+│       ├── components.py   # UI component functions
+│       ├── services.py     # Business logic (_fetch_events, tallies)
+│       ├── analytics_routes.py
+│       └── routes/         # Route modules (events, filters, favorites, api)
 ├── static/
 │   ├── css/           # Stylesheets
 │   ├── js/            # JavaScript for map integration
@@ -128,7 +128,8 @@ LA/
 ├── logs/              # Application logs
 ├── config.py          # Configuration settings
 ├── run_scrapers.py    # Script to run all scrapers
-└── requirements.txt   # Python dependencies
+├── requirements.txt      # Runtime dependencies
+└── requirements-dev.txt  # Dev/test dependencies
 ```
 
 ---

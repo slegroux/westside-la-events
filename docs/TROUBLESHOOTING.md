@@ -50,10 +50,10 @@ which python  # Should show path in micromamba/envs/la/
 **Solution**:
 ```bash
 # Ensure you're in the correct environment
-micromamba activate la
+conda activate la
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt
 
 # Verify installation
 python -c "import fasthtml; print(fasthtml.__version__)"
