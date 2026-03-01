@@ -16,8 +16,8 @@ class BroadStageScraper(BaseScraper):
 
     def __init__(self):
         super().__init__('The Broad Stage')
-        self.base_url = 'https://www.thebroadstage.org'
-        self.events_url = f'{self.base_url}/events'
+        self.base_url = 'https://broadstage.org'
+        self.events_url = f'{self.base_url}/2526-season/'
 
     def scrape(self) -> List[Event]:
         """
@@ -41,39 +41,25 @@ class BroadStageScraper(BaseScraper):
 
             soup = self.parse_html(html)
 
-            # Find all event items - try multiple selectors
-            event_items = soup.find_all(['article', 'div'], class_=re.compile(r'event', re.IGNORECASE))
-
-            if not event_items:
-                # Try finding all links to event pages
-                event_items = soup.find_all('a', href=re.compile(r'/events?/[a-z0-9-]+'))
+            # Find all show items — each is a div.inner with p.heading (date) + h3 (title) + a (link)
+            event_items = [
+                d for d in soup.find_all('div', class_='inner')
+                if d.find('p', class_='heading') and d.find('h3')
+            ]
 
             self.log(f"Found {len(event_items)} event items")
 
             seen_urls = set()
             for item in event_items:
                 try:
-                    # If item is a link, get its parent container
-                    if item.name == 'a':
-                        url = self.normalize_url(item['href'], self.base_url)
-                        if url in seen_urls:
-                            continue
-                        seen_urls.add(url)
-                        container = item.find_parent(['div', 'article', 'section'])
-                        if container:
-                            event = self._parse_event(container, url)
-                        else:
-                            event = self._parse_event(item, url)
-                    else:
-                        link = item.find('a', href=True)
-                        if not link:
-                            continue
-                        url = self.normalize_url(link['href'], self.base_url)
-                        if url in seen_urls:
-                            continue
-                        seen_urls.add(url)
-                        event = self._parse_event(item, url)
-
+                    link = item.find('a', href=True)
+                    if not link:
+                        continue
+                    url = self.normalize_url(link['href'], self.base_url)
+                    if url in seen_urls:
+                        continue
+                    seen_urls.add(url)
+                    event = self._parse_event(item, url)
                     if event:
                         events.append(event)
                 except Exception as e:
@@ -118,16 +104,15 @@ class BroadStageScraper(BaseScraper):
         if desc_elem:
             description = self.clean_text(desc_elem.get_text())
 
-        # Extract date/time
+        # Extract date/time from p.heading (e.g. "February 27, 2026" or "April 18-19, 2026")
         event_date = None
-        date_elem = item.find(['time', 'span'], class_=lambda x: x and 'date' in str(x).lower())
-        if not date_elem:
-            date_elem = item.find('time')
-
+        date_elem = item.find('p', class_='heading')
         if date_elem:
-            date_str = date_elem.get('datetime', '') or date_elem.get_text()
+            date_str = self.clean_text(date_elem.get_text())
+            # Handle date ranges like "April 18-19, 2026" — use start date
+            date_str = re.sub(r'(\d+)-\d+,', r'\1,', date_str)
             try:
-                event_date = date_parser.parse(date_str)
+                event_date = date_parser.parse(date_str, fuzzy=True)
             except Exception as e:
                 self.log(f"Error parsing date '{date_str}': {e}")
 

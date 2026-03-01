@@ -112,8 +112,9 @@ class CategoryClassifier:
                 'feature', 'director', 'filmmaker'
             ],
             'Nightlife': [
-                'nightlife', 'club', 'dancing', 'dance party', 'night out',
-                'late night', 'after dark', 'lounge', 'nightclub'
+                'nightlife', 'nightclub', 'dance party', 'night out',
+                'late night', 'after dark', 'lounge', 'beach club',
+                'dj set', 'guest dj', 'resident dj', 'dj night', 'special guest dj'
             ],
             'Wellness': [
                 'wellness', 'yoga', 'meditation', 'health', 'fitness', 'mindfulness',
@@ -130,24 +131,21 @@ class CategoryClassifier:
                 'conference', 'symposium', 'presentation'
             ],
             'Date Night': [
-                'romantic', 'date night', 'couples', 'wine tasting', 'wine', 'rooftop',
-                'candlelit', 'candlelight', 'dinner and', 'evening', 'intimate',
-                'upscale', 'cocktails', 'lounge', 'sunset', 'live jazz', 'acoustic',
-                '21+', 'adults only', 'sophisticated', 'elegant', 'prix fixe',
-                'date', 'romantic evening', 'cozy', 'ambient', 'live music and',
-                'wine and', 'wine bar', 'wine club', 'dinner show', 'nightcap', 'moonlight',
-                'cocktail bar', 'speakeasy', 'jazz night', 'date spot', 'perfect for couples',
-                'romantic atmosphere', 'dimly lit', 'cozy atmosphere'
+                'romantic', 'date night', 'couples', 'candlelit', 'candlelight',
+                'prix fixe', 'adults only', 'romantic evening', 'dinner for two',
+                'wine tasting', 'intimate dinner', 'date spot', 'perfect for couples',
+                'romantic atmosphere', 'dimly lit', 'couples night', 'romantic setting',
+                'rooftop', 'jazz night', 'live jazz', 'speakeasy', 'dinner show',
+                'cocktail hour', 'sunset cruise', 'wine dinner', 'tasting menu',
+                'valentine', 'candlelight concert', 'intimate setting',
             ],
             'Tech': [
-                'tech', 'technology', 'startup', 'ai', 'artificial intelligence', 'machine learning',
-                'ml', 'software', 'developer', 'programming', 'coding', 'hackathon',
-                'blockchain', 'crypto', 'web3', 'saas', 'product', 'vc', 'venture capital',
-                'founder', 'entrepreneur', 'innovation', 'digital', 'app', 'platform',
-                'data science', 'cloud', 'cybersecurity', 'tech meetup', 'networking',
+                'tech ', ' tech', 'technology', 'startup', 'artificial intelligence',
+                'machine learning', 'software', 'developer', 'programming', 'coding',
+                'hackathon', 'blockchain', 'crypto', 'web3', 'saas', 'venture capital',
+                'founder', 'entrepreneur', 'data science', 'cybersecurity', 'tech meetup',
                 'pitch', 'demo day', 'techstars', 'y combinator', 'accelerator', 'incubator',
-                'silicon beach', 'tech industry', 'engineering', 'design thinking', 'ux',
-                'ui', 'product management', 'agile', 'devops', 'api', 'open source'
+                'silicon beach', 'tech industry', 'product management', 'devops', 'open source'
             ]
         }
 
@@ -193,14 +191,18 @@ class CategoryClassifier:
             priority = self.category_priorities.get(category, 1.0)
             weighted_scores[category] = raw_score * priority
 
-        # Apply Date Night bonus for strong indicators
+        # Date Night requires either a strong explicit signal OR 2+ keyword matches.
+        # This prevents single generic words (rooftop, jazz) from overriding
+        # more specific categories on their own.
         if 'Date Night' in weighted_scores:
             has_strong_indicator = any(
                 indicator in text for indicator in self.date_night_strong_indicators
             )
             if has_strong_indicator:
-                # Add significant bonus for strong date night indicators
                 weighted_scores['Date Night'] += 5.0
+            elif raw_scores.get('Date Night', 0) < 2:
+                # Only 1 weak match — not enough evidence, suppress Date Night
+                del weighted_scores['Date Night']
 
         # Return category with highest weighted score
         if weighted_scores:

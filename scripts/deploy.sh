@@ -258,6 +258,18 @@ gcloud run deploy ${SERVICE_NAME} \
     --max-instances 10 \
     --min-instances 0
 
+# Force traffic to the latest revision (workaround for Cloud Run sometimes
+# not updating latestReady when new revision gets scaled to zero immediately)
+NEW_REVISION=$(gcloud run revisions list \
+    --service ${SERVICE_NAME} \
+    --region ${REGION} \
+    --format="value(name)" \
+    --limit=1)
+echo "  Routing 100% traffic to ${NEW_REVISION}..."
+gcloud run services update-traffic ${SERVICE_NAME} \
+    --region ${REGION} \
+    --to-revisions ${NEW_REVISION}=100 --quiet
+
 # Get the service URL
 SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} \
     --region ${REGION} \

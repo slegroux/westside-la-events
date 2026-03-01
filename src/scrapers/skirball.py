@@ -37,12 +37,12 @@ class SkirballScraper(BaseScraper):
 
             soup = self.parse_html(html)
 
-            # Find all event items - they're in list items or article elements
-            event_items = soup.find_all('li', class_=lambda x: x and ('audience' in x or 'category' in x))
+            # Find all event items - they're in article.node-type--event elements
+            event_items = soup.find_all('article', class_=lambda x: x and 'node-type--event' in (x if isinstance(x, list) else [x]))
 
             if not event_items:
-                # Try alternative selector - event links in h3
-                event_items = soup.find_all('h3')
+                # Fallback: any article with an h3 link
+                event_items = [a for a in soup.find_all('article') if a.find('h3') and a.find('a', href=True)]
 
             self.log(f"Found {len(event_items)} event items")
 
@@ -86,41 +86,47 @@ class SkirballScraper(BaseScraper):
         title = self.clean_text(link_elem.get_text())
         url = self.normalize_url(link_elem['href'], self.base_url)
 
-        # Extract description from p element
+        # Extract description from p > span element (actual content, not dates)
         description = ""
-        desc_elem = item.find('p')
-        if desc_elem:
-            description = self.clean_text(desc_elem.get_text())
+        span_elem = item.find('span')
+        if span_elem:
+            description = self.clean_text(span_elem.get_text())
+        else:
+            desc_elem = item.find('p')
+            if desc_elem:
+                description = self.clean_text(desc_elem.get_text())
 
-        # Extract date/time - appears as text after title
+        # Extract date/time from p.dates element
+        # Format: "Sunday, March 8, 2:00–5:00 pm"
         event_date = None
-        # Look for date patterns like "Thursday, November 20, 6:30 pm"
-        text_content = item.get_text()
-        try:
-            # Try to find date pattern
-            import re
-            date_pattern = r'([A-Z][a-z]+day),?\s+([A-Z][a-z]+)\s+(\d{1,2}),?\s+(\d{1,2}:\d{2}\s*[ap]m)?'
-            date_match = re.search(date_pattern, text_content)
-            if date_match:
-                date_str = f"{date_match.group(2)} {date_match.group(3)} {datetime.now().year}"
-                if date_match.group(4):
-                    date_str += f" {date_match.group(4)}"
-                event_date = date_parser.parse(date_str)
-        except Exception as e:
-            self.log(f"Error parsing date: {e}")
+        date_elem = item.find('p', class_='dates')
+        if date_elem:
+            date_text = self.clean_text(date_elem.get_text())
+            try:
+                import re
+                # Replace en-dash time ranges to keep only start time
+                date_text_clean = re.sub(r'(\d{1,2}:\d{2})\s*[–-]\s*\d{1,2}:\d{2}', r'\1', date_text)
+                event_date = date_parser.parse(date_text_clean, fuzzy=True)
+                if event_date.year < datetime.now().year:
+                    event_date = event_date.replace(year=datetime.now().year)
+            except Exception as e:
+                self.log(f"Error parsing date '{date_text}': {e}")
 
-        # Extract category from class or text
+        # Extract category from dl.skirball-tags > dd.category
         category = ""
-        # Check for category keywords in the item's classes or nearby text
-        item_classes = ' '.join(item.get('class', [])).lower()
-        if 'film' in item_classes or 'film' in text_content.lower():
-            category = 'Film & Screenings'
-        elif 'music' in item_classes or 'music' in text_content.lower():
-            category = 'Music & Concerts'
-        elif 'performance' in item_classes or 'performance' in text_content.lower():
-            category = 'Performing Arts'
-        elif 'family' in item_classes or 'kids' in text_content.lower():
-            category = 'Family & Kids'
+        cat_elem = item.find('dd', class_='category')
+        if cat_elem:
+            cat_text = self.clean_text(cat_elem.get_text()).lower()
+            if 'film' in cat_text or 'screening' in cat_text:
+                category = 'Film & Screenings'
+            elif 'music' in cat_text or 'concert' in cat_text:
+                category = 'Music & Concerts'
+            elif 'performance' in cat_text or 'theater' in cat_text:
+                category = 'Performing Arts'
+            elif 'family' in cat_text or 'kids' in cat_text:
+                category = 'Family & Kids'
+            else:
+                category = 'Arts & Culture'
 
         # Venue info - Skirball Cultural Center in Brentwood
         venue_name = "Skirball Cultural Center"
