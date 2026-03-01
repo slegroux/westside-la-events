@@ -1,0 +1,194 @@
+"""
+API utility routes for LA Events Aggregator.
+Handles favicon, static file serving, scraper trigger, and database health.
+"""
+from fasthtml.common import *
+from datetime import datetime
+import logging
+
+import config
+from src.web.state import state as app_state
+
+
+logger = logging.getLogger(__name__)
+
+
+def setup_routes(rt, state):
+    """Register API/utility routes."""
+
+    @rt('/favicon.ico')
+    def favicon():
+        """Serve favicon or return 204 No Content if not found."""
+        from pathlib import Path
+        from starlette.responses import Response
+
+        favicon_path = Path('static/favicon.ico')
+        if favicon_path.exists():
+            return FileResponse(favicon_path)
+
+        # Return 204 No Content if favicon doesn't exist
+        return Response(status_code=204)
+
+    @rt('/static/{filepath:path}')
+    def serve_static(filepath: str):
+        """Serve static files with path traversal protection."""
+        from pathlib import Path
+        from starlette.responses import Response
+        import os
+
+        # Define the static directory (absolute path)
+        static_dir = Path('static').resolve()
+
+        # Resolve the requested file path
+        requested_file = (static_dir / filepath).resolve()
+
+        # Security check: ensure the resolved path is within static_dir
+        try:
+            requested_file.relative_to(static_dir)
+        except ValueError:
+            # Path traversal attempt detected
+            return Response('Forbidden', status_code=403)
+
+        # Check if file exists
+        if not requested_file.exists() or not requested_file.is_file():
+            return Response('Not Found', status_code=404)
+
+        return FileResponse(requested_file)
+
+    @rt('/api/run-scrapers')
+    async def post(request):
+        """
+        API endpoint to trigger scrapers and sync database to Cloud Storage.
+        Used by Cloud Scheduler for automated scraping.
+
+        Process:
+        1. Start scrapers in background (non-blocking)
+        2. Return immediately with 202 Accepted
+        3. Scrapers run independently and upload when complete
+
+        This design allows Cloud Scheduler to succeed even with short timeouts,
+        while scrapers complete their work in the background.
+        """
+        import hmac
+        import subprocess
+        import os
+        import sys
+        from pathlib import Path
+        from starlette.responses import JSONResponse
+
+        # Verify the request is authorized (basic security)
+        # SCRAPER_TOKEN is injected securely from Google Secret Manager
+        auth_header = request.headers.get('Authorization', '')
+        expected_token = os.getenv('SCRAPER_TOKEN', '').strip()
+
+        if not expected_token:
+            return JSONResponse({
+                'error': 'Misconfigured server',
+                'message': 'SCRAPER_TOKEN is not configured'
+            }, status_code=503)
+
+        bearer_prefix = 'Bearer '
+        if not auth_header.startswith(bearer_prefix):
+            return JSONResponse({'error': 'Unauthorized'}, status_code=401)
+
+        provided_token = auth_header[len(bearer_prefix):].strip()
+        if not hmac.compare_digest(provided_token, expected_token):
+            return JSONResponse({'error': 'Unauthorized'}, status_code=401)
+
+        try:
+            project_root = Path(__file__).resolve().parents[3]
+
+            # Start scrapers in background (non-blocking)
+            # Redirect output to DEVNULL to avoid deadlocks from unconsumed pipe buffers.
+            subprocess.Popen(
+                [sys.executable, 'run_scrapers.py'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                cwd=str(project_root),
+                start_new_session=True,  # Detach from parent process
+                close_fds=True
+            )
+
+            # Return immediately with 202 Accepted
+            # Scrapers will complete in background and upload results
+            return JSONResponse({
+                'status': 'accepted',
+                'message': 'Scraper job started in background. Results will be uploaded when complete.',
+                'timestamp': datetime.now().isoformat()
+            }, status_code=202)
+
+        except Exception as e:
+            return JSONResponse({
+                'status': 'error',
+                'message': f'Failed to start scrapers: {str(e)}'
+            }, status_code=500)
+
+    @rt('/api/health/database')
+    async def get_database_health():
+        """
+        Health check endpoint for database freshness.
+        Returns database statistics and age information.
+        """
+        from starlette.responses import JSONResponse
+
+        try:
+            from datetime import datetime, timezone
+            import os
+
+            db = state.db
+
+            # Get total event count and most recent update
+            with db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM events")
+                total_events = cursor.fetchone()[0]
+
+                # Get most recent event update
+                cursor.execute("SELECT MAX(updated_at) FROM events")
+                most_recent_update = cursor.fetchone()[0]
+
+            # Get database file modification time
+            db_path = config.DATABASE_PATH
+            db_mtime = None
+            db_size = None
+            if os.path.exists(db_path):
+                db_mtime = datetime.fromtimestamp(os.path.getmtime(db_path), tz=timezone.utc)
+                db_size = os.path.getsize(db_path)
+
+            # Calculate age
+            now = datetime.now(timezone.utc)
+            if db_mtime:
+                age_hours = (now - db_mtime).total_seconds() / 3600
+            else:
+                age_hours = None
+
+            # Determine health status
+            health_status = 'healthy'
+            warnings = []
+
+            if total_events == 0:
+                health_status = 'error'
+                warnings.append('Database is empty')
+            elif age_hours and age_hours > 48:
+                health_status = 'warning'
+                warnings.append(f'Database is {age_hours:.1f} hours old (> 48 hours)')
+
+            return JSONResponse({
+                'status': health_status,
+                'database': {
+                    'total_events': total_events,
+                    'most_recent_update': most_recent_update,
+                    'file_modified': db_mtime.isoformat() if db_mtime else None,
+                    'age_hours': round(age_hours, 2) if age_hours else None,
+                    'size_bytes': db_size,
+                    'size_mb': round(db_size / 1024 / 1024, 2) if db_size else None
+                },
+                'warnings': warnings,
+                'timestamp': now.isoformat()
+            })
+        except Exception as e:
+            from starlette.responses import JSONResponse
+            return JSONResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status_code=500)
