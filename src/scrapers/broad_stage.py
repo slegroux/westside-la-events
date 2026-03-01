@@ -149,7 +149,7 @@ class BroadStageScraper(BaseScraper):
         # Price info
         is_free = False
         price = None
-        price_note = "Check website for ticket prices"
+        price_note = "TBD"
 
         return self.create_event(
             title=title,

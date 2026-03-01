@@ -137,7 +137,7 @@ class SkirballScraper(BaseScraper):
         # Price info - varies by event
         is_free = False
         price = None
-        price_note = "Check website for pricing"
+        price_note = "TBD"
 
         return self.create_event(
             title=title,

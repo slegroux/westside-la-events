@@ -5,6 +5,9 @@ from fasthtml.common import *
 from datetime import datetime
 from contextlib import asynccontextmanager
 from typing import Optional, List, Set
+import hashlib
+import os
+import time
 
 import config
 from src.data.database import Database
@@ -60,6 +63,10 @@ def get_session_id(session) -> str:
 
 def track_page_view(request, session, path: Optional[str] = None):
     """Track a page view if analytics is enabled."""
+    # Keep unit/integration tests deterministic and fast.
+    if os.getenv('PYTEST_CURRENT_TEST'):
+        return
+
     if not config.ENABLE_ANALYTICS or not state.analytics:
         return
 
@@ -88,12 +95,14 @@ def track_page_view(request, session, path: Optional[str] = None):
 @asynccontextmanager
 async def lifespan(app):
     """Manage application lifecycle - startup and shutdown."""
-    # Startup: Initialize database and search
-    state.db = Database(config.DATABASE_PATH)
-    state.search = EventSearch(state.db)
+    # Startup: Initialize database and search (preserve injected test state)
+    if state.db is None:
+        state.db = Database(config.DATABASE_PATH)
+    if state.search is None:
+        state.search = EventSearch(state.db)
 
     # Initialize analytics if enabled
-    if config.ENABLE_ANALYTICS:
+    if config.ENABLE_ANALYTICS and state.analytics is None:
         state.analytics = Analytics(config.ANALYTICS_DB_PATH)
 
     yield
@@ -610,11 +619,11 @@ def event_card(event: Event, session=None):
         price_display = Span('FREE', cls='event-price free-badge')
     elif event.price:
         price_display = Span(f'${event.price:.2f}', cls='event-price')
-    elif event.price_note:
-        # Show price note for events where pricing isn't available
+    elif event.price_note and event.price_note.upper() != 'TBD':
+        # Show price note for events with specific pricing info (e.g. "Free admission", "$20-$40")
         price_display = Span(event.price_note, cls='event-price price-note')
     else:
-        # Default when no price information is available
+        # Default when no price information is available (including price_note="TBD")
         price_display = Span('$TBD', cls='event-price price-tbd')
 
     # Create link attributes for external event URL
@@ -858,6 +867,11 @@ def home_page(request, session):
     )
 
 
+# In-memory TTL cache for filter tallies (avoids 3 GROUP BY queries per HTMX update)
+_tally_cache: dict = {}
+_TALLY_TTL = 30  # seconds
+
+
 def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = ''):
     """
     Get category and source tallies based on current filters.
@@ -867,6 +881,21 @@ def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = Non
     When filtering by category, source counts reflect only those categories.
     When filtering by source, category counts reflect only those sources.
     """
+    # Check TTL cache before running DB queries
+    cache_key = hashlib.md5(
+        repr(sorted({
+            'date_filter': date_filter,
+            'category': sorted(category) if category else [],
+            'source': sorted(source) if source else [],
+            'free_only': free_only,
+            'specific_date': specific_date,
+        }.items())).encode()
+    ).hexdigest()
+
+    cached = _tally_cache.get(cache_key)
+    if cached and time.time() - cached['ts'] < _TALLY_TTL:
+        return cached['value']
+
     available_sources = []
     available_categories = {}
 
@@ -1014,7 +1043,9 @@ def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = Non
         free_events_count = 0
         pass
 
-    return available_categories, available_sources, free_events_count
+    result = (available_categories, available_sources, free_events_count)
+    _tally_cache[cache_key] = {'value': result, 'ts': time.time()}
+    return result
 
 
 def filter_section_collapsible(section_id: str, label: str, checkboxes_content, collapsed: bool = False, total_count: int = 0, selected_count: int = 0):

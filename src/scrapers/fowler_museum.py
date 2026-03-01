@@ -165,7 +165,7 @@ class FowlerMuseumScraper(BaseScraper):
         # Price info - typically free or check website
         is_free = 'free' in item.get_text().lower()
         price = None
-        price_note = "Free admission" if is_free else "Check website for details"
+        price_note = "Free admission" if is_free else "TBD"
 
         return self.create_event(
             title=title,

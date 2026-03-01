@@ -44,8 +44,16 @@ class McCabesScraper(BaseScraper):
             if concert_container:
                 concert_items = concert_container.find_all('div', class_=re.compile(r'fooevents-event-listing-list-item'))
             else:
-                # Alternative selector - try event cards
-                concert_items = soup.find_all(['div', 'article'], class_=re.compile(r'event', re.IGNORECASE))
+                # Alternative selector: require event-class node to contain a date marker
+                # (time element or month abbreviation) to avoid matching menus/headers/footers
+                candidates = soup.find_all(['div', 'article'], class_=re.compile(r'event', re.IGNORECASE))
+                concert_items = [
+                    d for d in candidates
+                    if d.find('time') or re.search(
+                        r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b',
+                        d.get_text()
+                    )
+                ]
 
             self.log(f"Found {len(concert_items)} concert items")
 
@@ -174,7 +182,7 @@ class McCabesScraper(BaseScraper):
                 is_free = price_info.get('is_free', False)
 
         if price_note is None:
-            price_note = "Check website for ticket prices"
+            price_note = "TBD"
 
         return self.create_event(
             title=title,

@@ -7,6 +7,7 @@ weekly performances, and ticketed events. The venue hosts a custom calendar on t
 Shopify site with events linked to tixr.com for ticketing.
 """
 import re
+import requests
 from datetime import datetime
 from typing import List, Optional
 from dateutil import parser as date_parser
@@ -131,6 +132,9 @@ class AviatorDreamlandScraper(BaseScraper):
                         if time_text:
                             description = f"{time_text} | {description}"
 
+                        # Fetch artist image from iTunes
+                        image_url = self._fetch_artist_image(title)
+
                         # Create event
                         event = self.create_event(
                             title=title,
@@ -139,7 +143,7 @@ class AviatorDreamlandScraper(BaseScraper):
                             address=self.venue_address,
                             event_date=event_date,
                             url=url,
-                            image_url='',  # No images in calendar
+                            image_url=image_url,
                             category='Music',  # Music venue
                             price_note='TBD'  # Ticketing via tixr.com
                         )
@@ -157,3 +161,23 @@ class AviatorDreamlandScraper(BaseScraper):
 
         self.log(f"Scraped {len(events)} events")
         return events
+
+    VENUE_FALLBACK_IMAGE = 'https://aviatornationdreamland.com/cdn/shop/files/DREAMLAND-3.jpg?v=1673627678&width=1500'
+
+    def _fetch_artist_image(self, title: str) -> str:
+        """Look up album artwork via iTunes Search API using the event title as artist name.
+        Falls back to the venue's own image if no iTunes result is found."""
+        # Strip common suffixes like "- Support from ..." or "w/ ..."
+        artist = re.split(r'\s*[-–]\s*(support|w/|with|feat|ft)\.?\s', title, flags=re.I)[0].strip()
+        try:
+            r = requests.get(
+                'https://itunes.apple.com/search',
+                params={'term': artist, 'media': 'music', 'entity': 'album', 'limit': 1},
+                timeout=8,
+            )
+            results = r.json().get('results', [])
+            if results:
+                return results[0].get('artworkUrl100', '').replace('100x100bb', '600x600bb')
+        except Exception:
+            pass
+        return self.VENUE_FALLBACK_IMAGE
