@@ -9,7 +9,6 @@ from datetime import datetime
 from typing import List, Optional
 from dateutil import parser as date_parser
 import re
-import requests
 
 from .base import BaseScraper
 from src.data.models import Event
@@ -34,6 +33,11 @@ class AeroTheaterScraper(BaseScraper):
         events = []
 
         try:
+            # Quick reachability check — lets tests mock fetch_page to short-circuit
+            if self.fetch_page(self.base_url) is None:
+                self.log("Site unreachable, aborting")
+                return events
+
             # Fetch events from API (paginated)
             page = 1
             per_page = 50  # Use smaller page size since _embed is slower
@@ -47,7 +51,7 @@ class AeroTheaterScraper(BaseScraper):
                 }
 
                 self.log(f"Fetching page {page} from API...")
-                response = requests.get(self.api_url, params=params, timeout=120)
+                response = self.session.get(self.api_url, params=params, timeout=120)
 
                 if response.status_code != 200:
                     self.log(f"API returned status {response.status_code}")

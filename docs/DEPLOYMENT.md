@@ -91,10 +91,12 @@ gcloud run deploy westside-events \
   --execution-environment gen2 \
   --add-volume name=data,type=cloud-storage,bucket=westside-la-events-data \
   --add-volume-mount volume=data,mount-path=/app/data \
-  --set-env-vars SCRAPER_TOKEN=secure-$(openssl rand -hex 16)
+  --set-env-vars SCRAPER_TOKEN=secure-$(openssl rand -hex 16),ADMIN_USERNAME=admin,ADMIN_PASSWORD=$(openssl rand -hex 16)
 ```
 
-**Note**: Save the `SCRAPER_TOKEN` value that's generated - you'll need it for the scheduler.
+**Note**: Save the generated `SCRAPER_TOKEN` and `ADMIN_PASSWORD` values.
+- `SCRAPER_TOKEN` is required for scheduler-triggered scraping.
+- `ADMIN_*` protects `/admin/analytics` and `/admin/analytics/api` via HTTP Basic Auth.
 
 ### Step 5: Configure Automated Scraping
 

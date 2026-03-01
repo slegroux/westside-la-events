@@ -45,9 +45,9 @@ tests/
 *.log
 logs/
 
-# Data files (use Cloud Storage)
-data/*.db
-data/*.json
+# Data files
+# Keep primary DB/cache files included in build context because deploy.sh
+# refreshes them from Cloud Storage before gcloud builds submit.
 data/backup/
 
 # Scripts (not needed in container)

@@ -2,6 +2,7 @@
 Scraper for Santa Monica city events.
 Source: https://www.smgov.net/events
 """
+import re
 from datetime import datetime
 from typing import List
 from dateutil import parser as date_parser
@@ -36,9 +37,12 @@ class SantaMonicaScraper(BaseScraper):
 
             soup = self.parse_html(html)
 
-            # Note: The actual parsing logic will depend on the website structure
-            # This is a template that needs to be adjusted after inspecting the site
-            event_items = soup.find_all('div', class_='event-item')  # Adjust selector
+            # Try primary selector, then progressively looser fallbacks
+            event_items = soup.find_all('div', class_='event-item')
+            if not event_items:
+                event_items = soup.find_all('article')
+            if not event_items:
+                event_items = soup.find_all(class_=re.compile(r'\bevent\b', re.I))
 
             for item in event_items:
                 try:
@@ -112,7 +116,6 @@ class SantaMonicaScraper(BaseScraper):
             is_free = True
         else:
             # Try to extract price
-            import re
             price_match = re.search(r'\$(\d+(?:\.\d{2})?)', price_text)
             if price_match:
                 try:

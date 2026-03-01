@@ -3,61 +3,14 @@
 Script to run all event scrapers and populate the database.
 """
 import sys
+import os
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
 import config
 from src.data.database import Database
-from src.scrapers.santa_monica import SantaMonicaScraper
-from src.scrapers.santamonica_events import SantaMonicaEventsScraper
-from src.scrapers.timeout import TimeoutScraper
-from src.scrapers.kcrw import KCRWScraper
-from src.scrapers.laist import LAistScraper
-from src.scrapers.discover_la import DiscoverLAScraper
-from src.scrapers.eventbrite import EventbriteScraper
-from src.scrapers.ucla import UCLAScraper
-from src.scrapers.hammer import HammerScraper
-from src.scrapers.lacma import LACMAScraper
-from src.scrapers.venice_beach import VeniceBeachScraper
-from src.scrapers.west_hollywood import WestHollywoodScraper
-from src.scrapers.culver_city import CulverCityScraper
-
-# Other optional scrapers:
-from src.scrapers.meetup import MeetupScraper
-from src.scrapers.venice_west import VeniceWestScraper
-from src.scrapers.winston_house import WinstonHouseScraper
-from src.scrapers.westside_comedy import WestsideComedyScraper
-from src.scrapers.aviator_nation import AviatorNationScraper
-from src.scrapers.gnarwhal import GnarwhalScraper
-from src.scrapers.penmar import PenmarScraper
-from src.scrapers.itk_la import ITKLAScraper
-from src.scrapers.nerd_nite import NerdNiteScraper
-from src.scrapers.resident_advisor import ResidentAdvisorScraper
-from src.scrapers.iic_la import IICLAScraper
-from src.scrapers.afdela import AFdelaScraper
-from src.scrapers.raymond_kabbaz import RaymondKabbazScraper
-from src.scrapers.ucla_botanical import UCLABotanicalScraper
-from src.scrapers.parks_ca import ParksCaliforniaScraper
-from src.scrapers.kinn import KinnScraper
-from src.scrapers.casual_creative import CasualCreativeScraper
-from src.scrapers.latechevents import LATechEventsScraper
-from src.scrapers.beyond_baroque import BeyondBaroqueScraper
-from src.scrapers.apero_francophone import AperoFrancophoneScraper
-from src.scrapers.aero_theater import AeroTheaterScraper
-from src.scrapers.laemmle_monica import LaemmleMonicaScraper
-from src.scrapers.mudwtr import MudWtrScraper
-from src.scrapers.getty_center import GettyCenterScraper
-from src.scrapers.getty_villa import GettyVillaScraper
-from src.scrapers.skirball import SkirballScraper
-from src.scrapers.geffen_playhouse import GeffenPlayhouseScraper
-from src.scrapers.broad_stage import BroadStageScraper
-from src.scrapers.nuart_theatre import NuartTheatreScraper
-from src.scrapers.mccabes import McCabesScraper
-from src.scrapers.bergamot_station import BergamotStationScraper
-from src.scrapers.fowler_museum import FowlerMuseumScraper
-from src.scrapers.sm_farmers_market import SantaMonicaFarmersMarketScraper
-from src.scrapers.arcana_books import ArcanaBooksScraper
+from src.scrapers.registry import instantiate_enabled_scrapers
 
 # Thread-local storage for database connections
 thread_local = threading.local()
@@ -135,6 +88,9 @@ def run_scraper(scraper):
 
 def main():
     """Main function to run all scrapers."""
+    if '--no-logo-fetch' in sys.argv:
+        os.environ['SCRAPER_DISABLE_LOGOS'] = 'true'
+
     print("\n" + "="*60)
     print("LA Events Aggregator - Scraper Runner")
     print(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -144,151 +100,8 @@ def main():
     db = Database(config.DATABASE_PATH)
     print(f"\n✓ Database initialized: {config.DATABASE_PATH}")
 
-    # Initialize scrapers
-    scrapers = []
-
-    # Only add enabled scrapers
-    if config.EVENT_SOURCES['santa_monica']['enabled']:
-        scrapers.append(SantaMonicaScraper())
-
-    if config.EVENT_SOURCES.get('santamonica_events', {}).get('enabled'):
-        scrapers.append(SantaMonicaEventsScraper())
-
-    if config.EVENT_SOURCES.get('arcana_books', {}).get('enabled'):
-        scrapers.append(ArcanaBooksScraper())
-
-    if config.EVENT_SOURCES['timeout']['enabled']:
-        scrapers.append(TimeoutScraper())
-
-    if config.EVENT_SOURCES['kcrw']['enabled']:
-        scrapers.append(KCRWScraper())
-
-    if config.EVENT_SOURCES.get('laist', {}).get('enabled'):
-        scrapers.append(LAistScraper())
-
-    if config.EVENT_SOURCES.get('discover_la', {}).get('enabled'):
-        scrapers.append(DiscoverLAScraper())
-
-    if config.EVENT_SOURCES.get('eventbrite', {}).get('enabled'):
-        scrapers.append(EventbriteScraper())
-
-    # Other optional scrapers:
-    if config.EVENT_SOURCES.get('meetup', {}).get('enabled'):
-        scrapers.append(MeetupScraper())
-
-    if config.EVENT_SOURCES.get('venice_west', {}).get('enabled'):
-        scrapers.append(VeniceWestScraper())
-
-    if config.EVENT_SOURCES.get('winston_house', {}).get('enabled'):
-        scrapers.append(WinstonHouseScraper())
-
-    if config.EVENT_SOURCES.get('westside_comedy', {}).get('enabled'):
-        scrapers.append(WestsideComedyScraper())
-
-    if config.EVENT_SOURCES.get('aviator_nation', {}).get('enabled'):
-        scrapers.append(AviatorNationScraper())
-
-    if config.EVENT_SOURCES.get('gnarwhal', {}).get('enabled'):
-        scrapers.append(GnarwhalScraper())
-
-    if config.EVENT_SOURCES.get('penmar', {}).get('enabled'):
-        scrapers.append(PenmarScraper())
-
-    if config.EVENT_SOURCES.get('itk_la', {}).get('enabled'):
-        scrapers.append(ITKLAScraper())
-
-    if config.EVENT_SOURCES.get('nerd_nite', {}).get('enabled'):
-        scrapers.append(NerdNiteScraper())
-
-    if config.EVENT_SOURCES.get('resident_advisor', {}).get('enabled'):
-        scrapers.append(ResidentAdvisorScraper())
-
-    if config.EVENT_SOURCES.get('iic_la', {}).get('enabled'):
-        scrapers.append(IICLAScraper())
-
-    if config.EVENT_SOURCES.get('afdela', {}).get('enabled'):
-        scrapers.append(AFdelaScraper())
-
-    if config.EVENT_SOURCES.get('raymond_kabbaz', {}).get('enabled'):
-        scrapers.append(RaymondKabbazScraper())
-
-    if config.EVENT_SOURCES.get('ucla_botanical', {}).get('enabled'):
-        scrapers.append(UCLABotanicalScraper())
-
-    if config.EVENT_SOURCES.get('parks_ca', {}).get('enabled'):
-        scrapers.append(ParksCaliforniaScraper())
-
-    if config.EVENT_SOURCES.get('kinn', {}).get('enabled'):
-        scrapers.append(KinnScraper())
-
-    if config.EVENT_SOURCES.get('casual_creative', {}).get('enabled'):
-        scrapers.append(CasualCreativeScraper())
-
-    if config.EVENT_SOURCES.get('latechevents', {}).get('enabled'):
-        scrapers.append(LATechEventsScraper())
-
-    if config.EVENT_SOURCES.get('beyond_baroque', {}).get('enabled'):
-        scrapers.append(BeyondBaroqueScraper())
-
-    if config.EVENT_SOURCES.get('apero_francophone', {}).get('enabled'):
-        scrapers.append(AperoFrancophoneScraper())
-
-    if config.EVENT_SOURCES.get('ucla', {}).get('enabled'):
-        scrapers.append(UCLAScraper())
-
-    if config.EVENT_SOURCES.get('hammer', {}).get('enabled'):
-        scrapers.append(HammerScraper())
-
-    if config.EVENT_SOURCES.get('lacma', {}).get('enabled'):
-        scrapers.append(LACMAScraper())
-
-    if config.EVENT_SOURCES.get('venice_beach', {}).get('enabled'):
-        scrapers.append(VeniceBeachScraper())
-
-    if config.EVENT_SOURCES.get('weho', {}).get('enabled'):
-        scrapers.append(WestHollywoodScraper())
-
-    if config.EVENT_SOURCES.get('culver_city', {}).get('enabled'):
-        scrapers.append(CulverCityScraper())
-
-    if config.EVENT_SOURCES.get('aero_theater', {}).get('enabled'):
-        scrapers.append(AeroTheaterScraper())
-
-    if config.EVENT_SOURCES.get('laemmle_monica', {}).get('enabled'):
-        scrapers.append(LaemmleMonicaScraper())
-
-    if config.EVENT_SOURCES.get('mudwtr', {}).get('enabled'):
-        scrapers.append(MudWtrScraper())
-
-    if config.EVENT_SOURCES.get('getty_center', {}).get('enabled'):
-        scrapers.append(GettyCenterScraper())
-
-    if config.EVENT_SOURCES.get('getty_villa', {}).get('enabled'):
-        scrapers.append(GettyVillaScraper())
-
-    if config.EVENT_SOURCES.get('skirball', {}).get('enabled'):
-        scrapers.append(SkirballScraper())
-
-    if config.EVENT_SOURCES.get('geffen_playhouse', {}).get('enabled'):
-        scrapers.append(GeffenPlayhouseScraper())
-
-    if config.EVENT_SOURCES.get('broad_stage', {}).get('enabled'):
-        scrapers.append(BroadStageScraper())
-
-    if config.EVENT_SOURCES.get('nuart_theatre', {}).get('enabled'):
-        scrapers.append(NuartTheatreScraper())
-
-    if config.EVENT_SOURCES.get('mccabes', {}).get('enabled'):
-        scrapers.append(McCabesScraper())
-
-    if config.EVENT_SOURCES.get('bergamot_station', {}).get('enabled'):
-        scrapers.append(BergamotStationScraper())
-
-    if config.EVENT_SOURCES.get('fowler_museum', {}).get('enabled'):
-        scrapers.append(FowlerMuseumScraper())
-
-    if config.EVENT_SOURCES.get('sm_farmers_market', {}).get('enabled'):
-        scrapers.append(SantaMonicaFarmersMarketScraper())
+    # Initialize all enabled scrapers from shared registry.
+    scrapers = instantiate_enabled_scrapers()
 
     print(f"\n✓ Loaded {len(scrapers)} scrapers")
 

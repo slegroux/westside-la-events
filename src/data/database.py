@@ -6,7 +6,7 @@ import re
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from contextlib import contextmanager
 
 from .models import Event
@@ -15,6 +15,7 @@ from src.utils.deduplication import (
     find_duplicate,
     merge_event_data
 )
+import config
 
 
 def sanitize_fts_query(query: str) -> str:
@@ -184,6 +185,11 @@ class Database:
                 ON events(event_date, is_free)
             """)
 
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_url_event_date
+                ON events(url, event_date)
+            """)
+
             # Create full-text search virtual table
             cursor.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS events_fts USING fts5(
@@ -336,6 +342,47 @@ class Database:
             """, (category, event_id))
             return cursor.rowcount > 0
 
+    @staticmethod
+    def _date_sql(date_filter: str, specific_date: str = '') -> Tuple[str, list]:
+        """
+        Build a SQL condition fragment for the given date filter.
+
+        All event_date values are stored as naive local-time strings
+        ('YYYY-MM-DD HH:MM:SS') so plain SQLite date/datetime comparisons
+        work without substr() stripping.
+
+        Returns:
+            (sql_condition, params) – sql_condition contains no trailing AND;
+            params is a list of values to bind (usually empty except for
+            specific_date mode which binds two datetime objects).
+        """
+        _FIXED = {
+            'today':        "date(event_date) = date('now', 'localtime')",
+            'tomorrow':     "date(event_date) = date('now', 'localtime', '+1 day')",
+            'today_tomorrow': (
+                "date(event_date) BETWEEN date('now', 'localtime') "
+                "AND date('now', 'localtime', '+1 day')"
+            ),
+            'this_week': (
+                "datetime(event_date) >= datetime('now', 'localtime') "
+                "AND datetime(event_date) < datetime('now', 'localtime', 'weekday 0', '+7 days')"
+            ),
+            'this_weekend': (
+                "date(event_date) IN "
+                "(date('now', 'localtime', 'weekday 6'), "
+                "date('now', 'localtime', 'weekday 0', '+7 days'))"
+            ),
+            'this_month':   "strftime('%Y-%m', event_date) = strftime('%Y-%m', 'now', 'localtime')",
+        }
+        if date_filter == 'specific_date' and specific_date:
+            try:
+                date_obj = datetime.strptime(specific_date, '%Y-%m-%d')
+                end_dt = date_obj + timedelta(days=1)
+                return "event_date >= ? AND event_date < ?", [date_obj, end_dt]
+            except ValueError:
+                pass  # fall through to 'upcoming'
+        return _FIXED.get(date_filter, "datetime(event_date) >= datetime('now', 'localtime')"), []
+
     def search_events(
         self,
         query: Optional[str] = None,
@@ -384,29 +431,13 @@ class Database:
                 conditions.append("""
                     id IN (SELECT rowid FROM events_fts WHERE events_fts MATCH ?)
                 """)
-                # Sanitize query to prevent FTS syntax errors
                 params.append(sanitize_fts_query(query))
 
-            # Date filtering - use SQLite date functions for consistency with tallies
-            # NOTE: Events are stored in local time with inconsistent timezone formats:
-            # - Some as '2025-11-15 19:00:00' (no timezone)
-            # - Some as '2025-11-15 19:00:00-08:00' (with Pacific timezone)
-            # We use substr() to strip timezone suffix, then compare dates
+            # Date filtering
             if date_filter:
-                if date_filter == 'today':
-                    conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime')")
-                elif date_filter == 'tomorrow':
-                    conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime', '+1 day')")
-                elif date_filter == 'today_tomorrow':
-                    conditions.append("date(substr(event_date, 1, 19)) BETWEEN date('now', 'localtime') AND date('now', 'localtime', '+1 day')")
-                elif date_filter == 'this_week':
-                    conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime') AND datetime(substr(event_date, 1, 19)) < datetime('now', 'localtime', 'weekday 0', '+7 days')")
-                elif date_filter == 'this_weekend':
-                    conditions.append("date(substr(event_date, 1, 19)) IN (date('now', 'localtime', 'weekday 6'), date('now', 'localtime', 'weekday 0', '+7 days'))")
-                elif date_filter == 'this_month':
-                    conditions.append("strftime('%Y-%m', substr(event_date, 1, 19)) = strftime('%Y-%m', 'now', 'localtime')")
-                elif date_filter == 'upcoming':
-                    conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime')")
+                cond, cond_params = self._date_sql(date_filter)
+                conditions.append(cond)
+                params.extend(cond_params)
             elif start_date or end_date:
                 # Fall back to Python datetime for backwards compatibility
                 if start_date:
@@ -459,6 +490,119 @@ class Database:
             rows = cursor.fetchall()
             return [self._row_to_event(row) for row in rows]
 
+    def get_filter_tallies(
+        self,
+        date_filter: str = 'upcoming',
+        categories: Optional[List[str]] = None,
+        sources: Optional[List[str]] = None,
+        free_only: str = '',
+        specific_date: str = '',
+        min_venue_count: int = 3
+    ) -> Tuple[Dict[str, int], List[Tuple[str, int]], int]:
+        """
+        Get filter tallies for categories/venues and count of free events.
+
+        Returns:
+            Tuple(category_counts, venue_counts, free_events_count)
+        """
+        available_categories: Dict[str, int] = {}
+        available_venues: List[Tuple[str, int]] = []
+        free_events_count = 0
+
+        with self.get_connection() as conn:
+            # Build WHERE clause based on filters
+            conditions: List[str] = []
+            params: List = []
+
+            # Always filter out NULL sources and categories
+            base_conditions = ["source IS NOT NULL", "category IS NOT NULL"]
+
+            # Apply Westside geographic filtering if enabled
+            # Allow events with NULL coordinates to pass through (can't be geographically filtered)
+            if config.ENABLE_GEOGRAPHIC_FILTERING:
+                base_conditions.append(
+                    f"(latitude IS NULL OR (latitude >= {config.WESTSIDE_BOUNDS['min_lat']} "
+                    f"AND latitude <= {config.WESTSIDE_BOUNDS['max_lat']}))"
+                )
+                base_conditions.append(
+                    f"(longitude IS NULL OR (longitude >= {config.WESTSIDE_BOUNDS['min_lng']} "
+                    f"AND longitude <= {config.WESTSIDE_BOUNDS['max_lng']}))"
+                )
+
+            # Date filter
+            date_cond, date_params = self._date_sql(date_filter, specific_date)
+            conditions.append(date_cond)
+            params.extend(date_params)
+
+            # Free events filter for category and venue tallies
+            if free_only == 'true':
+                conditions.append("is_free = 1")
+
+            # Get category counts (filtered by selected sources if provided)
+            category_conditions = list(conditions)
+            category_params = list(params)
+            if sources:
+                placeholders = ','.join('?' * len(sources))
+                category_conditions.append(f"source IN ({placeholders})")
+                category_params.extend(sources)
+
+            category_where = " AND ".join(base_conditions + category_conditions)
+            cursor = conn.execute(f"""
+                SELECT category, COUNT(*) as count
+                FROM events
+                WHERE {category_where}
+                GROUP BY category
+                ORDER BY category
+            """, category_params)
+            available_categories = {row[0]: row[1] for row in cursor.fetchall()}
+
+            # Get venue counts (filtered by selected categories if provided)
+            venue_conditions = list(conditions)
+            venue_params = list(params)
+            if categories:
+                placeholders = ','.join('?' * len(categories))
+                venue_conditions.append(f"category IN ({placeholders})")
+                venue_params.extend(categories)
+
+            venue_where = " AND ".join(base_conditions + venue_conditions)
+            cursor = conn.execute(f"""
+                SELECT venue_name, COUNT(*) as count
+                FROM events
+                WHERE {venue_where}
+                  AND venue_name IS NOT NULL AND venue_name != ''
+                GROUP BY venue_name
+                HAVING count >= ?
+                ORDER BY count DESC
+            """, venue_params + [min_venue_count])
+            available_venues = [(row[0], row[1]) for row in cursor.fetchall()]
+
+            # Get free events count (ignore free_only toggle itself)
+            free_cond, free_params_date = self._date_sql(date_filter, specific_date)
+            free_conditions: List[str] = [free_cond]
+            free_params: List = list(free_params_date)
+
+            if categories:
+                placeholders = ','.join('?' * len(categories))
+                free_conditions.append(f"category IN ({placeholders})")
+                free_params.extend(categories)
+
+            if sources:
+                placeholders = ','.join('?' * len(sources))
+                free_conditions.append(f"source IN ({placeholders})")
+                free_params.extend(sources)
+
+            free_conditions.append("is_free = 1")
+            free_where = " AND ".join(base_conditions + free_conditions)
+            cursor = conn.execute(f"""
+                SELECT COUNT(*) as count
+                FROM events
+                WHERE {free_where}
+            """, free_params)
+            result = cursor.fetchone()
+            free_events_count = result[0] if result else 0
+
+        return available_categories, available_venues, free_events_count
+
     def get_all_events(self, limit: Optional[int] = None, offset: int = 0) -> List[Event]:
         """Get all events with optional pagination."""
         with self.get_connection() as conn:
@@ -484,7 +628,7 @@ class Database:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT * FROM events
-                WHERE event_date >= datetime('now', 'localtime')
+                WHERE datetime(event_date) >= datetime('now', 'localtime')
                 ORDER BY event_date ASC
                 LIMIT ?
             """, (limit,))

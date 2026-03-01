@@ -67,6 +67,9 @@ class LogoScraper:
         'Jamesons Pub': 'https://santamonica.jamesonsirishpub.com',
         'Visit Santa Monica': 'https://www.santamonica.com',
         'Arcana Books': 'https://www.arcanabooks.com',
+        'Skirball Cultural Center': 'https://www.skirball.org',
+        'The Broad Stage': 'https://www.broadstage.org',
+        'Nuart Theatre': 'https://www.landmarktheatres.com',
     }
 
     # Known logo URLs (fallback if scraping fails)
@@ -112,6 +115,9 @@ class LogoScraper:
         'Jamesons Pub': 'https://static.spotapps.co/web/santamonica--jamesonsirishpub--com/custom/logo.png',
         'Visit Santa Monica': 'https://www.santamonica.com/wp-content/themes/visit-santa-monica/assets/images/logo.svg',
         'Arcana Books': 'https://www.arcanabooks.com/images/logo.png',
+        'Skirball Cultural Center': 'https://www.skirball.org/themes/custom/skirball/favicon.ico',
+        'The Broad Stage': 'https://broadstage.org/media/i0kdq3nu/broadstage_logo_horizontal_purple_rgb.png',
+        'Nuart Theatre': 'https://www.landmarktheatres.com/apple-touch-icon.png',
     }
 
     def __init__(self, cache_dir: str = "static/logos"):

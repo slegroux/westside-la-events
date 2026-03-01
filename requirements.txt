@@ -7,10 +7,11 @@ beautifulsoup4>=4.12.0
 requests>=2.31.0
 playwright>=1.40.0
 lxml>=5.0.0
-aiohttp>=3.9.0  # For async scraping
+aiohttp>=3.9.0
 
 # Scheduling
 APScheduler>=3.10.0
+schedule==1.2.0
 
 # Geocoding and Location
 geopy>=2.4.0
@@ -20,16 +21,3 @@ python-dateutil>=2.8.0
 
 # Environment Variables
 python-dotenv>=1.0.0
-
-# Data Processing
-pandas>=2.0.0
-
-# Logging
-loguru>=0.7.0
-
-# Testing
-pytest>=7.4.0
-pytest-cov>=4.1.0
-pytest-asyncio>=0.21.0
-httpx>=0.25.0
-schedule==1.2.0

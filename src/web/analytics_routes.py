@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import config
 from src.web.security import check_admin_auth
+from starlette.responses import HTMLResponse
 
 
 def analytics_page_head(title: str):
@@ -184,9 +185,21 @@ def setup_analytics_routes(app, rt, state):
         """Main analytics dashboard."""
         # Require authentication
         if not check_admin_auth(request):
-            return RedirectResponse(
-                url='/admin/login?redirect=/admin/analytics',
-                status_code=303
+            content = str(Html(
+                analytics_page_head('Authentication Required'),
+                Body(
+                    Div(
+                        H1('Authentication Required'),
+                        P('Admin analytics requires HTTP Basic authentication.'),
+                        P('Set ADMIN_USERNAME and ADMIN_PASSWORD, then access this page with Basic Auth credentials.'),
+                        cls='analytics-container'
+                    )
+                )
+            ))
+            return HTMLResponse(
+                content=content,
+                status_code=401,
+                headers={'WWW-Authenticate': 'Basic realm="Westside Analytics"'}
             )
 
         if not config.ENABLE_ANALYTICS or not state.analytics:
@@ -394,7 +407,11 @@ def setup_analytics_routes(app, rt, state):
 
         # Require authentication
         if not check_admin_auth(request):
-            return JSONResponse({'error': 'Unauthorized'}, status_code=401)
+            return JSONResponse(
+                {'error': 'Unauthorized'},
+                status_code=401,
+                headers={'WWW-Authenticate': 'Basic realm="Westside Analytics"'}
+            )
 
         if not config.ENABLE_ANALYTICS or not state.analytics:
             return JSONResponse({'error': 'Analytics disabled'}, status_code=503)

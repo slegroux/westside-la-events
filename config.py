@@ -45,11 +45,17 @@ LOG_FILE = os.getenv('LOG_FILE', 'logs/app.log')
 # Web Server Configuration
 HOST = os.getenv('HOST', '0.0.0.0')
 PORT = int(os.getenv('PORT', '8000'))
-DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 # Session Configuration
 # In production, set this to a strong random key via environment variable
 SESSION_SECRET_KEY = os.getenv('SESSION_SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Admin authentication for analytics routes (HTTP Basic Auth).
+# Keep disabled by default for now; set ENABLE_ADMIN_AUTH=true to enforce.
+ENABLE_ADMIN_AUTH = os.getenv('ENABLE_ADMIN_AUTH', 'False').lower() == 'true'
+ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', '').strip()
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', '').strip()
 
 # Analytics Configuration
 ENABLE_ANALYTICS = os.getenv('ENABLE_ANALYTICS', 'True').lower() == 'true'
@@ -101,7 +107,7 @@ EVENT_SOURCES = {
     'santa_monica': {
         'name': 'Santa Monica',
         'url': 'https://www.smgov.net/events',
-        'enabled': True
+        'enabled': False,  # smgov.net/events redirects to permit info; replaced by santamonica_events
     },
     'santamonica_events': {
         'name': 'Visit Santa Monica',
@@ -204,8 +210,8 @@ EVENT_SOURCES = {
     'gnarwhal': {
         'name': 'Gnarwhal Coffee',
         'url': 'https://www.gnarwhalcoffee.com/events',
-        'enabled': True,
-        'uses_api': True,  # Uses Squarespace API for event listings
+        'enabled': False,  # Website only shows newsletter signup form — no events calendar
+        'uses_api': True,
         'note': 'Coffee shop on Main Street Santa Monica with community events'
     },
     'penmar': {
@@ -308,13 +314,13 @@ EVENT_SOURCES = {
     },
     'venice_beach': {
         'name': 'Venice Beach Events',
-        'url': 'https://www.venicebeach.com/events/',
-        'enabled': True
+        'url': 'https://www.visitveniceca.com/calendar-2/',
+        'enabled': False,  # visitveniceca.com returns empty page — no events calendar available
     },
     'weho': {
         'name': 'West Hollywood',
         'url': 'https://www.weho.org/city-government/city-departments/public-facilities/events',
-        'enabled': True
+        'enabled': False,  # weho.org returns 403 for all event endpoints (CloudFlare blocking)
     },
     'aero_theater': {
         'name': 'Aero Theater',
@@ -436,7 +442,7 @@ EVENT_SOURCES = {
     'papille_gustative': {
         'name': 'Papille Gustative',
         'url': 'https://papillegustativela.com/santa-monica-main-street-santa-monica-papille-gustative-events',
-        'enabled': True,
+        'enabled': False,  # Domain does not resolve — website appears to be offline
         'uses_api': False,
         'note': 'Farm-to-table cafe-restaurant on Santa Monica Blvd featuring seasonal events and holiday celebrations'
     },

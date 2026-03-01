@@ -27,6 +27,8 @@ class MudWtrScraper(BaseScraper):
         self.venue_address = '2515 Main St, Santa Monica, CA 90405'
         self.api_base_url = 'https://api.hellowalla.com/api/dingo/v1'
         self.location_id = 3721  # MUD\WTR :gather location ID
+        # Widget integration ID — passed as header, found via browser inspection of widget iframe
+        self.widget_integration_id = '1fa77a79-acc7-4b60-b19b-87e2c9b6a659'
 
     def scrape(self) -> List[Event]:
         """
@@ -85,18 +87,26 @@ class MudWtrScraper(BaseScraper):
         start_str = start_utc.strftime('%Y-%m-%dT%H:%M:%S.000Z')
         end_str = end_utc.strftime('%Y-%m-%dT%H:%M:%S.999Z')
 
-        # Build API URL - don't use params dict to avoid URL encoding issues
+        # Build API URL - pipes are passed URL-encoded (%7C) which the API accepts
         url = (
             f"{self.api_base_url}/class_instances?"
             f"page=1&per_page=100&"
             f"sort=class_instances.start_time:asc&"
             f"active=both&"
-            f"start_time=between|{start_str}|{end_str}&"
-            f"location_ids[]={self.location_id}"
+            f"start_time=between%7C{start_str}%7C{end_str}&"
+            f"location_ids%5B%5D={self.location_id}"
         )
 
+        # API requires integration-id as HTTP header (not URL param)
+        headers = {
+            'integration-id': self.widget_integration_id,
+            'http-jwt-aud': 'widget',
+            'referer': 'https://widget.hellowalla.com/',
+            'accept': 'application/json',
+        }
+
         try:
-            response = self.session.get(url, timeout=30)
+            response = self.session.get(url, headers=headers, timeout=30)
             response.raise_for_status()
             data = response.json()
 
@@ -112,10 +122,10 @@ class MudWtrScraper(BaseScraper):
                         f"page={page}&per_page=100&"
                         f"sort=class_instances.start_time:asc&"
                         f"active=both&"
-                        f"start_time=between|{start_str}|{end_str}&"
-                        f"location_ids[]={self.location_id}"
+                        f"start_time=between%7C{start_str}%7C{end_str}&"
+                        f"location_ids%5B%5D={self.location_id}"
                     )
-                    response = self.session.get(page_url, timeout=30)
+                    response = self.session.get(page_url, headers=headers, timeout=30)
                     response.raise_for_status()
                     data = response.json()
                     all_instances.extend(data.get('records', []))

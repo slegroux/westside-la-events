@@ -17,11 +17,11 @@ scripts/
 
 **Usage:**
 ```bash
-# Standard deployment (runs tests first)
+# Standard deployment (skips tests by default)
 ./scripts/deploy.sh
 
-# Skip tests (faster, but less safe)
-./scripts/deploy.sh --skip-tests
+# Run tests before deployment
+./scripts/deploy.sh --run-tests
 
 # Rollback to previous version
 ./scripts/deploy.sh --rollback
@@ -32,7 +32,7 @@ scripts/
 
 **Features:**
 - Pre-deployment checks (Dockerfile, src directory)
-- Runs unit tests before deploying
+- Can run unit tests before deploying (optional `--run-tests`)
 - Checks git status and warns about uncommitted changes
 - Builds Docker image via Google Cloud Build
 - Deploys to Cloud Run with optimized settings
@@ -112,17 +112,17 @@ micromamba run -n la python scripts/<script_name>.py
 
 ## Testing Scrapers
 
-For testing scrapers, use the proper pytest tests in [tests/scrapers/](../tests/scrapers/):
+Scraper tests live in [tests/unit/](../tests/unit/) and [tests/integration/](../tests/integration/):
 
 ```bash
-# Run all scraper tests
-micromamba run -n la python -m pytest tests/scrapers/ -v
+# Broad scraper unit coverage
+micromamba run -n la python -m pytest tests/unit/test_all_scrapers.py -v
 
-# Run tests for a specific scraper
-micromamba run -n la python -m pytest tests/scrapers/test_kcrw.py -v
+# Target a single scraper in the unit suite
+micromamba run -n la python -m pytest tests/unit/test_all_scrapers.py -k "KCRWScraper" -v
 
-# Run only live integration tests (hits actual websites)
-micromamba run -n la python -m pytest tests/scrapers/ -m requires_network -v
+# Live/integration scraper tests (hits actual websites)
+micromamba run -n la python -m pytest tests/integration/ -m requires_network -v
 ```
 
 ## GitHub Workflow Automation Scripts

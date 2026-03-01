@@ -19,18 +19,13 @@ tests/
 │   ├── test_fts_security.py # Full-text search security tests
 │   ├── test_setup.py        # Setup and configuration tests
 │   └── test_web_app.py      # Web endpoint tests
-├── scrapers/                # Individual scraper tests
-│   ├── test_kcrw.py         # KCRW scraper tests
-│   ├── test_parks_scraper.py # Parks scraper tests
-│   ├── test_venice_west_*.py # Venice West scraper tests
-│   └── test_*.py            # Other specific scraper tests
 ├── e2e/                     # End-to-end tests with Playwright
 │   ├── README.md            # E2E testing guide
 │   ├── test_homepage.py     # Homepage tests
 │   ├── test_search_filters.py  # Search and filter tests
 │   ├── test_event_detail.py    # Event detail page tests
 │   └── test_map_interactions.py  # Map functionality tests
-└── integration/             # Integration tests (future)
+└── integration/             # Live/integration scraper tests
 ```
 
 ## Running Tests
@@ -63,11 +58,14 @@ PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest -m unit
 # Run only E2E tests (requires web server running)
 micromamba run -n la python -m pytest -m e2e
 
-# Run only scraper tests (includes all 34 scrapers)
+# Run scraper-heavy unit coverage
 PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest -m scraper
 
 # Run comprehensive scraper tests
 PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/test_all_scrapers.py -v
+
+# Run integration/live scraper tests
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/integration/ -v
 
 # Skip slow tests
 PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest -m "not slow"
@@ -89,12 +87,11 @@ See [tests/e2e/README.md](e2e/README.md) for detailed E2E testing documentation.
 
 ## Comprehensive Scraper Tests
 
-The `test_all_scrapers.py` file provides comprehensive unit tests for all 34 event scrapers in the system:
+The `test_all_scrapers.py` file provides broad unit coverage for scraper initialization and behavior:
 
 ### Coverage
 
-- **34 scrapers tested**: All scrapers from Aero Theater to Winston House
-- **251 total test cases**: Parametrized tests ensure consistent coverage
+- Parametrized tests ensure consistent checks across scraper classes
 - **Test categories**:
   - **Initialization**: Verifies proper setup, source names, and configuration
   - **Basic Functionality**: Tests scrape() method, error handling, and empty responses
@@ -113,7 +110,7 @@ PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/test_all_scr
 # Run specific test class
 PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/test_all_scrapers.py::TestScraperInitialization -v
 
-# Run tests for a specific scraper
+# Run tests for a specific scraper class
 PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/test_all_scrapers.py -k "KCRWScraper" -v
 
 # Run just initialization tests (fast)
@@ -203,11 +200,9 @@ def test_homepage_loads(page: Page, base_url: str):
 
 ## Known Issues
 
-1. **Web App Tests Disabled**: The web endpoint tests (`_test_web_app.py.disabled`) require fixing some dependency conflicts with system-installed packages.
-
-2. **Database API**: The tests were written assuming a `save_event` method, but the actual Database class uses `insert_event`. This needs to be fixed.
-
-3. **Geocoding Tests**: Tests that make actual geocoding API calls are slow (1 request/second rate limit). Use mocked fixtures when possible.
+1. **E2E setup**: E2E tests require `pytest-playwright` plus browser installation.
+2. **Environment contamination**: On ROS-heavy systems, use `scripts/run_tests.sh` or `scripts/run_pytest.py`.
+3. **Live scraper tests**: Integration tests that hit real sites can be flaky due to upstream HTML changes.
 
 ## Test Coverage Goals
 

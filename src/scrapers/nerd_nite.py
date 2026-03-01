@@ -67,9 +67,10 @@ class NerdNiteScraper(BaseScraper):
             page_text = soup.get_text()
 
             # Extract event date
-            # Look for "NEXT NERD NITE LA IS [Month] [Day]"
+            # Look for "NEXT NERD NITE LA IS [Optional DOW] [Month] [Day]"
+            # e.g., "NEXT NERD NITE LA IS TUESDAY, MARCH 17TH!"
             date_match = re.search(
-                r'NEXT NERD NITE LA IS\s+([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?',
+                r'NEXT NERD NITE LA IS\s+(?:[A-Za-z]+,?\s+)?([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?',
                 page_text,
                 re.IGNORECASE
             )

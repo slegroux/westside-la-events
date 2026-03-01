@@ -69,8 +69,23 @@ class GeocodingService:
         if cache_key in self.cache:
             cached = self.cache[cache_key]
             if cached is None:
-                return None
-            return (cached['lat'], cached['lng'])
+                # Legacy format: permanent negative cache — treat as expired, retry geocoding
+                del self.cache[cache_key]
+                self._dirty = True
+            elif 'lat' in cached and 'lng' in cached:
+                # Legacy positive format: {'lat': ..., 'lng': ...}
+                return (cached['lat'], cached['lng'])
+            elif cached.get('result') is not None:
+                # New positive format: {'result': {'lat': ..., 'lng': ...}}
+                return (cached['result']['lat'], cached['result']['lng'])
+            else:
+                # New negative format: {'result': None, 'cached_at': ...}
+                # Expire after 7 days so transient outages don't cache failures forever
+                if time.time() - cached.get('cached_at', 0) < 7 * 86400:
+                    return None
+                else:
+                    del self.cache[cache_key]
+                    self._dirty = True
 
         # Try geocoding with retries (Nominatim has rate limit of 1 req/sec)
         for attempt in range(retry):
@@ -85,16 +100,15 @@ class GeocodingService:
 
                 if location:
                     result = (location.latitude, location.longitude)
-                    # Cache successful result (deferred save)
+                    # Cache successful result (deferred save); positive hits don't expire
                     self.cache[cache_key] = {
-                        'lat': location.latitude,
-                        'lng': location.longitude
+                        'result': {'lat': location.latitude, 'lng': location.longitude}
                     }
                     self._dirty = True
                     return result
                 else:
-                    # Cache negative result to avoid repeated lookups
-                    self.cache[cache_key] = None
+                    # Cache negative result with timestamp so it expires after 7 days
+                    self.cache[cache_key] = {'result': None, 'cached_at': time.time()}
                     self._dirty = True
                     return None
 

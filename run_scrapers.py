@@ -19,6 +19,7 @@ Why async vs multiprocessing for scrapers:
 import sys
 import argparse
 import asyncio
+import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
@@ -26,129 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 import config
 from src.data.database import Database
 from src.data.models import Event
-
-# Import all scrapers
-from src.scrapers.santa_monica import SantaMonicaScraper
-from src.scrapers.santamonica_events import SantaMonicaEventsScraper
-from src.scrapers.timeout import TimeoutScraper
-from src.scrapers.kcrw import KCRWScraper
-from src.scrapers.laist import LAistScraper
-from src.scrapers.discover_la import DiscoverLAScraper
-from src.scrapers.eventbrite import EventbriteScraper
-from src.scrapers.ucla import UCLAScraper
-from src.scrapers.hammer import HammerScraper
-from src.scrapers.lacma import LACMAScraper
-from src.scrapers.venice_beach import VeniceBeachScraper
-from src.scrapers.west_hollywood import WestHollywoodScraper
-from src.scrapers.culver_city import CulverCityScraper
-from src.scrapers.meetup import MeetupScraper
-from src.scrapers.venice_west import VeniceWestScraper
-from src.scrapers.winston_house import WinstonHouseScraper
-from src.scrapers.westside_comedy import WestsideComedyScraper
-from src.scrapers.aviator_nation import AviatorNationScraper
-from src.scrapers.aviator_dreamland import AviatorDreamlandScraper
-from src.scrapers.gnarwhal import GnarwhalScraper
-from src.scrapers.penmar import PenmarScraper
-from src.scrapers.itk_la import ITKLAScraper
-from src.scrapers.nerd_nite import NerdNiteScraper
-from src.scrapers.resident_advisor import ResidentAdvisorScraper
-from src.scrapers.iic_la import IICLAScraper
-from src.scrapers.afdela import AFdelaScraper
-from src.scrapers.raymond_kabbaz import RaymondKabbazScraper
-from src.scrapers.ucla_botanical import UCLABotanicalScraper
-from src.scrapers.parks_ca import ParksCaliforniaScraper
-from src.scrapers.kinn import KinnScraper
-from src.scrapers.casual_creative import CasualCreativeScraper
-from src.scrapers.latechevents import LATechEventsScraper
-from src.scrapers.beyond_baroque import BeyondBaroqueScraper
-from src.scrapers.apero_francophone import AperoFrancophoneScraper
-from src.scrapers.aero_theater import AeroTheaterScraper
-from src.scrapers.laemmle_monica import LaemmleMonicaScraper
-from src.scrapers.mudwtr import MudWtrScraper
-from src.scrapers.getty_center import GettyCenterScraper
-from src.scrapers.getty_villa import GettyVillaScraper
-from src.scrapers.skirball import SkirballScraper
-from src.scrapers.geffen_playhouse import GeffenPlayhouseScraper
-from src.scrapers.broad_stage import BroadStageScraper
-from src.scrapers.nuart_theatre import NuartTheatreScraper
-from src.scrapers.mccabes import McCabesScraper
-from src.scrapers.bergamot_station import BergamotStationScraper
-from src.scrapers.fowler_museum import FowlerMuseumScraper
-from src.scrapers.sm_farmers_market import SantaMonicaFarmersMarketScraper
-from src.scrapers.william_turner import WilliamTurnerScraper
-from src.scrapers.sounds_like_la import SoundsLikeLAScraper
-from src.scrapers.brightside import BrightsideScraper
-from src.scrapers.old_town_music_hall import OldTownMusicHallScraper
-from src.scrapers.tripp import TrippScraper
-from src.scrapers.la_puglia import LaPugliaScraper
-from src.scrapers.recreation_cafe import RecreationCafeScraper
-from src.scrapers.victorian import VictorianScraper
-from src.scrapers.papille_gustative import PapilleGustativeScraper
-from src.scrapers.jamesons_pub import JamesonsPubScraper
-from src.scrapers.arcana_books import ArcanaBooksScraper
-
-
-# Scraper class mapping
-SCRAPER_MAP = {
-    'santa_monica': SantaMonicaScraper,
-    'santamonica_events': SantaMonicaEventsScraper,
-    'timeout': TimeoutScraper,
-    'kcrw': KCRWScraper,
-    'laist': LAistScraper,
-    'discover_la': DiscoverLAScraper,
-    'eventbrite': EventbriteScraper,
-    'ucla': UCLAScraper,
-    'hammer': HammerScraper,
-    'lacma': LACMAScraper,
-    'venice_beach': VeniceBeachScraper,
-    'weho': WestHollywoodScraper,
-    'culver_city': CulverCityScraper,
-    'meetup': MeetupScraper,
-    'venice_west': VeniceWestScraper,
-    'winston_house': WinstonHouseScraper,
-    'westside_comedy': WestsideComedyScraper,
-    'aviator_nation': AviatorNationScraper,
-    'aviator_dreamland': AviatorDreamlandScraper,
-    'gnarwhal': GnarwhalScraper,
-    'penmar': PenmarScraper,
-    'itk_la': ITKLAScraper,
-    'nerd_nite': NerdNiteScraper,
-    'resident_advisor': ResidentAdvisorScraper,
-    'iic_la': IICLAScraper,
-    'afdela': AFdelaScraper,
-    'raymond_kabbaz': RaymondKabbazScraper,
-    'ucla_botanical': UCLABotanicalScraper,
-    'parks_ca': ParksCaliforniaScraper,
-    'kinn': KinnScraper,
-    'casual_creative': CasualCreativeScraper,
-    'latechevents': LATechEventsScraper,
-    'beyond_baroque': BeyondBaroqueScraper,
-    'apero_francophone': AperoFrancophoneScraper,
-    'aero_theater': AeroTheaterScraper,
-    'laemmle_monica': LaemmleMonicaScraper,
-    'mudwtr': MudWtrScraper,
-    'getty_center': GettyCenterScraper,
-    'getty_villa': GettyVillaScraper,
-    'skirball': SkirballScraper,
-    'geffen_playhouse': GeffenPlayhouseScraper,
-    'broad_stage': BroadStageScraper,
-    'nuart_theatre': NuartTheatreScraper,
-    'mccabes': McCabesScraper,
-    'bergamot_station': BergamotStationScraper,
-    'fowler_museum': FowlerMuseumScraper,
-    'sm_farmers_market': SantaMonicaFarmersMarketScraper,
-    'william_turner': WilliamTurnerScraper,
-    'sounds_like_la': SoundsLikeLAScraper,
-    'brightside': BrightsideScraper,
-    'old_town_music_hall': OldTownMusicHallScraper,
-    'tripp': TrippScraper,
-    'la_puglia': LaPugliaScraper,
-    'recreation_cafe': RecreationCafeScraper,
-    'victorian': VictorianScraper,
-    'papille_gustative': PapilleGustativeScraper,
-    'jamesons_pub': JamesonsPubScraper,
-    'arcana_books': ArcanaBooksScraper,
-}
+from src.scrapers.registry import SCRAPER_MAP, get_enabled_scraper_names
 
 
 class ScraperResult:
@@ -200,13 +79,25 @@ async def run_scraper_async(
             print(f"[{scraper_name}] Starting...")
 
             # Run scraper in thread pool (since it's sync code)
+            # Timeout after 120s to prevent a hung scraper from blocking forever
             loop = asyncio.get_event_loop()
-            events = await loop.run_in_executor(executor, scraper.scrape)
+            events = await asyncio.wait_for(
+                loop.run_in_executor(executor, scraper.scrape),
+                timeout=120
+            )
 
             result.events = events
             result.duration = (datetime.now() - start_time).total_seconds()
 
-            print(f"✓ [{scraper_name}] Scraped {len(events)} events in {result.duration:.1f}s")
+            if len(events) == 0:
+                print(f"⚠ [{scraper_name}] WARNING: returned 0 events (selector may be broken)")
+            else:
+                print(f"✓ [{scraper_name}] Scraped {len(events)} events in {result.duration:.1f}s")
+
+        except asyncio.TimeoutError:
+            result.error = "Timeout after 120s"
+            result.duration = (datetime.now() - start_time).total_seconds()
+            print(f"✗ [{scraper_name}] WARNING: timed out after 120s (scraper hung)")
 
         except Exception as e:
             result.error = str(e)
@@ -329,7 +220,15 @@ async def main_async():
         nargs='+',
         help='Specific scrapers to run (default: all enabled)'
     )
+    parser.add_argument(
+        '--no-logo-fetch',
+        action='store_true',
+        help='Disable source logo downloads during scraper initialization'
+    )
     args = parser.parse_args()
+
+    if args.no_logo_fetch:
+        os.environ['SCRAPER_DISABLE_LOGOS'] = 'true'
 
     print("\n" + "="*60)
     print("LA Events Aggregator - Async Scraper Runner")
@@ -350,11 +249,8 @@ async def main_async():
             sys.exit(1)
         scraper_names = args.scrapers
     else:
-        # Use all enabled scrapers from config
-        scraper_names = [
-            name for name in SCRAPER_MAP.keys()
-            if config.EVENT_SOURCES.get(name, {}).get('enabled', False)
-        ]
+        # Use enabled scrapers from shared registry configuration
+        scraper_names = get_enabled_scraper_names()
 
     print(f"✓ Will run {len(scraper_names)} scrapers")
 
@@ -427,7 +323,6 @@ async def main_async():
     print("="*60 + "\n")
 
     # Upload to Cloud Storage if running in production
-    import os
     if os.getenv('ENVIRONMENT') == 'production' and counts['saved'] > 0:
         print("\n" + "="*60)
         print("UPLOADING TO CLOUD STORAGE")

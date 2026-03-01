@@ -1,6 +1,10 @@
 """
 Scraper for ITK LA events.
 Source: https://itk.la
+
+ITK LA shows weekly events in day columns. Each column has an h2 date header
+and a ul.ml-8 containing li > a event items. Event URLs contain the date as
+YYYY-MM-DD suffix (e.g. /events/some-title-2026-03-01).
 """
 from datetime import datetime
 from typing import List, Dict, Optional
@@ -37,49 +41,30 @@ class ITKLAScraper(BaseScraper):
 
             soup = self.parse_html(html)
 
-            # ITK LA uses a list structure with date sections
-            # Find all list items that contain event data
-            event_items = soup.find_all('li')
+            # Find all event links — each <a href="/events/slug-YYYY-MM-DD"> is one event
+            event_links = soup.find_all('a', href=re.compile(r'^/events/'))
 
-            if not event_items:
-                self.log("No list items found on page")
+            if not event_links:
+                self.log("No event links found on page")
                 return events
 
-            self.log(f"Found {len(event_items)} list items")
+            self.log(f"Found {len(event_links)} event links")
 
-            # Collect detail URLs and prefetch them concurrently
-            detail_urls = []
-            for item in event_items:
-                link = item.find('a', href=lambda x: x and '/events/' in x)
-                if link and link.get('href'):
-                    detail_urls.append(self.normalize_url(link['href'], self.base_url))
-            if detail_urls:
-                self.prefetch_pages(detail_urls)
+            # Prefetch detail pages concurrently
+            detail_urls = [self.normalize_url(a['href'], self.base_url) for a in event_links]
+            self.prefetch_pages(detail_urls)
 
-            # Track current date section for parsing
-            current_date = None
-
-            for item in event_items:
+            seen = set()
+            for a in event_links:
                 try:
-                    # Check if this item contains date information (e.g., "Tue 11/11")
-                    text = item.get_text(strip=True)
+                    url = self.normalize_url(a['href'], self.base_url)
+                    if url in seen:
+                        continue
+                    seen.add(url)
 
-                    # Try to extract date from the item or its previous siblings
-                    date_match = re.search(r'([A-Za-z]{3})\s+(\d{1,2}/\d{1,2})', text)
-                    if date_match:
-                        # This might be a date header
-                        date_str = f"{date_match.group(2)}/{datetime.now().year}"
-                        try:
-                            current_date = datetime.strptime(date_str, "%m/%d/%Y")
-                        except:
-                            pass
-
-                    # Parse event if item contains a link to /events/
-                    link = item.find('a', href=lambda x: x and '/events/' in x)
-                    if link:
-                        event = self._parse_event(item, link, current_date)
-                        if event:
-                            events.append(event)
+                    event = self._parse_event_link(a, url)
+                    if event:
+                        events.append(event)
                 except Exception as e:
                     self.log(f"Error parsing event item: {e}")
                     continue
@@ -91,87 +76,71 @@ class ITKLAScraper(BaseScraper):
 
         return events
 
-    def _parse_event(self, item, link, current_date: Optional[datetime]) -> Optional[Event]:
+    def _parse_event_link(self, a_tag, url: str) -> Optional[Event]:
         """
-        Parse a single event item.
+        Parse a single event from its <a> container element.
 
         Args:
-            item: BeautifulSoup element containing event data
-            link: Link element containing event URL
-            current_date: Current date context for events
+            a_tag: <a> BeautifulSoup element containing event data
+            url: Full event URL
 
         Returns:
             Event object or None
         """
-        # Extract URL
-        event_path = link.get('href', '')
-        url = self.normalize_url(event_path, self.base_url)
-
-        if not url:
+        # Extract title from h3 inside the link
+        h3 = a_tag.find('h3')
+        if not h3:
+            return None
+        title = self.clean_text(h3.get_text())
+        if not title:
             return None
 
-        # Get the full text of the item
-        full_text = item.get_text(strip=True)
-
-        # Extract category (e.g., #Music, #Comedy, #DJ, #Art, #ETC)
-        category_match = re.search(r'#([A-Za-z]+)', full_text)
-        category = category_match.group(1) if category_match else None
-
-        # Extract title (after ### marker)
-        title_match = re.search(r'###\s*(.+?)(?:\d{1,2}:\d{2}|$)', full_text)
-        title = title_match.group(1).strip() if title_match else None
-
-        if not title:
-            # Fallback: use link text
-            title = self.clean_text(link.get_text())
-
-        # Extract time and venue (format: "6:00pm @ Venue Name")
-        time_venue_match = re.search(r'(\d{1,2}:\d{2}[ap]m)\s*@\s*(.+?)(?:\(|via|$)', full_text)
-        time_str = None
-        venue_name = ""
-
-        if time_venue_match:
-            time_str = time_venue_match.group(1).strip()
-            venue_name = time_venue_match.group(2).strip()
-
-        # Parse event date/time
+        # Extract date from URL slug (e.g. /events/slug-2026-03-01)
         event_date = None
-        if current_date and time_str:
+        date_match = re.search(r'(\d{4}-\d{2}-\d{2})$', url.rstrip('/'))
+        if date_match:
             try:
-                # Combine date and time
-                time_obj = datetime.strptime(time_str, "%I:%M%p")
-                event_date = current_date.replace(
-                    hour=time_obj.hour,
-                    minute=time_obj.minute
-                )
-            except Exception as e:
-                self.log(f"Failed to parse time '{time_str}': {e}")
-                event_date = current_date
-        elif current_date:
-            event_date = current_date
+                event_date = datetime.strptime(date_match.group(1), '%Y-%m-%d')
+            except Exception:
+                pass
 
-        # Fetch detailed information from event page
+        # Extract time from the red paragraph "HH:MMpm @ Venue"
+        time_p = a_tag.find('p', class_=lambda x: x and 'red' in ' '.join(x if isinstance(x, list) else [x]))
+        venue_name = ""
+        if time_p:
+            time_venue_text = self.clean_text(time_p.get_text())
+            # "12:00pm @ RSVP required for location"
+            time_match = re.match(r'(\d{1,2}:\d{2}[ap]m)\s*@\s*(.*)', time_venue_text, re.IGNORECASE)
+            if time_match and event_date:
+                try:
+                    time_obj = datetime.strptime(time_match.group(1), '%I:%M%p')
+                    event_date = event_date.replace(hour=time_obj.hour, minute=time_obj.minute)
+                except Exception:
+                    pass
+                venue_name = time_match.group(2).strip()
+
+        # Extract category from color-coded p (e.g. class="text-music", "text-comedy")
+        category = ""
+        cat_p = a_tag.find('p', class_=re.compile(r'text-(music|comedy|etc|art|dj)', re.I))
+        if cat_p:
+            cat_text = self.clean_text(cat_p.get_text()).lstrip('#')
+            cat_map = {
+                'music': 'Music', 'comedy': 'Comedy', 'art': 'Arts & Culture',
+                'dj': 'Music', 'etc': 'Other',
+            }
+            category = cat_map.get(cat_text.lower(), cat_text)
+
+        # Fetch detail page for address and description
         details = self._fetch_event_details(url)
-
-        # Use description from details
         description = details.get('description', '')
-
-        # Use more accurate date/time from details page if available
-        if details.get('event_date'):
-            event_date = details['event_date']
-
-        # Use address from details
         address = details.get('address', '')
-
-        # Get image from details
         image_url = details.get('image_url', '')
-
-        # Get price information
         price = details.get('price')
         is_free = details.get('is_free', False)
 
-        # Use category from details if not found in listing
-        if not category and details.get('category'):
+        if details.get('event_date'):
+            event_date = details['event_date']
+        if details.get('category') and not category:
             category = details['category']
 
         return self.create_event(
@@ -208,7 +177,6 @@ class ITKLAScraper(BaseScraper):
         }
 
         try:
-            self.log(f"Fetching details from {event_url}")
             html = self.fetch_page(event_url)
             if not html:
                 return details
@@ -223,96 +191,59 @@ class ITKLAScraper(BaseScraper):
                     schema_data = json.loads(json_ld.string)
 
                     if schema_data.get('@type') == 'Event':
-                        # Extract start date
                         if schema_data.get('startDate'):
                             details['event_date'] = date_parser.parse(schema_data['startDate'])
 
-                        # Extract location/address
                         location = schema_data.get('location', {})
                         if isinstance(location, dict):
                             address_data = location.get('address', {})
                             if isinstance(address_data, dict):
-                                # Build full address
                                 address_parts = []
-                                if address_data.get('streetAddress'):
-                                    address_parts.append(address_data['streetAddress'])
-                                if address_data.get('addressLocality'):
-                                    address_parts.append(address_data['addressLocality'])
-                                if address_data.get('addressRegion'):
-                                    address_parts.append(address_data['addressRegion'])
+                                for key in ('streetAddress', 'addressLocality', 'addressRegion'):
+                                    if address_data.get(key):
+                                        address_parts.append(address_data[key])
                                 details['address'] = ', '.join(address_parts)
 
-                        # Extract image
-                        if schema_data.get('image'):
-                            image = schema_data['image']
-                            if isinstance(image, str):
-                                details['image_url'] = image
-                            elif isinstance(image, list) and len(image) > 0:
-                                details['image_url'] = image[0]
-                            elif isinstance(image, dict):
-                                details['image_url'] = image.get('url', '')
+                        image = schema_data.get('image')
+                        if isinstance(image, str):
+                            details['image_url'] = image
+                        elif isinstance(image, list) and image:
+                            details['image_url'] = image[0]
+                        elif isinstance(image, dict):
+                            details['image_url'] = image.get('url', '')
 
                 except Exception as e:
                     self.log(f"Error parsing JSON-LD: {e}")
 
-            # Extract category from hashtag on the page
-            category_match = soup.find(string=re.compile(r'#(Music|Comedy|DJ|Art|ETC)'))
-            if category_match:
-                cat_match = re.search(r'#([A-Za-z]+)', category_match)
-                if cat_match:
-                    details['category'] = cat_match.group(1)
-
-            # Extract description from main content
+            # Extract description
             paragraphs = soup.find_all('p')
             description_parts = []
-
             for p in paragraphs:
                 text = self.clean_text(p.get_text())
-
-                # Skip short text and navigation/footer content
                 if len(text) < 40:
                     continue
-                if any(keyword in text.lower() for keyword in ['submit an event', 'about itk', 'copyright']):
+                if any(k in text.lower() for k in ['submit an event', 'about itk', 'copyright']):
                     continue
-
                 description_parts.append(text)
-
-                # Usually 2-3 paragraphs is enough
                 if len(description_parts) >= 3:
                     break
-
             if description_parts:
                 details['description'] = ' '.join(description_parts)
 
-            # Extract price information from page text
+            # Price extraction
             page_text = soup.get_text()
-
-            # Check for free events
             if re.search(r'\bfree\b', page_text, re.IGNORECASE):
-                free_context = re.search(
-                    r'(?:admission|entry|event|price|cost|ticket)?\s*(?:is\s*)?free',
-                    page_text,
-                    re.IGNORECASE
-                )
-                if free_context:
+                free_ctx = re.search(r'(?:admission|entry|event|price|cost|ticket)?\s*(?:is\s*)?free', page_text, re.I)
+                if free_ctx:
                     details['is_free'] = True
-                    details['price'] = None
 
-            # Extract price if not free
             if not details['is_free']:
-                price_patterns = [
-                    r'\$(\d+)(?:\.\d{2})?(?:\s*-\s*\$?(\d+)(?:\.\d{2})?)?',
-                    r'(?:from\s+)?\$(\d+)',
-                ]
-
-                for pattern in price_patterns:
-                    price_match = re.search(pattern, page_text)
-                    if price_match:
-                        try:
-                            details['price'] = float(price_match.group(1))
-                            break
-                        except (ValueError, TypeError, IndexError):
-                            continue
+                price_match = re.search(r'\$(\d+(?:\.\d{2})?)', page_text)
+                if price_match:
+                    try:
+                        details['price'] = float(price_match.group(1))
+                    except ValueError:
+                        pass
 
             return details
 

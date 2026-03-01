@@ -14,6 +14,7 @@ geo_filter validation. Some venues with dedicated scrapers (like Beyond Baroque)
 handled separately.
 """
 import json
+import os
 import re
 from datetime import datetime
 from typing import List, Optional
@@ -219,26 +220,43 @@ class EventbriteScraper(BaseScraper):
         events = []
 
         try:
-            # Fetch page with JavaScript rendering
-            html = self.fetch_page_js(url, wait_selector='a[href*="/e/"]', timeout=30000)
+            event_urls = set()
+
+            # Fast path: static HTML first. This avoids launching a browser when not needed.
+            html = self.fetch_page(url)
             if not html:
-                self.log(f"Failed to fetch organizer page with JS: {url}")
+                self.log(f"Failed to fetch organizer page: {url}")
                 return events
 
             soup = self.parse_html(html)
-
-            # Extract event URLs
-            event_urls = set()
             all_links = soup.find_all('a', href=True)
-
             for link in all_links:
                 href = link.get('href', '')
                 if '/e/' in href and 'tickets' in href:
-                    # Clean URL
                     clean_url = href.split('?')[0]
                     if clean_url.startswith('/'):
                         clean_url = f"{self.base_url}{clean_url}"
                     event_urls.add(clean_url)
+
+            # Fallback: JS-rendered page only when static HTML loaded but had no links.
+            enable_js_fallback = os.getenv('SCRAPER_ENABLE_JS_FALLBACK', 'false').lower() == 'true'
+            if not event_urls and enable_js_fallback:
+                html_js = self.fetch_page_js(url, wait_selector='a[href*="/e/"]', timeout=30000)
+                if not html_js:
+                    self.log(f"Failed to fetch organizer page: {url}")
+                    return events
+
+                soup_js = self.parse_html(html_js)
+                all_links = soup_js.find_all('a', href=True)
+                for link in all_links:
+                    href = link.get('href', '')
+                    if '/e/' in href and 'tickets' in href:
+                        clean_url = href.split('?')[0]
+                        if clean_url.startswith('/'):
+                            clean_url = f"{self.base_url}{clean_url}"
+                        event_urls.add(clean_url)
+            elif not event_urls:
+                self.log("No organizer event links found in static HTML; JS fallback disabled")
 
             self.log(f"Found {len(event_urls)} unique event URLs in organizer profile")
 

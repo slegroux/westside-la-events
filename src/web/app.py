@@ -901,150 +901,19 @@ def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = Non
     available_categories = {}
 
     try:
-        with state.db.get_connection() as conn:
-            # Build WHERE clause based on filters
-            conditions = []
-            params = []
-
-            # Always filter out NULL sources and categories
-            base_conditions = ["source IS NOT NULL", "category IS NOT NULL"]
-
-            # Apply Westside geographic filtering if enabled
-            # Allow events with NULL coordinates to pass through (can't be geographically filtered)
-            if config.ENABLE_GEOGRAPHIC_FILTERING:
-                base_conditions.append(f"(latitude IS NULL OR (latitude >= {config.WESTSIDE_BOUNDS['min_lat']} AND latitude <= {config.WESTSIDE_BOUNDS['max_lat']}))")
-                base_conditions.append(f"(longitude IS NULL OR (longitude >= {config.WESTSIDE_BOUNDS['min_lng']} AND longitude <= {config.WESTSIDE_BOUNDS['max_lng']}))")
-
-            # Date filter
-            if date_filter == 'specific_date' and specific_date:
-                from datetime import datetime, timedelta
-                try:
-                    date_obj = datetime.strptime(specific_date, '%Y-%m-%d')
-                    end_date = date_obj + timedelta(days=1)
-                    conditions.append("event_date >= ? AND event_date < ?")
-                    params.extend([date_obj, end_date])
-                except ValueError:
-                    # Fall back to upcoming if date parsing fails
-                    conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime')")
-            elif date_filter == 'today':
-                # Strip timezone suffix with substr() to handle both '2025-11-15 19:00:00' and '2025-11-15 19:00:00-08:00'
-                conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime')")
-            elif date_filter == 'tomorrow':
-                conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime', '+1 day')")
-            elif date_filter == 'this_week':
-                conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime') AND datetime(substr(event_date, 1, 19)) < datetime('now', 'localtime', 'weekday 0', '+7 days')")
-            elif date_filter == 'this_weekend':
-                conditions.append("date(substr(event_date, 1, 19)) IN (date('now', 'localtime', 'weekday 6'), date('now', 'localtime', 'weekday 0', '+7 days'))")
-            elif date_filter == 'this_month':
-                conditions.append("strftime('%Y-%m', substr(event_date, 1, 19)) = strftime('%Y-%m', 'now', 'localtime')")
-            else:  # upcoming or default
-                conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime')")
-
-            # Free events filter
-            if free_only == 'true':
-                conditions.append("is_free = 1")
-
-            # Build full WHERE clause
-            where_clause = " AND ".join(base_conditions + conditions)
-
-            # Get category counts (filtered by source if sources are selected)
-            category_conditions = list(conditions)  # Copy date and free filters
-            if source and len(source) > 0:
-                placeholders = ','.join('?' * len(source))
-                category_conditions.append(f"source IN ({placeholders})")
-                category_params = params + list(source)
-            else:
-                category_params = params
-
-            category_where = " AND ".join(base_conditions + category_conditions)
-            cursor = conn.execute(f"""
-                SELECT category, COUNT(*) as count
-                FROM events
-                WHERE {category_where}
-                GROUP BY category
-                ORDER BY category
-            """, category_params)
-            available_categories = {row[0]: row[1] for row in cursor.fetchall()}
-
-            # Get venue counts (filtered by category if categories are selected)
-            venue_conditions = list(conditions)  # Copy date and free filters
-            if category and len(category) > 0:
-                placeholders = ','.join('?' * len(category))
-                venue_conditions.append(f"category IN ({placeholders})")
-                venue_params = params + list(category)
-            else:
-                venue_params = params
-
-            venue_where = " AND ".join(base_conditions + venue_conditions)
-            cursor = conn.execute(f"""
-                SELECT venue_name, COUNT(*) as count
-                FROM events
-                WHERE {venue_where}
-                  AND venue_name IS NOT NULL AND venue_name != ''
-                GROUP BY venue_name
-                HAVING count >= 3
-                ORDER BY count DESC
-            """, venue_params)
-            available_venues = [(row[0], row[1]) for row in cursor.fetchall()]
-
-            # Get free events count (filtered by category and source, but NOT by free_only)
-            free_conditions = []
-            free_params = []
-
-            # Date filter (reuse the same logic)
-            if date_filter == 'specific_date' and specific_date:
-                from datetime import datetime, timedelta
-                try:
-                    date_obj = datetime.strptime(specific_date, '%Y-%m-%d')
-                    end_date = date_obj + timedelta(days=1)
-                    free_conditions.append("event_date >= ? AND event_date < ?")
-                    free_params.extend([date_obj, end_date])
-                except ValueError:
-                    free_conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime')")
-            elif date_filter == 'today':
-                # Strip timezone suffix to handle both formats
-                free_conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime')")
-            elif date_filter == 'tomorrow':
-                free_conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime', '+1 day')")
-            elif date_filter == 'this_week':
-                free_conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime') AND datetime(substr(event_date, 1, 19)) < datetime('now', 'localtime', 'weekday 0', '+7 days')")
-            elif date_filter == 'this_weekend':
-                free_conditions.append("date(substr(event_date, 1, 19)) IN (date('now', 'localtime', 'weekday 6'), date('now', 'localtime', 'weekday 0', '+7 days'))")
-            elif date_filter == 'this_month':
-                free_conditions.append("strftime('%Y-%m', substr(event_date, 1, 19)) = strftime('%Y-%m', 'now', 'localtime')")
-            else:
-                free_conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime')")
-
-            # Add category filter if selected
-            if category and len(category) > 0:
-                placeholders = ','.join('?' * len(category))
-                free_conditions.append(f"category IN ({placeholders})")
-                free_params.extend(list(category))
-
-            # Add source filter if selected
-            if source and len(source) > 0:
-                placeholders = ','.join('?' * len(source))
-                free_conditions.append(f"source IN ({placeholders})")
-                free_params.extend(list(source))
-
-            # Add is_free condition
-            free_conditions.append("is_free = 1")
-
-            free_where = " AND ".join(base_conditions + free_conditions)
-            cursor = conn.execute(f"""
-                SELECT COUNT(*) as count
-                FROM events
-                WHERE {free_where}
-            """, free_params)
-            result = cursor.fetchone()
-            free_events_count = result[0] if result else 0
+        available_categories, available_venues, free_events_count = state.db.get_filter_tallies(
+            date_filter=date_filter,
+            categories=category,
+            sources=source,
+            free_only=free_only,
+            specific_date=specific_date,
+            min_venue_count=3
+        )
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Error getting filter tallies: {e}", exc_info=True)
-        # If we can't get sources/categories, just use empty lists
         free_events_count = 0
-        pass
 
     result = (available_categories, available_venues, free_events_count)
     _tally_cache[cache_key] = {'value': result, 'ts': time.time()}

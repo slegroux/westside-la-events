@@ -165,8 +165,8 @@ micromamba run -n la python -m pytest
 # With coverage
 micromamba run -n la python -m pytest --cov=src
 
-# Specific test
-micromamba run -n la python -m pytest tests/scrapers/test_timeout.py -v
+# Specific scraper suite
+micromamba run -n la python -m pytest tests/unit/test_all_scrapers.py -k "TimeoutScraper" -v
 ```
 
 See [tests/README.md](tests/README.md) for testing guide.

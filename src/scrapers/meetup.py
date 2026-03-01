@@ -17,7 +17,7 @@ class MeetupScraper(BaseScraper):
     def __init__(self):
         super().__init__('Meetup')
         self.base_url = 'https://www.meetup.com'
-        self.events_url = f'{self.base_url}/find/events/?location=us--ca--los-angeles'
+        self.events_url = f'{self.base_url}/find/?location=Santa+Monica--CA&source=EVENTS&distance=tenMiles'
 
     def scrape(self) -> List[Event]:
         """
@@ -114,14 +114,22 @@ class MeetupScraper(BaseScraper):
             group = apollo_state[group_ref]
             group_name = group.get('name', '')
 
-        # Venue/Location - Meetup events often don't have structured venue data
-        # Try to extract from description or use "Los Angeles, CA" as default
+        # Venue/Location - extract from venue object in Apollo state
         venue_name = ""
-        address = "Los Angeles, CA"  # Default
+        address = "Los Angeles, CA"  # Default fallback
 
-        # Some events might have location in the title
-        if '@' in title:
-            # Example: "Event @ Venue Name"
+        venue_data = event_data.get('venue')
+        if isinstance(venue_data, dict) and venue_data.get('__typename') == 'Venue':
+            venue_name = venue_data.get('name', '')
+            street = (venue_data.get('address') or '').strip().rstrip(',')
+            city = venue_data.get('city', '')
+            state = venue_data.get('state', 'CA')
+            zip_code = venue_data.get('zip', '')
+            parts = [p for p in [street, city, state, zip_code] if p]
+            if parts:
+                address = ', '.join(parts)
+        elif '@' in title:
+            # Example: "Event @ Venue Name" — fallback venue from title
             parts = title.split('@')
             if len(parts) > 1:
                 venue_name = parts[-1].strip()

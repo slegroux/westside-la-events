@@ -41,6 +41,13 @@ class KCRWScraper(BaseScraper):
             # Event cards have class starting with EventCard_cardContainer__
             event_items = soup.find_all('div', class_=lambda x: x and 'EventCard_cardContainer__' in x)
 
+            # Fallback: CSS module class changes on every Next.js rebuild, use semantic HTML
+            if not event_items:
+                self.log("Primary CSS module selector failed, trying semantic HTML fallback")
+                event_items = soup.find_all('article')
+            if not event_items:
+                event_items = soup.find_all('li', attrs={'data-testid': True})
+
             if not event_items:
                 self.log("No event cards found on page")
                 return events
