@@ -17,6 +17,7 @@ from src.data.models import Event
 HTTP_SCRAPERS = [
     ("src.scrapers.aero_theater", "AeroTheaterScraper", "Aero Theater"),
     ("src.scrapers.afdela", "AFdelaScraper", "AFdela"),
+    ("src.scrapers.arcana_books", "ArcanaBooksScraper", "Arcana Books"),
     ("src.scrapers.aviator_dreamland", "AviatorDreamlandScraper", "Aviator Nation Dreamland"),
     ("src.scrapers.aviator_nation", "AviatorNationScraper", "Aviator Nation"),
     ("src.scrapers.bergamot_station", "BergamotStationScraper", "Bergamot Station"),
@@ -49,6 +50,7 @@ HTTP_SCRAPERS = [
     ("src.scrapers.raymond_kabbaz", "RaymondKabbazScraper", "Raymond Kabbaz"),
     ("src.scrapers.recreation_cafe", "RecreationCafeScraper", "Recreation Cafe"),
     ("src.scrapers.santa_monica", "SantaMonicaScraper", "Santa Monica"),
+    ("src.scrapers.santamonica_events", "SantaMonicaEventsScraper", "Visit Santa Monica"),
     ("src.scrapers.skirball", "SkirballScraper", "Skirball Cultural Center"),
     ("src.scrapers.sm_farmers_market", "SantaMonicaFarmersMarketScraper", "SM Farmers Market"),
     ("src.scrapers.sounds_like_la", "SoundsLikeLAScraper", "Sounds Like LA"),

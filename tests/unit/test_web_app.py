@@ -324,3 +324,29 @@ class TestPageComponents:
 
         result = events_list([])
         assert result is not None
+
+    def test_search_section_form_submission(self):
+        """Test search section form has correct attributes for Enter key submission."""
+        from src.web.app import search_section
+        from fasthtml.common import to_xml
+
+        # Get the search section component
+        search_form = search_section()
+
+        # Convert to HTML string for inspection
+        html = to_xml(search_form)
+
+        # Verify form has HTMX attributes for submit handling
+        assert 'hx-get="/filters/update-all"' in html or 'hx_get="/filters/update-all"' in html
+        assert 'hx-target="#events-container"' in html or 'hx_target="#events-container"' in html
+        assert 'hx-trigger="submit"' in html or 'hx_trigger="submit"' in html
+
+        # Verify form prevents default submission
+        assert 'onsubmit="return false;"' in html or "onsubmit='return false;'" in html
+
+        # Verify search button is type="submit" (enables Enter key)
+        assert 'type="submit"' in html
+
+        # Verify search input exists with proper trigger
+        assert 'type="search"' in html or 'type=search' in html
+        assert 'name="q"' in html or 'name=q' in html

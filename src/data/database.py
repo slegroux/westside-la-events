@@ -380,15 +380,15 @@ class Database:
                 elif date_filter == 'tomorrow':
                     conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime', '+1 day')")
                 elif date_filter == 'today_tomorrow':
-                    conditions.append("date(substr(event_date, 1, 19)) <= date('now', 'localtime', '+1 day')")
+                    conditions.append("date(substr(event_date, 1, 19)) BETWEEN date('now', 'localtime') AND date('now', 'localtime', '+1 day')")
                 elif date_filter == 'this_week':
-                    conditions.append("event_date >= date('now', 'localtime') AND event_date < date('now', 'localtime', 'weekday 0', '+7 days')")
+                    conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime') AND datetime(substr(event_date, 1, 19)) < datetime('now', 'localtime', 'weekday 0', '+7 days')")
                 elif date_filter == 'this_weekend':
                     conditions.append("date(substr(event_date, 1, 19)) IN (date('now', 'localtime', 'weekday 6'), date('now', 'localtime', 'weekday 0', '+7 days'))")
                 elif date_filter == 'this_month':
                     conditions.append("strftime('%Y-%m', substr(event_date, 1, 19)) = strftime('%Y-%m', 'now', 'localtime')")
                 elif date_filter == 'upcoming':
-                    conditions.append("event_date >= datetime('now', 'localtime')")
+                    conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime')")
             elif start_date or end_date:
                 # Fall back to Python datetime for backwards compatibility
                 if start_date:

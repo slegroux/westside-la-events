@@ -29,6 +29,7 @@ from src.data.models import Event
 
 # Import all scrapers
 from src.scrapers.santa_monica import SantaMonicaScraper
+from src.scrapers.santamonica_events import SantaMonicaEventsScraper
 from src.scrapers.timeout import TimeoutScraper
 from src.scrapers.kcrw import KCRWScraper
 from src.scrapers.laist import LAistScraper
@@ -84,11 +85,13 @@ from src.scrapers.recreation_cafe import RecreationCafeScraper
 from src.scrapers.victorian import VictorianScraper
 from src.scrapers.papille_gustative import PapilleGustativeScraper
 from src.scrapers.jamesons_pub import JamesonsPubScraper
+from src.scrapers.arcana_books import ArcanaBooksScraper
 
 
 # Scraper class mapping
 SCRAPER_MAP = {
     'santa_monica': SantaMonicaScraper,
+    'santamonica_events': SantaMonicaEventsScraper,
     'timeout': TimeoutScraper,
     'kcrw': KCRWScraper,
     'laist': LAistScraper,
@@ -144,6 +147,7 @@ SCRAPER_MAP = {
     'victorian': VictorianScraper,
     'papille_gustative': PapilleGustativeScraper,
     'jamesons_pub': JamesonsPubScraper,
+    'arcana_books': ArcanaBooksScraper,
 }
 
 

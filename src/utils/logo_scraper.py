@@ -65,6 +65,8 @@ class LogoScraper:
         'Papille Gustative': 'https://papillegustativela.com',
         'Recreation Cafe': 'https://www.recreation.cafe',
         'Jamesons Pub': 'https://santamonica.jamesonsirishpub.com',
+        'Visit Santa Monica': 'https://www.santamonica.com',
+        'Arcana Books': 'https://www.arcanabooks.com',
     }
 
     # Known logo URLs (fallback if scraping fails)
@@ -108,6 +110,8 @@ class LogoScraper:
         'Papille Gustative': 'https://static.spotapps.co/website_images/ab_websites/72211_website/logo.png',
         'Recreation Cafe': 'https://images.squarespace-cdn.com/content/v1/62c3a4bf2c1e2e57e6b0be39/8c2a7d45-7e0f-4c82-8a4c-4ba95a3f4c4d/recreation-cafe-logo.png',
         'Jamesons Pub': 'https://static.spotapps.co/web/santamonica--jamesonsirishpub--com/custom/logo.png',
+        'Visit Santa Monica': 'https://www.santamonica.com/wp-content/themes/visit-santa-monica/assets/images/logo.svg',
+        'Arcana Books': 'https://www.arcanabooks.com/images/logo.png',
     }
 
     def __init__(self, cache_dir: str = "static/logos"):

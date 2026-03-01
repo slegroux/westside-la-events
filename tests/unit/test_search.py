@@ -116,6 +116,40 @@ class TestEventSearch:
         assert "Early Tomorrow Event" in tomorrow_titles
         assert "Late Today Event" not in tomorrow_titles
 
+    def test_search_today_tomorrow_excludes_past_events(self, db):
+        """Test that 'today_tomorrow' does not include events before today."""
+        from src.data.models import Event
+        now = datetime.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        yesterday_event = Event(
+            title="Yesterday Event",
+            event_date=today_start - timedelta(minutes=1),
+            source="Test"
+        )
+        today_event = Event(
+            title="Today Event",
+            event_date=today_start.replace(hour=12),
+            source="Test"
+        )
+        tomorrow_event = Event(
+            title="Tomorrow Event",
+            event_date=today_start + timedelta(days=1, hours=9),
+            source="Test"
+        )
+
+        db.insert_event(yesterday_event)
+        db.insert_event(today_event)
+        db.insert_event(tomorrow_event)
+
+        search = EventSearch(db)
+        events = search.search(date_filter="today_tomorrow")
+        titles = {event.title for event in events}
+
+        assert "Today Event" in titles
+        assert "Tomorrow Event" in titles
+        assert "Yesterday Event" not in titles
+
     def test_search_this_week_filter(self, populated_db):
         """Test searching for events this week."""
         search = EventSearch(populated_db)

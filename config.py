@@ -103,6 +103,20 @@ EVENT_SOURCES = {
         'url': 'https://www.smgov.net/events',
         'enabled': True
     },
+    'santamonica_events': {
+        'name': 'Visit Santa Monica',
+        'url': 'https://www.santamonica.com/events/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Official Visit Santa Monica events calendar'
+    },
+    'arcana_books': {
+        'name': 'Arcana Books',
+        'url': 'https://www.arcanabooks.com/blog/?cat=events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Arcana: Books on the Arts event announcements'
+    },
     'timeout': {
         'name': 'Timeout LA',
         'url': 'https://www.timeout.com/los-angeles/things-to-do/things-to-do-in-los-angeles-this-week',

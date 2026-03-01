@@ -895,20 +895,20 @@ def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = Non
                     params.extend([date_obj, end_date])
                 except ValueError:
                     # Fall back to upcoming if date parsing fails
-                    conditions.append("event_date >= datetime('now')")
+                    conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime')")
             elif date_filter == 'today':
                 # Strip timezone suffix with substr() to handle both '2025-11-15 19:00:00' and '2025-11-15 19:00:00-08:00'
                 conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime')")
             elif date_filter == 'tomorrow':
                 conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime', '+1 day')")
             elif date_filter == 'this_week':
-                conditions.append("event_date >= date('now', 'localtime') AND event_date < date('now', 'localtime', 'weekday 0', '+7 days')")
+                conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime') AND datetime(substr(event_date, 1, 19)) < datetime('now', 'localtime', 'weekday 0', '+7 days')")
             elif date_filter == 'this_weekend':
                 conditions.append("date(substr(event_date, 1, 19)) IN (date('now', 'localtime', 'weekday 6'), date('now', 'localtime', 'weekday 0', '+7 days'))")
             elif date_filter == 'this_month':
                 conditions.append("strftime('%Y-%m', substr(event_date, 1, 19)) = strftime('%Y-%m', 'now', 'localtime')")
             else:  # upcoming or default
-                conditions.append("event_date >= datetime('now', 'localtime')")
+                conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime')")
 
             # Free events filter
             if free_only == 'true':
@@ -968,18 +968,20 @@ def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = Non
                     free_conditions.append("event_date >= ? AND event_date < ?")
                     free_params.extend([date_obj, end_date])
                 except ValueError:
-                    free_conditions.append("event_date >= datetime('now')")
+                    free_conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime')")
             elif date_filter == 'today':
                 # Strip timezone suffix to handle both formats
                 free_conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime')")
+            elif date_filter == 'tomorrow':
+                free_conditions.append("date(substr(event_date, 1, 19)) = date('now', 'localtime', '+1 day')")
             elif date_filter == 'this_week':
-                free_conditions.append("event_date >= date('now', 'localtime') AND event_date < date('now', 'localtime', 'weekday 0', '+7 days')")
+                free_conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime') AND datetime(substr(event_date, 1, 19)) < datetime('now', 'localtime', 'weekday 0', '+7 days')")
             elif date_filter == 'this_weekend':
                 free_conditions.append("date(substr(event_date, 1, 19)) IN (date('now', 'localtime', 'weekday 6'), date('now', 'localtime', 'weekday 0', '+7 days'))")
             elif date_filter == 'this_month':
                 free_conditions.append("strftime('%Y-%m', substr(event_date, 1, 19)) = strftime('%Y-%m', 'now', 'localtime')")
             else:
-                free_conditions.append("event_date >= datetime('now', 'localtime')")
+                free_conditions.append("datetime(substr(event_date, 1, 19)) >= datetime('now', 'localtime')")
 
             # Add category filter if selected
             if category and len(category) > 0:
@@ -1193,7 +1195,7 @@ def search_section():
                 hx_include='closest form',
                 hx_indicator='#loading-indicator'
             ),
-            Button('Search', type='button',
+            Button('Search', type='submit',
                    hx_get='/filters/update-all',
                    hx_target='#events-container',
                    hx_include='closest form',
@@ -1231,7 +1233,12 @@ def search_section():
             filter_tallies_section(),
             cls='filters'
         ),
-        cls='search-section'
+        cls='search-section',
+        hx_get='/filters/update-all',
+        hx_target='#events-container',
+        hx_trigger='submit',
+        hx_indicator='#loading-indicator',
+        onsubmit='return false;'
     )
 
 
@@ -1729,26 +1736,43 @@ async def post(request):
     This design allows Cloud Scheduler to succeed even with short timeouts,
     while scrapers complete their work in the background.
     """
+    import hmac
     import subprocess
     import os
+    import sys
+    from pathlib import Path
 
     # Verify the request is authorized (basic security)
     # SCRAPER_TOKEN is injected securely from Google Secret Manager
     auth_header = request.headers.get('Authorization', '')
-    expected_token = os.getenv('SCRAPER_TOKEN', 'default-secret-token')
+    expected_token = os.getenv('SCRAPER_TOKEN', '').strip()
 
-    if auth_header != f'Bearer {expected_token}':
+    if not expected_token:
+        return JSONResponse({
+            'error': 'Misconfigured server',
+            'message': 'SCRAPER_TOKEN is not configured'
+        }, status_code=503)
+
+    bearer_prefix = 'Bearer '
+    if not auth_header.startswith(bearer_prefix):
+        return JSONResponse({'error': 'Unauthorized'}, status_code=401)
+
+    provided_token = auth_header[len(bearer_prefix):].strip()
+    if not hmac.compare_digest(provided_token, expected_token):
         return JSONResponse({'error': 'Unauthorized'}, status_code=401)
 
     try:
+        project_root = Path(__file__).resolve().parents[2]
+
         # Start scrapers in background (non-blocking)
-        # Use Popen instead of run() to avoid waiting for completion
+        # Redirect output to DEVNULL to avoid deadlocks from unconsumed pipe buffers.
         subprocess.Popen(
-            ['python3', 'run_scrapers.py'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd='/app',
-            start_new_session=True  # Detach from parent process
+            [sys.executable, 'run_scrapers.py'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            cwd=str(project_root),
+            start_new_session=True,  # Detach from parent process
+            close_fds=True
         )
 
         # Return immediately with 202 Accepted

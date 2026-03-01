@@ -10,6 +10,7 @@ import threading
 import config
 from src.data.database import Database
 from src.scrapers.santa_monica import SantaMonicaScraper
+from src.scrapers.santamonica_events import SantaMonicaEventsScraper
 from src.scrapers.timeout import TimeoutScraper
 from src.scrapers.kcrw import KCRWScraper
 from src.scrapers.laist import LAistScraper
@@ -56,6 +57,7 @@ from src.scrapers.mccabes import McCabesScraper
 from src.scrapers.bergamot_station import BergamotStationScraper
 from src.scrapers.fowler_museum import FowlerMuseumScraper
 from src.scrapers.sm_farmers_market import SantaMonicaFarmersMarketScraper
+from src.scrapers.arcana_books import ArcanaBooksScraper
 
 # Thread-local storage for database connections
 thread_local = threading.local()
@@ -148,6 +150,12 @@ def main():
     # Only add enabled scrapers
     if config.EVENT_SOURCES['santa_monica']['enabled']:
         scrapers.append(SantaMonicaScraper())
+
+    if config.EVENT_SOURCES.get('santamonica_events', {}).get('enabled'):
+        scrapers.append(SantaMonicaEventsScraper())
+
+    if config.EVENT_SOURCES.get('arcana_books', {}).get('enabled'):
+        scrapers.append(ArcanaBooksScraper())
 
     if config.EVENT_SOURCES['timeout']['enabled']:
         scrapers.append(TimeoutScraper())

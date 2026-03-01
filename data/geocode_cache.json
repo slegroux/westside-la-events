@@ -776,5 +776,136 @@
   "2830 ocean park blvd, santa monica, ca 90405": {
     "lat": 34.0189316,
     "lng": -118.4553713
+  },
+  "8462 sunset boulevard, west hollywood, ca 90069, west hollywood, ca": {
+    "lat": 34.0942755,
+    "lng": -118.3750581
+  },
+  "smidt welcome plaza | lacma, los angeles, ca": null,
+  "842 s. broadway, downtown l.a., california, 90014": null,
+  "4242 campus dr, irvine , california, 92612": {
+    "lat": 33.649176,
+    "lng": -117.8407644
+  },
+  "919 south grand ave, los angeles, ca, 90015": {
+    "lat": 34.04422,
+    "lng": -118.2599289
+  },
+  "925 n orange dr, los angeles, ca, 90038": {
+    "lat": 34.0875902,
+    "lng": -118.3416997
+  },
+  "8440 wilshire boulevard, beverly hills, ca 90211, beverly hills, ca": {
+    "lat": 34.0648125,
+    "lng": -118.3749739
+  },
+  "700 exposition park dr, los angeles, ca, 90037": {
+    "lat": 34.0159757,
+    "lng": -118.286287
+  },
+  "1011 south figueroa street, #b101, los angeles, ca 90015, los angeles, ca": null,
+  "958 lincoln boulevard": {
+    "lat": 37.8067229,
+    "lng": -122.4724614
+  },
+  "46 n los robles ave, pasadena, ca, 91101": {
+    "lat": 34.1467474,
+    "lng": -118.1410383
+  },
+  "2525 michigan ave, bergamot station arts center b5, santa monica, ca 90404": null,
+  "112 west 9th street, #8th floor unit 826, los angeles, ca 90015, los angeles, ca": null,
+  "address will be available prior to the event, will email official address, los angeles, ca, los angeles, ca": null,
+  "27 more dates": null,
+  "4311 degnan boulevard, los angeles, ca 90008, los angeles, ca": {
+    "lat": 34.005707,
+    "lng": -118.3315513
+  },
+  "18 more dates": null,
+  "7850 melrose avenue, los angeles, ca 90046, los angeles, ca": {
+    "lat": 34.0837191,
+    "lng": -118.3609624
+  },
+  "ucla royce hall, westwood, los angeles, ca": null,
+  "630 west 5th street, los angeles, ca 90071, los angeles, ca": {
+    "lat": 34.0502851,
+    "lng": -118.2550914
+  },
+  "greek theatre, los feliz, los angeles, ca": {
+    "lat": 34.1194936,
+    "lng": -118.2964296
+  },
+  "hollywood bowl, hollywood, los angeles, ca": {
+    "lat": 34.1135281,
+    "lng": -118.3406569
+  },
+  "1521 south hill street, los angeles, ca 90015, los angeles, ca": {
+    "lat": 34.035249,
+    "lng": -118.2642232
+  },
+  "los angeles equestrian center, burbank, los angeles, ca": null,
+  "1038 south hill street, los angeles, ca 90015, los angeles, ca": {
+    "lat": 34.0404672,
+    "lng": -118.2590487
+  },
+  "1640 north cahuenga boulevard, los angeles, ca 90028, los angeles, ca": {
+    "lat": 34.101045,
+    "lng": -118.3292891
+  },
+  "1121 seward street, los angeles, ca 90038, los angeles, ca": {
+    "lat": 34.0911672,
+    "lng": -118.3332736
+  },
+  "1615 north vermont avenue, los angeles, ca 90027, los angeles, ca": {
+    "lat": 34.1003005,
+    "lng": -118.291864
+  },
+  "stonewood center, downey, los angeles, ca": {
+    "lat": 33.9357412,
+    "lng": -118.1199604
+  },
+  "gersten pavilion, gateway l.a./lax, los angeles, ca": null,
+  "dignity health sports park, carson, los angeles, ca": {
+    "lat": 33.8622861,
+    "lng": -118.2629822
+  },
+  "hollywood park retail district, inglewood, los angeles, ca": null,
+  "the moroccan lounge, chinatown, los angeles, ca": null,
+  "tcl chinese theater, hollywood, los angeles, ca": null,
+  "brea improv, outside los angeles/other, los angeles, ca": null,
+  "the united theater on broadway, downtown, los angeles, ca": null,
+  "the huntington, san marino, los angeles, ca": {
+    "lat": 34.1282235,
+    "lng": -118.1146475
+  },
+  "the broad, downtown, los angeles, ca": {
+    "lat": 34.0544584,
+    "lng": -118.2505943
+  },
+  "the renberg theatre, hollywood, los angeles, ca": null,
+  "bmo stadium, usc, los angeles, ca": null,
+  "getty center, brentwood, los angeles, ca": null,
+  "james armstrong theatre, torrance, los angeles, ca": null,
+  "haugh performing arts center at citrus college, outside los angeles/other, los angeles, ca": null,
+  "beverly hills library, beverly hills, los angeles, ca": {
+    "lat": 34.072877,
+    "lng": -118.3991019
+  },
+  "l.a. louver, venice, los angeles, ca": null,
+  "the novo, downtown, los angeles, ca": {
+    "lat": 34.0445489,
+    "lng": -118.2654725
+  },
+  "saban theatre, beverly hills, los angeles, ca": null,
+  "thayer hall, the colburn school, chinatown, los angeles, ca": null,
+  "seaside lagoon at redondo beach, redondo beach, los angeles, ca": null,
+  "array creative campus, echo park, los angeles, ca": null,
+  "the studio lounge at the artist tree, west hollywood, los angeles, ca": null,
+  "mizel estate wines, westlake village, los angeles, ca": null,
+  "venue disclosed to ticketed attendees only | mailing address below, west hollywood, los angeles, ca": null,
+  "the bloc - dtla, downtown, los angeles, ca": null,
+  "los angeles marriott burbank airport hotel, downtown, los angeles, ca": null,
+  "griffith park, los feliz, los angeles, ca": {
+    "lat": 34.1127742,
+    "lng": -118.2773356
   }
 }

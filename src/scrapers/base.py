@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Optional
 import time
+import os
 import requests
 from bs4 import BeautifulSoup
 
@@ -36,8 +37,13 @@ class BaseScraper(ABC):
         })
         self._page_cache = {}
 
-        # Download and cache logo locally for this source
-        self.source_logo_url = self.logo_scraper.download_logo(source_name)
+        # Allow disabling logo fetches in constrained/offline environments.
+        disable_logos = os.getenv('SCRAPER_DISABLE_LOGOS', 'false').lower() == 'true'
+        if disable_logos:
+            self.source_logo_url = ""
+        else:
+            # Download and cache logo locally for this source
+            self.source_logo_url = self.logo_scraper.download_logo(source_name)
 
     @abstractmethod
     def scrape(self) -> List[Event]:
@@ -112,6 +118,10 @@ class BaseScraper(ABC):
 
             except requests.RequestException as e:
                 print(f"Error fetching {url} (attempt {attempt + 1}/{retry}): {e}")
+                error_text = str(e)
+                # DNS resolution failures are not transient here; fail fast.
+                if 'NameResolutionError' in error_text or 'Failed to resolve' in error_text:
+                    return None
                 if attempt < retry - 1:
                     time.sleep(2)
                     continue

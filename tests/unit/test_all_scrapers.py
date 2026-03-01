@@ -37,6 +37,8 @@ from src.scrapers.penmar import PenmarScraper
 from src.scrapers.raymond_kabbaz import RaymondKabbazScraper
 from src.scrapers.resident_advisor import ResidentAdvisorScraper
 from src.scrapers.santa_monica import SantaMonicaScraper
+from src.scrapers.santamonica_events import SantaMonicaEventsScraper
+from src.scrapers.arcana_books import ArcanaBooksScraper
 from src.scrapers.timeout import TimeoutScraper
 from src.scrapers.ucla import UCLAScraper
 from src.scrapers.ucla_botanical import UCLABotanicalScraper
@@ -75,6 +77,8 @@ SCRAPERS = [
     (RaymondKabbazScraper, "Théâtre Raymond Kabbaz"),
     (ResidentAdvisorScraper, "Resident Advisor"),
     (SantaMonicaScraper, "Santa Monica"),
+    (SantaMonicaEventsScraper, "Visit Santa Monica"),
+    (ArcanaBooksScraper, "Arcana Books"),
     (TimeoutScraper, "Timeout LA"),
     (UCLAScraper, "UCLA"),
     (UCLABotanicalScraper, "UCLA Mathias Botanical Garden"),
