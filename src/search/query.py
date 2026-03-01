@@ -30,6 +30,7 @@ class EventSearch:
         end_date: Optional[datetime] = None,
         categories: Optional[List[str]] = None,
         sources: Optional[List[str]] = None,
+        venues: Optional[List[str]] = None,
         min_lat: Optional[float] = None,
         max_lat: Optional[float] = None,
         min_lng: Optional[float] = None,
@@ -48,6 +49,7 @@ class EventSearch:
             end_date: Custom end date
             categories: List of categories to filter by
             sources: List of sources to filter by
+            venues: List of venue names to filter by
             min_lat: Minimum latitude for geographic bounds (overrides default Westside filter)
             max_lat: Maximum latitude for geographic bounds (overrides default Westside filter)
             min_lng: Minimum longitude for geographic bounds (overrides default Westside filter)
@@ -75,6 +77,7 @@ class EventSearch:
             end_date=end_date,
             categories=categories,
             sources=sources,
+            venues=venues,
             min_lat=min_lat,
             max_lat=max_lat,
             min_lng=min_lng,

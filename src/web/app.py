@@ -872,14 +872,14 @@ _tally_cache: dict = {}
 _TALLY_TTL = 30  # seconds
 
 
-def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = ''):
+def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, venue: List[str] = None, free_only: str = '', specific_date: str = ''):
     """
-    Get category and source tallies based on current filters.
+    Get category and venue tallies based on current filters.
 
-    This function calculates the count of events for each category and source,
-    taking into account the current date, category, source, and free_only filters.
-    When filtering by category, source counts reflect only those categories.
-    When filtering by source, category counts reflect only those sources.
+    This function calculates the count of events for each category and venue,
+    taking into account the current date, category, venue, and free_only filters.
+    When filtering by category, venue counts reflect only those categories.
+    When filtering by venue, category counts reflect only those venues.
     """
     # Check TTL cache before running DB queries
     cache_key = hashlib.md5(
@@ -887,6 +887,7 @@ def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = Non
             'date_filter': date_filter,
             'category': sorted(category) if category else [],
             'source': sorted(source) if source else [],
+            'venue': sorted(venue) if venue else [],
             'free_only': free_only,
             'specific_date': specific_date,
         }.items())).encode()
@@ -896,7 +897,7 @@ def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = Non
     if cached and time.time() - cached['ts'] < _TALLY_TTL:
         return cached['value']
 
-    available_sources = []
+    available_venues = []
     available_categories = {}
 
     try:
@@ -965,24 +966,26 @@ def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = Non
             """, category_params)
             available_categories = {row[0]: row[1] for row in cursor.fetchall()}
 
-            # Get source counts (filtered by category if categories are selected)
-            source_conditions = list(conditions)  # Copy date and free filters
+            # Get venue counts (filtered by category if categories are selected)
+            venue_conditions = list(conditions)  # Copy date and free filters
             if category and len(category) > 0:
                 placeholders = ','.join('?' * len(category))
-                source_conditions.append(f"category IN ({placeholders})")
-                source_params = params + list(category)
+                venue_conditions.append(f"category IN ({placeholders})")
+                venue_params = params + list(category)
             else:
-                source_params = params
+                venue_params = params
 
-            source_where = " AND ".join(base_conditions + source_conditions)
+            venue_where = " AND ".join(base_conditions + venue_conditions)
             cursor = conn.execute(f"""
-                SELECT source, COUNT(*) as count
+                SELECT venue_name, COUNT(*) as count
                 FROM events
-                WHERE {source_where}
-                GROUP BY source
-                ORDER BY source
-            """, source_params)
-            available_sources = [(row[0], row[1]) for row in cursor.fetchall()]
+                WHERE {venue_where}
+                  AND venue_name IS NOT NULL AND venue_name != ''
+                GROUP BY venue_name
+                HAVING count >= 3
+                ORDER BY count DESC
+            """, venue_params)
+            available_venues = [(row[0], row[1]) for row in cursor.fetchall()]
 
             # Get free events count (filtered by category and source, but NOT by free_only)
             free_conditions = []
@@ -1043,7 +1046,7 @@ def _get_filter_tallies(date_filter: str = 'upcoming', category: List[str] = Non
         free_events_count = 0
         pass
 
-    result = (available_categories, available_sources, free_events_count)
+    result = (available_categories, available_venues, free_events_count)
     _tally_cache[cache_key] = {'value': result, 'ts': time.time()}
     return result
 
@@ -1099,14 +1102,14 @@ def filter_section_collapsible(section_id: str, label: str, checkboxes_content, 
     )
 
 
-def filter_tallies_section(date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = ''):
-    """Render the category and source filter checkboxes with counts - always visible."""
-    available_categories, available_sources, free_events_count = _get_filter_tallies(date_filter, category, source, free_only, specific_date)
+def filter_tallies_section(date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, venue: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = ''):
+    """Render the category and venue filter checkboxes with counts - always visible."""
+    available_categories, available_venues, free_events_count = _get_filter_tallies(date_filter, category, source, venue, free_only, specific_date)
 
     # For HTMX requests that update tallies, we also need to preserve the checked state
-    # We'll use the provided category/source lists to determine which boxes should be checked
+    # We'll use the provided category/venue lists to determine which boxes should be checked
     checked_categories = set(category) if category else set()
-    checked_sources = set(source) if source else set()
+    checked_venues = set(venue) if venue else set()
 
     # Build category checkboxes - only show categories with events (count > 0)
     category_checkboxes = [
@@ -1130,34 +1133,34 @@ def filter_tallies_section(date_filter: str = 'upcoming', category: List[str] = 
         if available_categories.get(cat, 0) > 0  # Only show categories with events
     ]
 
-    # Build source checkboxes
-    source_checkboxes = [
+    # Build venue checkboxes - only show venues with events (count >= 3)
+    venue_checkboxes = [
         Label(
             Input(
                 type='checkbox',
-                name='source',
-                value=source_name,
-                checked=True if source_name in checked_sources else False,
+                name='venue',
+                value=venue_name,
+                checked=True if venue_name in checked_venues else False,
                 hx_get='/filters/update-all',
                 hx_target='#events-container',
                 hx_trigger='change',
                 hx_include='closest form',
                 hx_indicator='#loading-indicator'
             ),
-            f' {source_name} ({count})',
+            f' {venue_name} ({count})',
             cls='source-checkbox-label'
         )
-        for source_name, count in available_sources
-    ] if available_sources else []
+        for venue_name, count in available_venues
+    ] if available_venues else []
 
     # Calculate counts for summary info
     # For categories: show total number of visible category options (those with events > 0) vs number of events in selected categories
     total_categories = len(category_checkboxes)  # Use actual number of visible categories
     selected_categories_event_count = sum(available_categories.get(cat, 0) for cat in checked_categories) if checked_categories else 0
 
-    # For sources: show total number of source options vs number of events in selected sources
-    total_sources = len(available_sources)
-    selected_sources_event_count = sum(count for source_name, count in available_sources if source_name in checked_sources) if checked_sources else 0
+    # For venues: show total number of venue options vs number of events in selected venues
+    total_venues = len(available_venues)
+    selected_venues_event_count = sum(count for venue_name, count in available_venues if venue_name in checked_venues) if checked_venues else 0
 
     return Div(
         # Free events checkbox with tally - moved to top
@@ -1205,7 +1208,7 @@ def filter_tallies_section(date_filter: str = 'upcoming', category: List[str] = 
         # Categories filter - collapsible (state managed by JavaScript/localStorage) with summary
         filter_section_collapsible('categories', 'Categories', category_checkboxes, collapsed=True, total_count=total_categories, selected_count=selected_categories_event_count),
         # Venues filter - collapsible (state managed by JavaScript/localStorage) with summary
-        filter_section_collapsible('venues', 'Venues', source_checkboxes, collapsed=True, total_count=total_sources, selected_count=selected_sources_event_count) if source_checkboxes else None,
+        filter_section_collapsible('venues', 'Venues', venue_checkboxes, collapsed=True, total_count=total_venues, selected_count=selected_venues_event_count) if venue_checkboxes else None,
         id='filter-tallies'
     )
 
@@ -1273,7 +1276,7 @@ def search_section():
     )
 
 
-def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None, limit: int = 100) -> List[Event]:
+def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, venue: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None, limit: int = 100) -> List[Event]:
     """
     Helper function to fetch events with consistent filter-building logic.
 
@@ -1282,6 +1285,7 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str
         date_filter: Date filter (upcoming, today, this_week, etc.)
         category: List of category filters (from multiple checkboxes)
         source: List of source filters (from multiple checkboxes)
+        venue: List of venue name filters (from multiple checkboxes)
         free_only: Free events filter ('true' or empty string)
         specific_date: Specific date in YYYY-MM-DD format (when date_filter is 'specific_date')
         favorites_only: Show favorites only ('true' or empty string)
@@ -1296,6 +1300,9 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str
 
     # Handle source filtering - if no sources selected, show all
     sources = source if source and len(source) > 0 else None
+
+    # Handle venue filtering - if no venues selected, show all
+    venues = venue if venue and len(venue) > 0 else None
 
     # Convert free_only to boolean
     is_free = True if free_only == 'true' else None
@@ -1316,6 +1323,7 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str
                 end_date=end,
                 categories=categories,
                 sources=sources,
+                venues=venues,
                 is_free=is_free,
                 limit=limit
             )
@@ -1326,6 +1334,7 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str
                 date_filter='upcoming',
                 categories=categories,
                 sources=sources,
+                venues=venues,
                 is_free=is_free,
                 limit=limit
             )
@@ -1335,6 +1344,7 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str
             date_filter=date_filter if date_filter != 'specific_date' else 'upcoming',
             categories=categories,
             sources=sources,
+            venues=venues,
             is_free=is_free,
             limit=limit
         )
@@ -1348,18 +1358,18 @@ def _fetch_events(q: str = '', date_filter: str = 'upcoming', category: List[str
 
 
 @rt('/events/list')
-def get_events_list(request: Request, q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
+def get_events_list(request: Request, q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, venue: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
     """HTMX endpoint to get events list HTML fragment."""
     from starlette.responses import HTMLResponse
     from fastcore.xml import to_xml
-    events = _fetch_events(q, date_filter, category, source, free_only, specific_date, favorites_only, session)
+    events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session)
     # Return just the HTML fragment without full page wrapper
     result = events_list(events, session)
     return HTMLResponse(to_xml(result))
 
 
 @rt('/filters/tallies')
-def get_filter_tallies(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = ''):
+def get_filter_tallies(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, venue: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = ''):
     """HTMX endpoint to get updated filter tallies HTML fragment."""
     from starlette.responses import HTMLResponse
     from fastcore.xml import to_xml
@@ -1367,6 +1377,7 @@ def get_filter_tallies(q: str = '', date_filter: str = 'upcoming', category: Lis
         date_filter,
         category,
         source,
+        venue,
         free_only,
         specific_date,
         favorites_only
@@ -1431,13 +1442,13 @@ def filter_by_category(category: str, session):
 
 
 @rt('/view/list')
-def get_list_view(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
+def get_list_view(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, venue: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
     """HTMX endpoint to switch to list view."""
     from starlette.responses import HTMLResponse
     from fastcore.xml import to_xml
 
     # Get current events based on active filters
-    events = _fetch_events(q, date_filter, category, source, free_only, specific_date, favorites_only, session)
+    events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session)
 
     result = Div(
         # Map Container (hidden)
@@ -1466,13 +1477,13 @@ def get_list_view(q: str = '', date_filter: str = 'upcoming', category: List[str
 
 
 @rt('/view/map')
-def get_map_view(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
+def get_map_view(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, venue: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
     """HTMX endpoint to switch to map view."""
     from starlette.responses import HTMLResponse
     from fastcore.xml import to_xml
 
     # Get current events based on active filters
-    events = _fetch_events(q, date_filter, category, source, free_only, specific_date, favorites_only, session)
+    events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session)
 
     result = Div(
         # Map Container (visible) - explicit height required for Leaflet
@@ -1519,17 +1530,17 @@ def get_map_view(q: str = '', date_filter: str = 'upcoming', category: List[str]
 
 
 @rt('/filters/update-all')
-def update_all_filters(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
+def update_all_filters(q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, venue: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
     """HTMX endpoint that updates all filter-related sections using OOB swaps."""
     from starlette.responses import HTMLResponse
     from fastcore.xml import to_xml
     import logging
 
     logger = logging.getLogger(__name__)
-    logger.info(f"Search query: '{q}', date_filter: {date_filter}, categories: {category}, sources: {source}")
+    logger.info(f"Search query: '{q}', date_filter: {date_filter}, categories: {category}, sources: {source}, venues: {venue}")
 
     # Get events list
-    events = _fetch_events(q, date_filter, category, source, free_only, specific_date, favorites_only, session)
+    events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session)
     logger.info(f"Found {len(events)} events for query '{q}'")
 
     # Track search
@@ -1552,7 +1563,7 @@ def update_all_filters(q: str = '', date_filter: str = 'upcoming', category: Lis
     events_html = events_list(events, session)
 
     # Get filter tallies
-    tallies_html = filter_tallies_section(date_filter, category, source, free_only, specific_date, favorites_only)
+    tallies_html = filter_tallies_section(date_filter, category, source, venue, free_only, specific_date, favorites_only)
 
     # Get date picker
     if date_filter == 'specific_date':
@@ -1654,10 +1665,10 @@ def remove_from_favorites(event_id: int, session):
 
 
 @rt('/api/events')
-def get_events_json(request: Request, q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
+def get_events_json(request: Request, q: str = '', date_filter: str = 'upcoming', category: List[str] = None, source: List[str] = None, venue: List[str] = None, free_only: str = '', specific_date: str = '', favorites_only: str = '', session=None):
     """API endpoint to get events as JSON."""
 
-    events = _fetch_events(q, date_filter, category, source, free_only, specific_date, favorites_only, session)
+    events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session)
 
     from starlette.responses import JSONResponse
     return JSONResponse([event.to_dict() for event in events])

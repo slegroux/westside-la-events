@@ -168,6 +168,22 @@ class Database:
                 ON events(is_free)
             """)
 
+            # Composite indexes for common filter combinations
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_date_category
+                ON events(event_date, category)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_date_source
+                ON events(event_date, source)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_date_is_free
+                ON events(event_date, is_free)
+            """)
+
             # Create full-text search virtual table
             cursor.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS events_fts USING fts5(
@@ -328,6 +344,7 @@ class Database:
         date_filter: Optional[str] = None,
         categories: Optional[List[str]] = None,
         sources: Optional[List[str]] = None,
+        venues: Optional[List[str]] = None,
         min_lat: Optional[float] = None,
         max_lat: Optional[float] = None,
         min_lng: Optional[float] = None,
@@ -347,6 +364,7 @@ class Database:
                         This takes precedence over start_date/end_date for consistency with tallies
             categories: List of category filters
             sources: List of source filters
+            venues: List of venue_name filters
             min_lat: Minimum latitude
             max_lat: Maximum latitude
             min_lng: Minimum longitude
@@ -409,6 +427,12 @@ class Database:
                 placeholders = ','.join('?' * len(sources))
                 conditions.append(f"source IN ({placeholders})")
                 params.extend(sources)
+
+            # Venues (venue_name filter)
+            if venues:
+                placeholders = ','.join('?' * len(venues))
+                conditions.append(f"venue_name IN ({placeholders})")
+                params.extend(venues)
 
             # Free events filter
             if is_free is not None:

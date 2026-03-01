@@ -23,10 +23,17 @@ class SantaMonicaEventsScraper(BaseScraper):
         self.events_url = f'{self.base_url}/events/'
 
     def scrape(self) -> List[Event]:
-        """Scrape events from santamonica.com."""
+        """Scrape events from santamonica.com via Tribe Events REST API."""
         self.log("Starting scrape...")
         events: List[Event] = []
 
+        api_events = self._scrape_via_api()
+        if api_events:
+            self.log(f"Successfully scraped {len(api_events)} events via API")
+            return api_events
+
+        # Fallback: HTML scraping (requires JS rendering)
+        self.log("API unavailable, falling back to HTML scraping...")
         html = self.fetch_page(self.events_url)
         if not html:
             self.log("Failed to fetch events page")
@@ -35,7 +42,6 @@ class SantaMonicaEventsScraper(BaseScraper):
         soup = self.parse_html(html)
         detail_urls = self._extract_event_urls(soup)
 
-        # Fallback to JS-rendered HTML if server HTML has no event links.
         if not detail_urls:
             self.log("No event links found in static HTML, trying JS rendering...")
             html_js = self.fetch_page_js(
@@ -64,6 +70,113 @@ class SantaMonicaEventsScraper(BaseScraper):
 
         self.log(f"Successfully scraped {len(events)} events")
         return events
+
+    def _scrape_via_api(self) -> List[Event]:
+        """Fetch events using the Tribe Events REST API."""
+        from datetime import datetime
+        events: List[Event] = []
+        api_url = f'{self.base_url}/wp-json/tribe/events/v1/events'
+        page = 1
+
+        while True:
+            try:
+                resp = self.session.get(
+                    api_url,
+                    params={
+                        'per_page': 50,
+                        'page': page,
+                        'start_date': datetime.now().strftime('%Y-%m-%d'),
+                        'status': 'publish',
+                    },
+                    timeout=20,
+                )
+                if resp.status_code != 200:
+                    self.log(f"API returned {resp.status_code} on page {page}")
+                    break
+
+                data = resp.json()
+                api_events = data.get('events', [])
+                if not api_events:
+                    break
+
+                for raw in api_events:
+                    try:
+                        event = self._parse_api_event(raw)
+                        if event:
+                            events.append(event)
+                    except Exception as e:
+                        self.log(f"Error parsing API event: {e}")
+
+                total_pages = data.get('total_pages', 1)
+                if page >= total_pages or page >= 5:  # cap at 5 pages (~250 events)
+                    break
+                page += 1
+
+            except Exception as e:
+                self.log(f"API fetch error on page {page}: {e}")
+                break
+
+        return events
+
+    def _parse_api_event(self, raw: Dict[str, Any]) -> Optional[Event]:
+        """Parse a single event from the Tribe Events API response."""
+        import html as html_lib
+
+        title = self.clean_text(html_lib.unescape(raw.get('title', '') or ''))
+        if not title:
+            return None
+
+        description = self.clean_text(self._strip_html(raw.get('description', '') or ''))
+        if not description:
+            description = self.clean_text(self._strip_html(raw.get('excerpt', '') or ''))
+
+        event_date = self._parse_datetime(raw.get('start_date'))
+        end_date = self._parse_datetime(raw.get('end_date'))
+
+        # Venue from the 'venue' object
+        venue = raw.get('venue') or {}
+        venue_name = self.clean_text(html_lib.unescape(venue.get('venue', '') or ''))
+        address_parts = [
+            venue.get('address', ''),
+            venue.get('city', ''),
+            venue.get('stateprovince', ''),
+            venue.get('zip', ''),
+        ]
+        address = ', '.join(p for p in address_parts if p) or 'Santa Monica, CA'
+
+        # Prefer the event's own website (venue/ticketing link) over the santamonica.com listing
+        url = raw.get('website') or raw.get('url', self.events_url)
+        image_url = raw.get('image', {}).get('url', '') if isinstance(raw.get('image'), dict) else ''
+
+        # Price from cost field
+        is_free = False
+        price = None
+        price_note = 'TBD'
+        cost = str(raw.get('cost', '') or '').strip()
+        if cost.lower() == 'free' or cost == '0':
+            is_free = True
+            price = 0.0
+            price_note = 'Free'
+        elif cost:
+            import re
+            m = re.search(r'\$(\d+(?:\.\d{2})?)', cost)
+            if m:
+                price = float(m.group(1))
+            price_note = cost
+
+        return self.create_event(
+            title=title,
+            description=description,
+            venue_name=venue_name,
+            address=address,
+            event_date=event_date,
+            end_date=end_date,
+            url=url,
+            image_url=image_url,
+            price=price,
+            is_free=is_free,
+            price_note=price_note,
+        )
 
     def _extract_event_urls(self, soup) -> Set[str]:
         """Extract event detail URLs from listing page."""
@@ -137,6 +250,13 @@ class SantaMonicaEventsScraper(BaseScraper):
         image_url = self._extract_image(data.get('image') if data else None)
         price, is_free, price_note = self._extract_pricing(data.get('offers') if data else None)
 
+        # Prefer the venue's own website over the santamonica.com listing URL
+        visit_link = soup.find('a', string=lambda t: t and 'Visit Website' in t)
+        if visit_link and visit_link.get('href', '').startswith('http'):
+            event_url = visit_link['href']
+        else:
+            event_url = url
+
         return self.create_event(
             title=title,
             description=description,
@@ -144,7 +264,7 @@ class SantaMonicaEventsScraper(BaseScraper):
             address=address,
             event_date=event_date,
             end_date=end_date,
-            url=url,
+            url=event_url,
             image_url=image_url,
             price=price,
             is_free=is_free,
