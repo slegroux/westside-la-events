@@ -91,8 +91,9 @@ class DiscoverLAScraper(BaseScraper):
         event_url = link.get('href', '')
         url = self.normalize_url(event_url, self.base_url)
 
-        # Extract category
-        category = link.get('data-category', '').strip()
+        # Extract category and normalize to standard set
+        raw_category = link.get('data-category', '').strip()
+        category = self._normalize_category(raw_category)
 
         # Extract venue information
         venue_name = link.get('data-venue', '').strip()
@@ -167,6 +168,37 @@ class DiscoverLAScraper(BaseScraper):
             price=price,
             is_free=is_free
         )
+
+    # Map Discover LA's raw category tags to standard categories
+    _CATEGORY_MAP = {
+        'arts & theatre': 'Theater',
+        'theatre': 'Theater',
+        'art': 'Art',
+        'museums': 'Art',
+        'art & museums': 'Art',
+        'music': 'Music',
+        'food & drink': 'Food & Drink',
+        'food': 'Food & Drink',
+        'sports & active': 'Sports',
+        'sports': 'Sports',
+        'outdoors & adventure': 'Wellness',
+        'outdoors': 'Wellness',
+        'film': 'Film',
+        'nightlife': 'Nightlife',
+        'family & kids': 'Family',
+        'family': 'Family',
+        'kids': 'Family',
+        'educational': 'Education',
+        'education': 'Education',
+        'community': 'Community',
+        'tech': 'Tech',
+        'wellness': 'Wellness',
+        'comedy': 'Comedy',
+    }
+
+    def _normalize_category(self, raw: str) -> str:
+        """Map a raw Discover LA category tag to a standard category name."""
+        return self._CATEGORY_MAP.get(raw.lower(), 'Other')
 
     def _fetch_event_details(self, url: str) -> dict:
         """

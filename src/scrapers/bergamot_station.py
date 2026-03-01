@@ -154,7 +154,7 @@ class BergamotStationScraper(BaseScraper):
                 image_url = self.normalize_url(image_url, self.base_url)
 
         # Category - art galleries and exhibitions
-        category = "Art & Museums"
+        category = "Art"
 
         # Price info - typically free admission
         is_free = True

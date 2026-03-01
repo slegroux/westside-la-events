@@ -140,15 +140,15 @@ class FowlerMuseumScraper(BaseScraper):
         # Look for category indicators
         text_lower = item.get_text().lower()
         if 'talk' in text_lower or 'lecture' in text_lower:
-            category = 'Education & Learning'
+            category = 'Education'
         elif 'screening' in text_lower or 'film' in text_lower:
-            category = 'Film & Screenings'
+            category = 'Film'
         elif 'exhibition' in text_lower:
-            category = 'Art & Museums'
+            category = 'Art'
         elif 'performance' in text_lower:
-            category = 'Performing Arts'
+            category = 'Theater'
         elif 'workshop' in text_lower:
-            category = 'Education & Learning'
+            category = 'Education'
 
         # Venue info - UCLA Fowler Museum
         venue_name = "UCLA Fowler Museum"

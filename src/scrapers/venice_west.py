@@ -334,17 +334,17 @@ class VeniceWestScraper(BaseScraper):
 
         # Priority matching based on tags
         if any(tag in tags_lower for tag in ['live music', 'concert']):
-            return 'music'
+            return 'Music'
         elif any(tag in tags_lower for tag in ['brunch', 'bottomless mimosas', 'mimosas']):
-            return 'food'
+            return 'Food & Drink'
         elif any(tag in tags_lower for tag in ['trivia', 'bingo', 'game']):
-            return 'entertainment'
+            return 'Music'
         elif any(tag in tags_lower for tag in ['grateful dead', 'jerry garcia']):
-            return 'music'
+            return 'Music'
         elif 'line dancing' in title_lower or 'dance' in title_lower:
-            return 'entertainment'
+            return 'Music'
         elif 'tribute' in title_lower or 'band' in title_lower:
-            return 'music'
+            return 'Music'
         else:
             # Default to music since Venice West is primarily a music venue
-            return 'music'
+            return 'Music'

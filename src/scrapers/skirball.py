@@ -118,15 +118,15 @@ class SkirballScraper(BaseScraper):
         if cat_elem:
             cat_text = self.clean_text(cat_elem.get_text()).lower()
             if 'film' in cat_text or 'screening' in cat_text:
-                category = 'Film & Screenings'
+                category = 'Film'
             elif 'music' in cat_text or 'concert' in cat_text:
-                category = 'Music & Concerts'
+                category = 'Music'
             elif 'performance' in cat_text or 'theater' in cat_text:
-                category = 'Performing Arts'
+                category = 'Theater'
             elif 'family' in cat_text or 'kids' in cat_text:
-                category = 'Family & Kids'
+                category = 'Family'
             else:
-                category = 'Arts & Culture'
+                category = 'Art'
 
         # Venue info - Skirball Cultural Center in Brentwood
         venue_name = "Skirball Cultural Center"

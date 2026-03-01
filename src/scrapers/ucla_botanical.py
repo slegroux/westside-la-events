@@ -356,19 +356,18 @@ class UCLABotanicalScraper(BaseScraper):
 
         # Check for specific event types
         if any(word in text for word in ['workshop', 'class', 'wreath', 'craft', 'making']):
-            return 'workshop'
+            return 'Education'
         elif any(word in text for word in ['tour', 'walk', 'garden walk', 'guided']):
-            return 'tours'
+            return 'Education'
         elif any(word in text for word in ['plant sale', 'sale', 'marketplace']):
-            return 'shopping'
+            return 'Community'
         elif any(word in text for word in ['lecture', 'talk', 'presentation', 'discussion']):
-            return 'education'
+            return 'Education'
         elif any(word in text for word in ['family', 'kids', 'children', 'youth']):
-            return 'family'
+            return 'Family'
         elif any(word in text for word in ['music', 'concert', 'performance']):
-            return 'music'
+            return 'Music'
         elif any(word in text for word in ['volunteer', 'volunteering']):
-            return 'community'
+            return 'Community'
         else:
-            # Default to nature/outdoors for botanical garden
-            return 'outdoors'
+            return 'Education'

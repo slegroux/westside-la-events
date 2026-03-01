@@ -129,7 +129,7 @@ class BroadStageScraper(BaseScraper):
                 image_url = self.normalize_url(image_url, self.base_url)
 
         # Category - performing arts venue
-        category = "Performing Arts"
+        category = "Theater"
 
         # Price info
         is_free = False

@@ -136,7 +136,7 @@ class GeffenPlayhouseScraper(BaseScraper):
                 image_url = self.normalize_url(image_url, self.base_url)
 
         # Category - all are theater performances
-        category = "Performing Arts"
+        category = "Theater"
 
         # Price info
         is_free = False

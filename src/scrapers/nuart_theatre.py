@@ -33,10 +33,11 @@ class NuartTheatreScraper(BaseScraper):
 
         try:
             # Fetch the page with JavaScript rendering
+            # Use domcontentloaded + extra wait since networkidle never fires
             html = self.fetch_page_js(
                 self.theatre_url,
-                wait_selector='.css-19kfbo9, [class*="movie"], article',
-                timeout=45000
+                wait_selector='a[href*="/movies/"]',
+                timeout=35000
             )
             if not html:
                 self.log("Failed to fetch theatre page")
@@ -44,21 +45,18 @@ class NuartTheatreScraper(BaseScraper):
 
             soup = self.parse_html(html)
 
-            # Find movie cards or article elements
-            movie_items = soup.find_all(['article', 'div'], class_=re.compile(r'movie|film|card', re.IGNORECASE))
+            # Each currently-showing film has an <a href="/movies/..."> containing title + director <p> tags
+            movie_links = soup.find_all('a', href=lambda x: x and '/movies/' in str(x))
 
-            if not movie_items:
-                # Try alternative selector
-                movie_items = soup.find_all('a', href=re.compile(r'/film/|/movie/'))
+            self.log(f"Found {len(movie_links)} movie links")
 
-            self.log(f"Found {len(movie_items)} movie items")
-
-            seen_titles = set()
-            for item in movie_items:
+            seen_urls = set()
+            for link in movie_links:
                 try:
-                    event = self._parse_event(item)
-                    if event and event.title not in seen_titles:
-                        seen_titles.add(event.title)
+                    event = self._parse_event(link)
+                    url = self.normalize_url(link.get('href', ''), self.base_url)
+                    if event and url not in seen_urls:
+                        seen_urls.add(url)
                         events.append(event)
                 except Exception as e:
                     self.log(f"Error parsing event: {e}")
@@ -83,29 +81,22 @@ class NuartTheatreScraper(BaseScraper):
         Returns:
             Event object or None
         """
-        # Extract title
-        title_elem = item.find(['h1', 'h2', 'h3', 'h4'])
-        if not title_elem:
-            title_elem = item.find('a', href=True)
-
-        if not title_elem:
+        # Each item is an <a> tag with movie name and director in deeply nested text
+        # Use separator to get ordered text chunks: "TITLE|A film by DIRECTOR"
+        parts = [p for p in item.get_text(separator='|', strip=True).split('|') if p]
+        if not parts:
             return None
 
-        title = self.clean_text(title_elem.get_text())
-        if not title:
+        title = self.clean_text(parts[0])
+        if not title or title.lower().startswith('a film by'):
             return None
 
-        # Extract URL
-        url = self.theatre_url
-        link = item.find('a', href=True)
-        if link:
-            url = self.normalize_url(link['href'], self.base_url)
+        # Build description from director credit
+        director_parts = [p for p in parts[1:] if p.lower().startswith('a film by')]
+        description = self.clean_text(director_parts[0]) if director_parts else ""
 
-        # Extract description
-        description = ""
-        desc_elem = item.find('p')
-        if desc_elem:
-            description = self.clean_text(desc_elem.get_text())
+        # Extract URL from the link itself
+        url = self.normalize_url(item.get('href', self.theatre_url), self.base_url)
 
         # Extract date/time - Nuart often has specific showtimes
         event_date = None
@@ -135,7 +126,7 @@ class NuartTheatreScraper(BaseScraper):
                 image_url = self.normalize_url(image_url, self.base_url)
 
         # Category - film screenings
-        category = "Film & Screenings"
+        category = "Film"
 
         # Price info
         is_free = False
