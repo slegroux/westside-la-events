@@ -213,6 +213,58 @@ def setup_routes(rt, state):
 
         return HTMLResponse(to_xml(result))
 
+    @rt('/event/{event_id}')
+    def get_event_detail(event_id: int, session=None):
+        """Event detail page."""
+        from src.web.components import page_head, page_header, page_footer
+        event = state.db.get_event(event_id)
+
+        if config.ENABLE_ANALYTICS and state.analytics and event:
+            try:
+                session_id = get_session_id(session)
+                state.analytics.track_event_view(
+                    session_id=session_id,
+                    event_id=event_id,
+                    source=event.source,
+                    category=event.category
+                )
+            except Exception:
+                pass
+
+        if not event:
+            return Title('Event Not Found'), Main(
+                page_header(),
+                Div(
+                    H1('Event Not Found'),
+                    P('The event you are looking for does not exist or has been removed.'),
+                    A('← Back to events', href='/'),
+                    cls='container'
+                ),
+                page_footer()
+            )
+
+        return Title(event.title), Main(
+            page_header(),
+            Div(
+                H1(event.title),
+                P(event.venue_name) if event.venue_name else None,
+                P(event.address) if event.address else None,
+                P(event.description) if event.description else None,
+                A('← Back to events', href='/'),
+                cls='container event-detail'
+            ),
+            page_footer()
+        )
+
+    @rt('/api/events/{event_id}')
+    def get_single_event_json(event_id: int):
+        """API endpoint to get a single event as JSON."""
+        from starlette.responses import JSONResponse
+        event = state.db.get_event(event_id)
+        if not event:
+            return JSONResponse({'error': 'Event not found'}, status_code=404)
+        return JSONResponse(event.to_dict())
+
     @rt('/api/events')
     def get_events_json(
         request: Request,
