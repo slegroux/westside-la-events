@@ -35,6 +35,8 @@ class BaseScraper(ABC):
         self.session.headers.update({
             'User-Agent': config.SCRAPER_CONFIG['user_agent']
         })
+        # Provide a default URL attribute so generic scraper checks can rely on it.
+        self.base_url = ""
         self._page_cache = {}
 
         # Allow disabling logo fetches in constrained/offline environments.
