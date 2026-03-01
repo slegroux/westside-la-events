@@ -41,15 +41,8 @@ RUN playwright install --with-deps chromium && \
 # Copy application code (this changes most frequently, so it's last)
 COPY . .
 
-# Create data directory for SQLite
+# Ensure data directory exists (COPY . . creates it if data/ exists locally)
 RUN mkdir -p /app/data
-
-# Copy bundled database files if they exist (for faster cold starts)
-# These will be copied from local data/ directory during docker build
-# The deployment script should download fresh data before building
-RUN if [ -f data/events.db ]; then cp data/events.db /app/data/events.db; fi && \
-    if [ -f data/analytics.db ]; then cp data/analytics.db /app/data/analytics.db; fi && \
-    if [ -f data/geocode_cache.json ]; then cp data/geocode_cache.json /app/data/geocode_cache.json; fi
 
 # Set environment variables
 # IMPORTANT: Set timezone to America/Los_Angeles (PST/PDT) since events are in local LA time
