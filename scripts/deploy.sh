@@ -306,11 +306,12 @@ else
         echo "  Updating existing scheduler job..."
         gcloud scheduler jobs update http ${SCHEDULER_JOB} \
             --location=${REGION} \
-            --schedule="0 12 * * *" \
+            --schedule="0 4 * * *" \
             --time-zone="America/Los_Angeles" \
             --uri="${SCRAPER_URL}" \
             --http-method=POST \
-            --headers="Authorization=Bearer ${SCRAPER_TOKEN}" \
+            --clear-headers \
+            --update-headers="Authorization=Bearer ${SCRAPER_TOKEN}" \
             --attempt-deadline=600s \
             --quiet
     else
