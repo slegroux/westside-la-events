@@ -34,15 +34,16 @@ class AeroTheaterScraper(BaseScraper):
 
         try:
             # Quick reachability check — lets tests mock fetch_page to short-circuit
-            if self.fetch_page(self.base_url) is None:
+            if self.fetch_page(self.base_url, retry=1) is None:
                 self.log("Site unreachable, aborting")
                 return events
 
             # Fetch events from API (paginated)
             page = 1
+            max_pages = 3  # Cap pages to avoid timeout
             per_page = 50  # Use smaller page size since _embed is slower
 
-            while True:
+            while page <= max_pages:
                 params = {
                     'per_page': per_page,
                     'page': page,
@@ -51,7 +52,7 @@ class AeroTheaterScraper(BaseScraper):
                 }
 
                 self.log(f"Fetching page {page} from API...")
-                response = self.session.get(self.api_url, params=params, timeout=120)
+                response = self.session.get(self.api_url, params=params, timeout=30)
 
                 if response.status_code != 200:
                     self.log(f"API returned status {response.status_code}")

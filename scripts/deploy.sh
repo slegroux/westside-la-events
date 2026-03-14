@@ -221,7 +221,7 @@ else
 fi
 
 # Prepare environment variables
-ENV_VARS="ENVIRONMENT=production"
+ENV_VARS="ENVIRONMENT=production,NTFY_TOPIC=westside-events-scraper"
 
 # Add environment variables from file if provided
 if [ -n "$ENV_FILE" ]; then
@@ -285,6 +285,47 @@ if curl -f -s -o /dev/null -w "%{http_code}" "${SERVICE_URL}" | grep -q "200\|30
 else
     echo "⚠️  Warning: Service may not be responding correctly"
     echo "Check logs: gcloud run logs read ${SERVICE_NAME} --region ${REGION} --limit 50"
+fi
+
+# Set up Cloud Scheduler for daily scraping
+echo ""
+echo "⏰ Setting up Cloud Scheduler for daily scraping..."
+SCHEDULER_JOB="scrape-daily"
+SCRAPER_URL="${SERVICE_URL}/api/run-scrapers"
+
+# Retrieve the SCRAPER_TOKEN from Secret Manager
+SCRAPER_TOKEN=$(gcloud secrets versions access latest --secret=scraper-token 2>/dev/null || true)
+
+if [ -z "$SCRAPER_TOKEN" ]; then
+    echo "  ⚠️  Warning: SCRAPER_TOKEN secret not found in Secret Manager"
+    echo "  Cloud Scheduler job will NOT be created."
+    echo "  To fix: echo -n 'your-token' | gcloud secrets create scraper-token --data-file=-"
+else
+    # Check if the job already exists
+    if gcloud scheduler jobs describe ${SCHEDULER_JOB} --location=${REGION} &>/dev/null; then
+        echo "  Updating existing scheduler job..."
+        gcloud scheduler jobs update http ${SCHEDULER_JOB} \
+            --location=${REGION} \
+            --schedule="0 12 * * *" \
+            --time-zone="America/Los_Angeles" \
+            --uri="${SCRAPER_URL}" \
+            --http-method=POST \
+            --headers="Authorization=Bearer ${SCRAPER_TOKEN}" \
+            --attempt-deadline=600s \
+            --quiet
+    else
+        echo "  Creating new scheduler job..."
+        gcloud scheduler jobs create http ${SCHEDULER_JOB} \
+            --location=${REGION} \
+            --schedule="0 4 * * *" \
+            --time-zone="America/Los_Angeles" \
+            --uri="${SCRAPER_URL}" \
+            --http-method=POST \
+            --headers="Authorization=Bearer ${SCRAPER_TOKEN}" \
+            --attempt-deadline=600s \
+            --quiet
+    fi
+    echo "  ✅ Cloud Scheduler job '${SCHEDULER_JOB}' configured (daily at 4 AM PST)"
 fi
 
 # Display deployment info

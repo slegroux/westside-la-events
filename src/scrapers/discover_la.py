@@ -43,13 +43,19 @@ class DiscoverLAScraper(BaseScraper):
             self.log(f"Found {len(event_articles)} event articles")
 
             # Collect detail URLs and prefetch them concurrently
+            # Cap at 60 to stay well within the 120s scraper timeout
+            MAX_EVENTS = 60
             detail_urls = []
             for article in event_articles:
                 link = article.find('a', href=True)
                 if link:
                     detail_urls.append(self.normalize_url(link.get('href', ''), self.base_url))
+            if len(detail_urls) > MAX_EVENTS:
+                self.log(f"Capping from {len(detail_urls)} to {MAX_EVENTS} detail pages to avoid timeout")
+                detail_urls = detail_urls[:MAX_EVENTS]
+                event_articles = event_articles[:MAX_EVENTS]
             if detail_urls:
-                self.prefetch_pages(detail_urls)
+                self.prefetch_pages(detail_urls, max_concurrent=10)
 
             for article in event_articles:
                 try:

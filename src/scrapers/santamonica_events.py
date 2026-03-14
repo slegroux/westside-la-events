@@ -47,7 +47,7 @@ class SantaMonicaEventsScraper(BaseScraper):
             html_js = self.fetch_page_js(
                 self.events_url,
                 wait_selector='a[href*="/event/"]',
-                timeout=45000
+                timeout=30000
             )
             if html_js:
                 soup_js = self.parse_html(html_js)
@@ -56,6 +56,12 @@ class SantaMonicaEventsScraper(BaseScraper):
         if not detail_urls:
             self.log("No event detail URLs found")
             return events
+
+        # Cap detail pages to stay within timeout budget
+        MAX_DETAIL_PAGES = 50
+        if len(detail_urls) > MAX_DETAIL_PAGES:
+            self.log(f"Capping from {len(detail_urls)} to {MAX_DETAIL_PAGES} detail pages")
+            detail_urls = set(sorted(detail_urls)[:MAX_DETAIL_PAGES])
 
         self.log(f"Found {len(detail_urls)} event detail URLs")
         self.prefetch_pages(sorted(detail_urls), max_concurrent=8)
@@ -88,7 +94,7 @@ class SantaMonicaEventsScraper(BaseScraper):
                         'start_date': datetime.now().strftime('%Y-%m-%d'),
                         'status': 'publish',
                     },
-                    timeout=20,
+                    timeout=15,
                 )
                 if resp.status_code != 200:
                     self.log(f"API returned {resp.status_code} on page {page}")

@@ -322,6 +322,30 @@ async def main_async():
     print(f"\nTotal events in database: {len(all_events)}")
     print("="*60 + "\n")
 
+    # Send notification via ntfy.sh
+    ntfy_topic = os.getenv('NTFY_TOPIC', 'westside-events-scraper')
+    try:
+        import requests as req
+        failed_names = ', '.join(r.source for r in failed) if failed else 'none'
+        title = f"Scrapers: {len(successful)}/{len(results)} OK, {counts['saved']} new events"
+        body = (
+            f"Saved: {counts['saved']} | Skipped: {counts['skipped']} | Total in DB: {len(all_events)}\n"
+            f"Failed ({len(failed)}): {failed_names}\n"
+            f"Time: {total_time:.0f}s"
+        )
+        req.post(
+            f"https://ntfy.sh/{ntfy_topic}",
+            data=body.encode('utf-8'),
+            headers={
+                "Title": title,
+                "Tags": "white_check_mark" if not failed else "warning",
+            },
+            timeout=10,
+        )
+        print(f"✓ Notification sent to ntfy.sh/{ntfy_topic}")
+    except Exception as e:
+        print(f"⚠ Failed to send notification: {e}")
+
     # Upload to Cloud Storage if running in production
     if os.getenv('ENVIRONMENT') == 'production' and counts['saved'] > 0:
         print("\n" + "="*60)

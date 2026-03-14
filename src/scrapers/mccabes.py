@@ -58,13 +58,18 @@ class McCabesScraper(BaseScraper):
             self.log(f"Found {len(concert_items)} concert items")
 
             # Collect detail URLs and prefetch them concurrently
+            # Cap detail pages to avoid timeout when site returns 503s
+            MAX_DETAIL_PAGES = 30
             detail_urls = []
             for item in concert_items:
                 link = item.find('a', href=True)
                 if link:
                     detail_urls.append(self.normalize_url(link['href'], self.base_url))
+            if len(detail_urls) > MAX_DETAIL_PAGES:
+                self.log(f"Capping detail page fetches from {len(detail_urls)} to {MAX_DETAIL_PAGES}")
+                detail_urls = detail_urls[:MAX_DETAIL_PAGES]
             if detail_urls:
-                self.prefetch_pages(detail_urls)
+                self.prefetch_pages(detail_urls, max_concurrent=5)
 
             for item in concert_items:
                 try:
@@ -209,7 +214,8 @@ class McCabesScraper(BaseScraper):
             Dictionary with price, price_note, and is_free keys
         """
         try:
-            html = self.fetch_page(url)
+            # Use only 1 retry with short timeout to avoid burning time on 503s
+            html = self.fetch_page(url, retry=1)
             if not html:
                 return None
 

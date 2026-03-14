@@ -103,7 +103,9 @@ class BaseScraper(ABC):
             cached = self._page_cache.pop(url)
             if cached is not None:
                 return cached
-            # Prefetch failed for this URL, fall through to sequential fetch
+            # Prefetch already tried and failed for this URL; don't retry
+            # sequentially as that would burn timeout budget on unreachable pages
+            return None
 
         for attempt in range(retry):
             try:
