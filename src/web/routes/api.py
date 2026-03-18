@@ -98,13 +98,30 @@ def setup_routes(rt, state):
         try:
             project_root = Path(__file__).resolve().parents[3]
 
+            # GCSFuse mounts /app/data as a Cloud Storage bucket, but SQLite WAL
+            # mode needs random-access writes to -shm files which GCSFuse cannot
+            # handle (BufferedWriteHandler.OutOfOrderError).  Work around this by
+            # scraping into a local /tmp directory and letting the existing gsutil
+            # upload in run_scrapers.py push the result back to Cloud Storage.
+            import shutil
+            tmp_db = '/tmp/events.db'
+            src_db = os.path.join(str(project_root), 'data', 'events.db')
+            if os.path.exists(src_db):
+                shutil.copy2(src_db, tmp_db)
+
+            env = os.environ.copy()
+            env['DATABASE_PATH'] = tmp_db
+
+            # Log scraper output for debugging instead of discarding it.
+            log_file = open('/tmp/scraper.log', 'w')
+
             # Start scrapers in background (non-blocking)
-            # Redirect output to DEVNULL to avoid deadlocks from unconsumed pipe buffers.
             subprocess.Popen(
                 [sys.executable, 'run_scrapers.py'],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
                 cwd=str(project_root),
+                env=env,
                 start_new_session=True,  # Detach from parent process
                 close_fds=True
             )
