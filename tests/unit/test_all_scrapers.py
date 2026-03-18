@@ -143,10 +143,16 @@ class TestScraperBasicFunctionality:
         assert isinstance(result, list), f"{expected_name} scraper should return a list"
 
     @pytest.mark.parametrize("scraper_class,expected_name", SCRAPERS)
+    @patch('requests.Session.get')
     @patch('src.scrapers.base.BaseScraper.fetch_page')
-    def test_scraper_handles_failed_fetch(self, mock_fetch, scraper_class, expected_name, mock_geocoding_service):
+    def test_scraper_handles_failed_fetch(self, mock_fetch, mock_session_get, scraper_class, expected_name, mock_geocoding_service):
         """Test that scrapers handle failed page fetches gracefully."""
         mock_fetch.return_value = None
+        # Also mock session.get for scrapers that use APIs directly
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.json.side_effect = Exception('mocked failure')
+        mock_session_get.return_value = mock_response
 
         scraper = scraper_class()
         events = scraper.scrape()
@@ -260,7 +266,7 @@ class TestSpecificScrapers:
         """Test KCRW scraper specific properties."""
         scraper = KCRWScraper()
         assert scraper.source_name == "KCRW"
-        assert "kcrw.com" in scraper.api_url
+        assert "kcrw.com" in scraper.base_url
 
     def test_hammer_scraper_venue_info(self):
         """Test Hammer Museum scraper has correct venue info."""
@@ -290,7 +296,7 @@ class TestSpecificScrapers:
     def test_venice_west_scraper_venue_info(self):
         """Test Venice West scraper has correct venue info."""
         scraper = VeniceWestScraper()
-        assert scraper.source_name == "Venice West"
+        assert scraper.source_name == "The Venice West"
         # Venice West is a single venue
         assert hasattr(scraper, 'venue_name') or hasattr(scraper, 'calendar_url')
 
@@ -303,7 +309,7 @@ class TestSpecificScrapers:
     def test_westside_comedy_scraper(self):
         """Test Westside Comedy scraper configuration."""
         scraper = WestsideComedyScraper()
-        assert scraper.source_name == "Westside Comedy"
+        assert scraper.source_name == "M.I.'s Westside Comedy Theater"
 
 
 @pytest.mark.unit
