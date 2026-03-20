@@ -53,8 +53,8 @@ ENV PYTHONUNBUFFERED=1 \
     TZ=America/Los_Angeles \
     # Reduce Python startup time
     PYTHONHASHSEED=0 \
-    # Skip database download on startup (database is bundled in image)
-    SKIP_DB_DOWNLOAD=true
+    # Download latest database from Cloud Storage on startup
+    SKIP_DB_DOWNLOAD=false
 
 # Expose port (Cloud Run will set $PORT environment variable)
 EXPOSE 8080

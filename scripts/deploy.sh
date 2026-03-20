@@ -254,6 +254,7 @@ gcloud run deploy ${SERVICE_NAME} \
     --memory 2Gi \
     --cpu 2 \
     --timeout 300 \
+    --no-cpu-throttling \
     --set-env-vars "${ENV_VARS}" \
     --max-instances 10 \
     --min-instances 0
