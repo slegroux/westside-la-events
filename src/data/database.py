@@ -347,32 +347,36 @@ class Database:
         """
         Build a SQL condition fragment for the given date filter.
 
-        All event_date values are stored as naive local-time strings
-        ('YYYY-MM-DD HH:MM:SS') so plain SQLite date/datetime comparisons
-        work without substr() stripping.
+        Some event_date values include timezone offsets (e.g.
+        '2026-03-20 19:00:00-07:00') even though all times are LA local.
+        SQLite's date() converts those to UTC before extracting the date,
+        which shifts evening events to the next day.  Use substr() to
+        extract the raw YYYY-MM-DD prefix so comparisons stay in local time.
 
         Returns:
             (sql_condition, params) – sql_condition contains no trailing AND;
             params is a list of values to bind (usually empty except for
             specific_date mode which binds two datetime objects).
         """
+        # Use substr to extract date without timezone conversion
+        _D = "substr(event_date, 1, 10)"
         _FIXED = {
-            'today':        "date(event_date) = date('now', 'localtime')",
-            'tomorrow':     "date(event_date) = date('now', 'localtime', '+1 day')",
+            'today':        f"{_D} = date('now', 'localtime')",
+            'tomorrow':     f"{_D} = date('now', 'localtime', '+1 day')",
             'today_tomorrow': (
-                "date(event_date) BETWEEN date('now', 'localtime') "
+                f"{_D} BETWEEN date('now', 'localtime') "
                 "AND date('now', 'localtime', '+1 day')"
             ),
             'this_week': (
-                "datetime(event_date) >= datetime('now', 'localtime') "
-                "AND datetime(event_date) < datetime('now', 'localtime', 'weekday 0', '+7 days')"
-            ),
+                f"{_D} >= date('now', 'localtime') "
+                "AND {_D} < date('now', 'localtime', 'weekday 0', '+7 days')"
+            ).format(_D=_D),
             'this_weekend': (
-                "date(event_date) IN "
+                f"{_D} IN "
                 "(date('now', 'localtime', 'weekday 6'), "
                 "date('now', 'localtime', 'weekday 0', '+7 days'))"
             ),
-            'this_month':   "strftime('%Y-%m', event_date) = strftime('%Y-%m', 'now', 'localtime')",
+            'this_month':   f"strftime('%Y-%m', {_D}) = strftime('%Y-%m', 'now', 'localtime')",
         }
         if date_filter == 'specific_date' and specific_date:
             try:
@@ -381,7 +385,7 @@ class Database:
                 return "event_date >= ? AND event_date < ?", [date_obj, end_dt]
             except ValueError:
                 pass  # fall through to 'upcoming'
-        return _FIXED.get(date_filter, "datetime(event_date) >= datetime('now', 'localtime')"), []
+        return _FIXED.get(date_filter, f"{_D} >= date('now', 'localtime')"), []
 
     def search_events(
         self,
@@ -628,7 +632,7 @@ class Database:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT * FROM events
-                WHERE datetime(event_date) >= datetime('now', 'localtime')
+                WHERE substr(event_date, 1, 10) >= date('now', 'localtime')
                 ORDER BY event_date ASC
                 LIMIT ?
             """, (limit,))

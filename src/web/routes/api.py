@@ -112,32 +112,37 @@ def setup_routes(rt, state):
             env = os.environ.copy()
             env['DATABASE_PATH'] = tmp_db
 
-            # Log scraper output for debugging instead of discarding it.
-            log_file = open('/tmp/scraper.log', 'w')
-
-            # Start scrapers in background (non-blocking)
-            subprocess.Popen(
+            # Run scrapers synchronously so Cloud Run keeps the instance alive
+            # for the full duration.  A background Popen gets killed when Cloud
+            # Run scales the instance to zero (~15 min of idle).
+            result = subprocess.run(
                 [sys.executable, 'run_scrapers.py'],
-                stdout=log_file,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 cwd=str(project_root),
                 env=env,
-                start_new_session=True,  # Detach from parent process
-                close_fds=True
+                timeout=3300,  # 55 min (Cloud Run timeout is 3600)
             )
 
-            # Return immediately with 202 Accepted
-            # Scrapers will complete in background and upload results
+            status = 'success' if result.returncode == 0 else 'error'
             return JSONResponse({
-                'status': 'accepted',
-                'message': 'Scraper job started in background. Results will be uploaded when complete.',
+                'status': status,
+                'returncode': result.returncode,
+                'message': result.stdout.decode('utf-8', errors='replace')[-2000:],
                 'timestamp': datetime.now().isoformat()
-            }, status_code=202)
+            }, status_code=200 if result.returncode == 0 else 500)
+
+        except subprocess.TimeoutExpired:
+            return JSONResponse({
+                'status': 'timeout',
+                'message': 'Scrapers timed out after 55 minutes',
+                'timestamp': datetime.now().isoformat()
+            }, status_code=504)
 
         except Exception as e:
             return JSONResponse({
                 'status': 'error',
-                'message': f'Failed to start scrapers: {str(e)}'
+                'message': f'Failed to run scrapers: {str(e)}'
             }, status_code=500)
 
     @rt('/api/health/database')

@@ -253,7 +253,7 @@ gcloud run deploy ${SERVICE_NAME} \
     --allow-unauthenticated \
     --memory 2Gi \
     --cpu 2 \
-    --timeout 300 \
+    --timeout 3600 \
     --no-cpu-throttling \
     --set-env-vars "${ENV_VARS}" \
     --max-instances 10 \
@@ -311,9 +311,8 @@ else
             --time-zone="America/Los_Angeles" \
             --uri="${SCRAPER_URL}" \
             --http-method=POST \
-            --clear-headers \
             --update-headers="Authorization=Bearer ${SCRAPER_TOKEN}" \
-            --attempt-deadline=600s \
+            --attempt-deadline=3600s \
             --quiet
     else
         echo "  Creating new scheduler job..."
@@ -324,7 +323,7 @@ else
             --uri="${SCRAPER_URL}" \
             --http-method=POST \
             --headers="Authorization=Bearer ${SCRAPER_TOKEN}" \
-            --attempt-deadline=600s \
+            --attempt-deadline=3600s \
             --quiet
     fi
     echo "  ✅ Cloud Scheduler job '${SCHEDULER_JOB}' configured (daily at 4 AM PST)"
