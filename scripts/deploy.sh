@@ -312,7 +312,7 @@ else
             --uri="${SCRAPER_URL}" \
             --http-method=POST \
             --update-headers="Authorization=Bearer ${SCRAPER_TOKEN}" \
-            --attempt-deadline=3600s \
+            --attempt-deadline=1800s \
             --quiet
     else
         echo "  Creating new scheduler job..."
@@ -323,7 +323,7 @@ else
             --uri="${SCRAPER_URL}" \
             --http-method=POST \
             --headers="Authorization=Bearer ${SCRAPER_TOKEN}" \
-            --attempt-deadline=3600s \
+            --attempt-deadline=1800s \
             --quiet
     fi
     echo "  ✅ Cloud Scheduler job '${SCHEDULER_JOB}' configured (daily at 4 AM PST)"
