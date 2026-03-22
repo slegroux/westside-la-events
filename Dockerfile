@@ -53,8 +53,10 @@ ENV PYTHONUNBUFFERED=1 \
     TZ=America/Los_Angeles \
     # Reduce Python startup time
     PYTHONHASHSEED=0 \
-    # Download latest database from Cloud Storage on startup
-    SKIP_DB_DOWNLOAD=false
+    # Use bundled database for fast cold starts. The deploy script bundles
+    # the latest DB from Cloud Storage into the image, and the scraper
+    # uploads fresh data to GCS after each run.
+    SKIP_DB_DOWNLOAD=true
 
 # Expose port (Cloud Run will set $PORT environment variable)
 EXPOSE 8080
