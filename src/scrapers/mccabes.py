@@ -71,7 +71,7 @@ class McCabesScraper(BaseScraper):
             if detail_urls:
                 self.prefetch_pages(detail_urls, max_concurrent=5)
 
-            for item in concert_items:
+            for item in concert_items[:MAX_DETAIL_PAGES]:
                 try:
                     event = self._parse_event(item)
                     if event:
