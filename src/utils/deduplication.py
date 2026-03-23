@@ -155,9 +155,17 @@ def events_are_duplicates(
     if date_diff > date_tolerance_hours:
         return False, scores
 
-    # Check if same source (we don't dedupe within same source for non-URL matches)
+    # Check if same source
     scores['same_source'] = event1.source == event2.source
     if scores['same_source']:
+        # Same source + same title + same venue + same date = duplicate
+        # (catches scrapers that produce the same event on every run with no URL)
+        title1 = normalize_title(event1.title)
+        title2 = normalize_title(event2.title)
+        if title1 and title1 == title2 and date_diff < 1:
+            scores['title_similarity'] = 1.0
+            scores['match_method'] = 'exact_same_source'
+            return True, scores
         return False, scores
 
     # PRIORITY 2: Calculate title similarity

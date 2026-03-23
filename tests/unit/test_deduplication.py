@@ -133,8 +133,8 @@ class TestEventsAreDuplicates:
         assert is_dup is True
         assert scores['title_similarity'] >= 0.85
 
-    def test_same_source_not_duplicate(self):
-        """Events from same source should not be considered duplicates."""
+    def test_same_source_exact_duplicate(self):
+        """Same source + exact same title + same date = duplicate."""
         event1 = Event(
             title="Same Event",
             event_date=datetime(2025, 11, 12),
@@ -142,6 +142,24 @@ class TestEventsAreDuplicates:
         )
         event2 = Event(
             title="Same Event",
+            event_date=datetime(2025, 11, 12),
+            source="KCRW"
+        )
+
+        is_dup, scores = events_are_duplicates(event1, event2)
+        assert is_dup is True
+        assert scores['same_source'] is True
+        assert scores['match_method'] == 'exact_same_source'
+
+    def test_same_source_different_title_not_duplicate(self):
+        """Same source but different titles should not be duplicates."""
+        event1 = Event(
+            title="Concert A",
+            event_date=datetime(2025, 11, 12),
+            source="KCRW"
+        )
+        event2 = Event(
+            title="Concert B",
             event_date=datetime(2025, 11, 12),
             source="KCRW"
         )

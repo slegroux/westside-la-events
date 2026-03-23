@@ -361,15 +361,13 @@ class Database:
         # Use substr to extract date without timezone conversion
         _D = "substr(event_date, 1, 10)"
         _E = "substr(end_date, 1, 10)"
-        # Floor: only include multi-day events that started within 90 days.
-        # This keeps exhibitions but filters out recurring shows stored as
-        # year-long spans (comedy nights, open mics, etc.).
+        # Floor for multi-day: only include events that started within 90 days
+        # to filter out recurring shows stored as year-long spans.
         _FLOOR = "date('now', 'localtime', '-90 days')"
 
         # _on: event is active on a specific date.
-        # Single-day events (no end_date): match only if start == date.
-        # Multi-day events (has end_date): match if date is within range
-        # and the event started within the last 90 days.
+        # Used for "today"/"tomorrow" — includes multi-day events (exhibitions)
+        # so that days with no new single-day events still show content.
         def _on(date_expr):
             return (
                 f"({_D} = {date_expr}"
@@ -377,21 +375,25 @@ class Database:
                 f" AND {_E} >= {date_expr} AND end_date IS NOT NULL))"
             )
 
-        # _between: event overlaps with a date range.
-        def _between(start_expr, end_expr):
-            return (
-                f"(({_D} >= {start_expr} AND {_D} <= {end_expr})"
-                f" OR ({_D} >= {_FLOOR} AND {_D} <= {end_expr}"
-                f" AND {_E} >= {start_expr} AND end_date IS NOT NULL))"
-            )
-
         _FIXED = {
             'today':        _on("date('now', 'localtime')"),
             'tomorrow':     _on("date('now', 'localtime', '+1 day')"),
-            'today_tomorrow': _between("date('now', 'localtime')", "date('now', 'localtime', '+1 day')"),
-            'this_week':    _between("date('now', 'localtime')", "date('now', 'localtime', 'weekday 0', '+7 days')"),
-            'this_weekend': _between("date('now', 'localtime', 'weekday 6')", "date('now', 'localtime', 'weekday 0', '+7 days')"),
-            'this_month':   _between("date('now', 'localtime', 'start of month')", "date('now', 'localtime', 'start of month', '+1 month', '-1 day')"),
+            'today_tomorrow': (
+                f"{_D} BETWEEN date('now', 'localtime') "
+                "AND date('now', 'localtime', '+1 day')"
+            ),
+            'this_week': (
+                f"{_D} >= date('now', 'localtime') "
+                f"AND {_D} < date('now', 'localtime', 'weekday 0', '+7 days')"
+            ),
+            'this_weekend': (
+                f"{_D} IN "
+                "(date('now', 'localtime', 'weekday 6'), "
+                "date('now', 'localtime', 'weekday 0', '+7 days'))"
+            ),
+            'this_month': (
+                f"strftime('%Y-%m', {_D}) = strftime('%Y-%m', 'now', 'localtime')"
+            ),
         }
         if date_filter == 'specific_date' and specific_date:
             try:
@@ -400,12 +402,7 @@ class Database:
                 return "event_date >= ? AND event_date < ?", [date_obj, end_dt]
             except ValueError:
                 pass  # fall through to 'upcoming'
-        _upcoming = (
-            f"({_D} >= date('now', 'localtime')"
-            f" OR ({_D} >= {_FLOOR} AND {_E} >= date('now', 'localtime')"
-            f" AND end_date IS NOT NULL))"
-        )
-        return _FIXED.get(date_filter, _upcoming), []
+        return _FIXED.get(date_filter, f"{_D} >= date('now', 'localtime')"), []
 
     def search_events(
         self,
