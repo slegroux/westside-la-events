@@ -398,16 +398,15 @@ class TestScraperLogging:
     """Test logging functionality in scrapers."""
 
     @pytest.mark.parametrize("scraper_class,expected_name", SCRAPERS[:3])
-    def test_scraper_log_method(self, scraper_class, expected_name, capsys):
+    def test_scraper_log_method(self, scraper_class, expected_name, caplog):
         """Test that scrapers have and can use log method."""
         scraper = scraper_class()
 
         assert hasattr(scraper, 'log')
         assert callable(scraper.log)
 
-        # Test logging
-        scraper.log("Test message")
-        captured = capsys.readouterr()
+        # Test logging via Python logging module
+        with caplog.at_level('INFO'):
+            scraper.log("Test message")
 
-        # Log should contain source name and message
-        assert expected_name in captured.out or "Test message" in captured.out
+        assert "Test message" in caplog.text

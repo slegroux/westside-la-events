@@ -25,6 +25,9 @@ from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
 
 import config
+from src.utils.logging import setup_logging
+setup_logging()
+
 from src.data.database import Database
 from src.data.models import Event
 from src.scrapers.registry import SCRAPER_MAP, get_enabled_scraper_names

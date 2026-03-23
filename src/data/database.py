@@ -361,23 +361,28 @@ class Database:
         # Use substr to extract date without timezone conversion
         _D = "substr(event_date, 1, 10)"
         _E = "substr(end_date, 1, 10)"
+        # Floor: only include multi-day events that started within 90 days.
+        # This keeps exhibitions but filters out recurring shows stored as
+        # year-long spans (comedy nights, open mics, etc.).
+        _FLOOR = "date('now', 'localtime', '-90 days')"
 
         # _on: event is active on a specific date.
         # Single-day events (no end_date): match only if start == date.
-        # Multi-day events (has end_date): match if date is within range.
+        # Multi-day events (has end_date): match if date is within range
+        # and the event started within the last 90 days.
         def _on(date_expr):
             return (
                 f"({_D} = {date_expr}"
-                f" OR ({_D} <= {date_expr} AND {_E} >= {date_expr} AND end_date IS NOT NULL))"
+                f" OR ({_D} >= {_FLOOR} AND {_D} <= {date_expr}"
+                f" AND {_E} >= {date_expr} AND end_date IS NOT NULL))"
             )
 
         # _between: event overlaps with a date range.
-        # Single-day events: start date falls within range.
-        # Multi-day events: ranges overlap.
         def _between(start_expr, end_expr):
             return (
                 f"(({_D} >= {start_expr} AND {_D} <= {end_expr})"
-                f" OR ({_E} >= {start_expr} AND {_D} <= {end_expr} AND end_date IS NOT NULL))"
+                f" OR ({_D} >= {_FLOOR} AND {_D} <= {end_expr}"
+                f" AND {_E} >= {start_expr} AND end_date IS NOT NULL))"
             )
 
         _FIXED = {
@@ -397,7 +402,8 @@ class Database:
                 pass  # fall through to 'upcoming'
         _upcoming = (
             f"({_D} >= date('now', 'localtime')"
-            f" OR ({_E} >= date('now', 'localtime') AND end_date IS NOT NULL))"
+            f" OR ({_D} >= {_FLOOR} AND {_E} >= date('now', 'localtime')"
+            f" AND end_date IS NOT NULL))"
         )
         return _FIXED.get(date_filter, _upcoming), []
 

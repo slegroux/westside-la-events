@@ -115,10 +115,13 @@ def setup_routes(rt, state):
             # Run scrapers synchronously so Cloud Run keeps the instance alive
             # for the full duration.  A background Popen gets killed when Cloud
             # Run scales the instance to zero (~15 min of idle).
+            # stdout captures summary for the response body.
+            # stderr is inherited so structured JSON logs flow to
+            # Cloud Logging with proper severity levels.
             result = subprocess.run(
                 [sys.executable, 'run_scrapers.py'],
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+                stderr=None,  # inherit — logs go to Cloud Logging
                 cwd=str(project_root),
                 env=env,
                 timeout=3300,  # 55 min (Cloud Run timeout is 3600)

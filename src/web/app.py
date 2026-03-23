@@ -7,8 +7,12 @@ all route modules. Business logic, components, and state live in separate module
 from fasthtml.common import *
 from contextlib import asynccontextmanager
 from typing import Optional
+import logging
 
 import config
+from src.utils.logging import setup_logging
+setup_logging()
+
 from src.data.database import Database
 from src.data.analytics import Analytics
 from src.search.query import EventSearch
@@ -123,9 +127,7 @@ async def not_found_handler(request, exc):
 @app.exception_handler(500)
 async def server_error_handler(request, exc):
     """Handle 500 errors."""
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.error(f'Server error: {exc}', exc_info=True)
+    logging.getLogger(__name__).error(f'Server error: {exc}', exc_info=True)
 
     content = str(Html(
         page_head('Server Error - Westside LA Events'),
@@ -148,9 +150,7 @@ async def server_error_handler(request, exc):
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
     """Catch-all handler for unhandled exceptions."""
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.error(f'Unhandled exception: {exc}', exc_info=True)
+    logging.getLogger(__name__).error(f'Unhandled exception: {exc}', exc_info=True)
 
     # In debug mode, let the error propagate to show traceback
     if config.DEBUG:

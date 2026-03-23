@@ -382,8 +382,9 @@ class BaseScraper(ABC):
         Args:
             message: Message to log
         """
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        print(f"[{timestamp}] [{self.source_name}] {message}")
+        import logging
+        logger = logging.getLogger(f"scraper.{self.source_name}")
+        logger.info(message)
 
 
 class ScraperError(Exception):
