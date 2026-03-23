@@ -157,6 +157,23 @@ def _fetch_events(
             limit=limit
         )
 
+    # For today/tomorrow filters, adjust multi-day events' display date
+    # so exhibitions show "today" instead of their original start date.
+    if date_filter in ('today', 'tomorrow') and events:
+        from datetime import date as date_type
+        now = datetime.now()
+        if date_filter == 'today':
+            target = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        else:
+            target = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        for event in events:
+            if (event.event_date and event.end_date
+                    and event.event_date < target):
+                event.event_date = target
+        # Re-sort so adjusted events don't appear before today's events
+        events.sort(key=lambda e: e.event_date if e.event_date else datetime.max)
+
     # Filter by favorites if requested
     if favorites_only == 'true' and session:
         favorite_ids = get_favorites(session)
