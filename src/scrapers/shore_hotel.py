@@ -158,7 +158,17 @@ class ShoreHotelScraper(BaseScraper):
         category = self._map_category(raw_category, title)
 
         actual_venue = venue_name or self.venue_name
-        actual_address = address or self.venue_address
+        # Prefer the parsed street address; fall back to venue name so the
+        # geocoder can place the event correctly (e.g. "Hollywood Bowl" → outside
+        # Westside → filtered out). Only use the hotel's own address when we
+        # have zero location information from the card.
+        if address:
+            actual_address = address
+        elif venue_name:
+            actual_address = venue_name
+        else:
+            actual_address = self.venue_address
+
         return self.create_event(
             title=title,
             description='',
