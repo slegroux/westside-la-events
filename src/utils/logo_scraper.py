@@ -74,6 +74,7 @@ class LogoScraper:
         'Fairmont Miramar': 'https://www.fairmont-miramar.com',
         'Santa Monica Daily Press': 'https://www.smdp.com',
         'Downtown Santa Monica': 'https://downtownsm.com',
+        'The Bungalow Santa Monica': 'https://thebungalow.com',
     }
 
     # Known logo URLs (fallback if scraping fails)
@@ -123,6 +124,7 @@ class LogoScraper:
         'The Broad Stage': 'https://broadstage.org/media/i0kdq3nu/broadstage_logo_horizontal_purple_rgb.png',
         'Nuart Theatre': 'https://www.landmarktheatres.com/apple-touch-icon.png',
         'Santa Monica Daily Press': 'https://storage.ghost.io/c/55/9f/559f9abc-8372-4a2e-8c2d-27386da4e363/content/images/2025/07/SMDP-new-logo-300x128-1-1.webp',
+        'The Bungalow Santa Monica': 'https://thebungalow.com/wp-content/uploads/2025/06/logo-santa-monica.svg',
     }
 
     def __init__(self, cache_dir: str = "static/logos"):
