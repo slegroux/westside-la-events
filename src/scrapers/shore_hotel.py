@@ -152,11 +152,13 @@ class ShoreHotelScraper(BaseScraper):
 
         category = self._map_category(raw_category, title)
 
+        actual_venue = venue_name or self.venue_name
+        actual_address = address or self.venue_address
         return self.create_event(
             title=title,
-            description=f"{raw_category} event near Shore Hotel, Santa Monica.",
-            venue_name=venue_name or self.venue_name,
-            address=address or self.venue_address,
+            description='',
+            venue_name=actual_venue,
+            address=actual_address,
             event_date=event_date,
             end_date=end_date,
             url=url,
