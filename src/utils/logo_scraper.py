@@ -70,6 +70,7 @@ class LogoScraper:
         'Skirball Cultural Center': 'https://www.skirball.org',
         'The Broad Stage': 'https://www.broadstage.org',
         'Nuart Theatre': 'https://www.landmarktheatres.com',
+        'Shore Hotel': 'https://www.shorehotel.com',
     }
 
     # Known logo URLs (fallback if scraping fails)

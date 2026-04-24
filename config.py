@@ -459,6 +459,20 @@ EVENT_SOURCES = {
         'enabled': True,
         'uses_api': False,
         'note': 'Authentic Irish pub in Santa Monica featuring sports viewing, holiday celebrations, live music, and pub events'
+    },
+    'shore_hotel': {
+        'name': 'Shore Hotel',
+        'url': 'https://www.shorehotel.com/events',
+        'enabled': True,
+        'uses_api': True,
+        'note': 'Oceanfront hotel in Santa Monica curating a local events calendar of concerts, farmers markets, festivals, and more'
+    },
+    'downtown_sm': {
+        'name': 'Downtown Santa Monica',
+        'url': 'https://downtownsm.com/events-calendar',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Official Downtown Santa Monica events calendar covering live music, markets, arts, and community events'
     }
 }
 
