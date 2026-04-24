@@ -146,15 +146,10 @@ app.exception_handlers[404] = not_found_handler
 app.exception_handlers[500] = server_error_handler
 
 
-@app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
-    """Catch-all handler for unhandled exceptions."""
     logging.getLogger(__name__).error(f'Unhandled exception: {exc}', exc_info=True)
-
-    # In debug mode, let the error propagate to show traceback
     if config.DEBUG:
         raise exc
-
     content = str(Html(
         page_head('Error - Westside LA Events'),
         Body(
@@ -171,6 +166,9 @@ async def general_exception_handler(request, exc):
         )
     ))
     return HTMLResponse(content=content, status_code=500)
+
+
+app.exception_handlers[Exception] = general_exception_handler
 
 
 if __name__ == '__main__':
