@@ -28,7 +28,7 @@ WESTSIDE_NEIGHBORHOODS = {
     'playa del rey', 'westchester', 'brentwood', 'west la',
     'west los angeles', 'palms', 'mar vista', 'culver city',
     'westwood', 'sawtelle', 'pacific palisades', 'beverly hills',
-    'west hollywood', 'weho', 'century city', 'inglewood', 'el segundo',
+    'century city', 'inglewood', 'el segundo',
     'malibu', 'topanga', 'topanga beach', 'el matador', 'zuma beach',
     'point dume', 'carbon beach', 'surfrider beach',
     'ucla', 'ucla campus'  # UCLA campus is in Westwood
@@ -58,8 +58,6 @@ WESTSIDE_ZIP_CODES = {
     '90301', '90302', '90303', '90304', '90305',
     # Century City area
     '90067', '90035',
-    # West Hollywood
-    '90069', '90046',
     # Beverly Hills
     '90210', '90211', '90212',
     # Malibu

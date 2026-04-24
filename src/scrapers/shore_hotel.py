@@ -142,13 +142,15 @@ class ShoreHotelScraper(BaseScraper):
             else:
                 address = addr_text
 
-        # Image
+        # Image — try card thumbnail first, fall back to event detail page
         img = card.find('img')
         image_url = ''
         if img:
             src = img.get('src', '')
             if src and not any(src.endswith(p.lstrip('/')) or p in src for p in PLACEHOLDER_IMAGES):
                 image_url = src if src.startswith('http') else self.base_url + src
+        if not image_url and url and url != EVENTS_PAGE:
+            image_url = self._fetch_image_from_url(url)
 
         category = self._map_category(raw_category, title)
 
@@ -166,6 +168,41 @@ class ShoreHotelScraper(BaseScraper):
             category=category,
             price_note='TBD',
         )
+
+    def _fetch_image_from_url(self, url: str) -> str:
+        """Fetch event image from the Shore Hotel event detail page."""
+        try:
+            resp = self.session.get(url, timeout=10)
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.text, 'lxml')
+
+            # 1. og:image is the most reliable
+            og = soup.find('meta', property='og:image')
+            if og and og.get('content'):
+                src = og['content']
+                if not any(p in src for p in PLACEHOLDER_IMAGES):
+                    return src
+
+            # 2. First large content image (skip icons and tiny thumbnails)
+            for img in soup.find_all('img', src=True):
+                src = img.get('src', '')
+                if not src or any(p in src for p in PLACEHOLDER_IMAGES):
+                    continue
+                # Skip tiny images (logos, icons)
+                w = img.get('width', '')
+                h = img.get('height', '')
+                try:
+                    if int(w) < 200 or int(h) < 100:
+                        continue
+                except (ValueError, TypeError):
+                    pass
+                if src.startswith('http'):
+                    return src
+                if src.startswith('/'):
+                    return self.base_url + src
+        except Exception as e:
+            self.log(f"Could not fetch image from {url}: {e}")
+        return ''
 
     def _parse_date_range(self, text: str):
         """Return (start_datetime, end_datetime) from a string like 'April 23, 2026 - April 24, 2026'."""
