@@ -206,12 +206,20 @@ def events_are_duplicates(
         scores['match_method'] = 'title_venue'
         return True, scores
 
-    # 3. Same venue + tight date window — catches different-title cross-source events
+    # 3. Venue match + "EVENT at VENUE" pattern — catches aggregator listings
+    # e.g. "TAUK" (Venice West direct) vs "TAUK at The Venice West" (Shore Hotel listing)
+    if scores['venue_similarity'] >= 0.95 and date_diff <= date_tolerance_hours:
+        t1, t2 = (title1, title2) if len(title1) <= len(title2) else (title2, title1)
+        if len(t1) >= 4 and t2.startswith(t1) and t2[len(t1):].startswith(' at '):
+            scores['match_method'] = 'venue_prefix_title'
+            return True, scores
+
+    # 4. Same venue + tight date window — catches different-title cross-source events
     if date_diff <= same_venue_date_hours and scores['venue_similarity'] >= 0.85:
         scores['match_method'] = 'venue_date'
         return True, scores
 
-    # 4. Same GPS location + tight date window — catches events where venue names differ
+    # 5. Same GPS location + tight date window — catches events where venue names differ
     if date_diff <= same_venue_date_hours:
         lat1, lon1 = getattr(event1, 'latitude', None), getattr(event1, 'longitude', None)
         lat2, lon2 = getattr(event2, 'latitude', None), getattr(event2, 'longitude', None)
