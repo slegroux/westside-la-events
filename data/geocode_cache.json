@@ -764,5 +764,11 @@
   "1 loyola marymount university drive, los angeles, california, 90045": {
     "result": null,
     "cached_at": 1777008023.080329
+  },
+  "101 wilshire blvd, santa monica, ca 90401": {
+    "result": {
+      "lat": 34.0180222,
+      "lng": -118.5016131
+    }
   }
 }

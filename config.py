@@ -480,6 +480,20 @@ EVENT_SOURCES = {
         'enabled': True,
         'uses_api': False,
         'note': 'Santa Monica Daily Press events coverage via RSS feed'
+    },
+    'bungalow_sm': {
+        'name': 'The Bungalow Santa Monica',
+        'url': 'https://thebungalow.com/santa-monica/happenings/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Popular Santa Monica bar and event venue featuring weekly trivia, DJ nights, themed parties, and community events'
+    },
+    'fairmont_miramar': {
+        'name': 'Fairmont Miramar Hotel',
+        'url': 'https://www.fairmont-miramar.com/explore/events-calendar/',
+        'enabled': True,
+        'uses_api': True,
+        'note': 'Landmark oceanfront hotel in Santa Monica offering live music, jazz nights, afternoon tea, holiday events, and seasonal experiences'
     }
 }
 

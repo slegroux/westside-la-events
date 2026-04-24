@@ -63,9 +63,11 @@ from .west_hollywood import WestHollywoodScraper
 from .westside_comedy import WestsideComedyScraper
 from .william_turner import WilliamTurnerScraper
 from .downtown_sm import DowntownSMScraper
+from .fairmont_miramar import FairmontMiramarScraper
 from .shore_hotel import ShoreHotelScraper
 from .smdp import SMDPScraper
 from .winston_house import WinstonHouseScraper
+from .bungalow_sm import BungalowSMScraper
 
 
 SCRAPER_MAP: Dict[str, Type] = {
@@ -128,8 +130,10 @@ SCRAPER_MAP: Dict[str, Type] = {
     'jamesons_pub': JamesonsPubScraper,
     'arcana_books': ArcanaBooksScraper,
     'shore_hotel': ShoreHotelScraper,
+    'fairmont_miramar': FairmontMiramarScraper,
     'smdp': SMDPScraper,
     'downtown_sm': DowntownSMScraper,
+    'bungalow_sm': BungalowSMScraper,
 }
 
 

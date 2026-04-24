@@ -71,6 +71,7 @@ class LogoScraper:
         'The Broad Stage': 'https://www.broadstage.org',
         'Nuart Theatre': 'https://www.landmarktheatres.com',
         'Shore Hotel': 'https://www.shorehotel.com',
+        'Fairmont Miramar': 'https://www.fairmont-miramar.com',
         'Santa Monica Daily Press': 'https://www.smdp.com',
         'Downtown Santa Monica': 'https://downtownsm.com',
     }
