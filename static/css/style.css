@@ -1089,11 +1089,11 @@ h1 {
 .placeholder-label {
     position: relative;
     z-index: 1;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.75);
+    color: rgba(255, 255, 255, 0.85);
     text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.06em;
     text-align: center;
     padding: 0 1rem;
 }
@@ -1172,13 +1172,6 @@ h1 {
     font-style: italic;
 }
 
-.price-tbd {
-    background: var(--bg-secondary);
-    color: var(--text-light);
-    border-color: var(--border-color);
-    font-size: 0.8rem;
-}
-
 .date-night-badge {
     background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%);
     color: white;
@@ -1234,20 +1227,6 @@ a:hover .calendar-download-icon {
 .event-location a:hover {
     color: var(--primary);
     text-decoration: underline;
-}
-
-.event-directions {
-    display: block;
-    font-size: var(--text-xs);
-    color: var(--text-light);
-    margin-bottom: 0.5rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.event-directions:hover {
-    color: var(--primary-color);
 }
 
 .event-description {

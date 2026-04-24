@@ -166,8 +166,8 @@ def event_card(event: Event, session=None):
         # Show price note for events with specific pricing info (e.g. "Free admission", "$20-$40")
         price_display = Span(event.price_note, cls='event-price price-note')
     else:
-        # Default when no price information is available (including price_note="TBD")
-        price_display = Span('$TBD', cls='event-price price-tbd')
+        # No price information available — show nothing rather than confusing "$TBD"
+        price_display = None
 
     # Create link attributes for external event URL
     link_attrs = {
@@ -235,16 +235,6 @@ def event_card(event: Event, session=None):
                 ),
                 cls='event-location'
             ) if event.venue_name and not event.source_logo_url else None),
-            # Directions link
-            (A(
-                '\U0001f4cd ', event.venue_name or event.address,
-                href=f'https://www.google.com/maps/dir/?api=1&destination={event.address}',
-                target='_blank',
-                rel='noopener noreferrer',
-                cls='event-directions',
-                title=f'Get directions to {event.venue_name or event.address}',
-                style='text-decoration: none; color: inherit; cursor: pointer;'
-            ) if event.address else None),
             (A(
                 P(event.description, cls='event-description'),
                 **link_attrs,
