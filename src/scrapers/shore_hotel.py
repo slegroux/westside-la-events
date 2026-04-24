@@ -21,6 +21,7 @@ PLACEHOLDER_IMAGES = {
     '/resourcefiles/common-image/480-360.jpg',
     '/images_noindex/no-image-event.jpg',
 }
+SHORE_HOTEL_FALLBACK_IMAGE = '/static/logos/shore_hotel.jpg'
 
 
 class ShoreHotelScraper(BaseScraper):
@@ -151,6 +152,8 @@ class ShoreHotelScraper(BaseScraper):
                 image_url = src if src.startswith('http') else self.base_url + src
         if not image_url and url and url != EVENTS_PAGE:
             image_url = self._fetch_image_from_url(url)
+        if not image_url:
+            image_url = SHORE_HOTEL_FALLBACK_IMAGE
 
         category = self._map_category(raw_category, title)
 

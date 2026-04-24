@@ -264,8 +264,16 @@ class Database:
             if duplicate_result:
                 existing_event, scores = duplicate_result
                 if merge_if_duplicate:
-                    # Merge data from new event into existing
-                    merged = merge_event_data(existing_event, event)
+                    # Shore Hotel is low-priority: if the existing event is Shore Hotel
+                    # and the new event is from a richer source, use new event as primary
+                    # so its URL, image, and description take precedence.
+                    LOW_PRIORITY_SOURCES = {'Shore Hotel'}
+                    if existing_event.source in LOW_PRIORITY_SOURCES and event.source not in LOW_PRIORITY_SOURCES:
+                        merged = merge_event_data(event, existing_event)
+                        merged.id = existing_event.id
+                        merged.created_at = existing_event.created_at
+                    else:
+                        merged = merge_event_data(existing_event, event)
                     self.update_event(merged)
                     return existing_event.id, True
                 else:
