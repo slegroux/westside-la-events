@@ -5,7 +5,6 @@ This module is the thin orchestrator: it initializes the app and wires up
 all route modules. Business logic, components, and state live in separate modules.
 """
 from fasthtml.common import *
-from contextlib import asynccontextmanager
 from typing import Optional
 import logging
 
@@ -49,7 +48,6 @@ from src.web.components import (
 from src.web.services import _tally_cache, _TALLY_TTL, _get_filter_tallies, _fetch_events
 
 
-@asynccontextmanager
 async def lifespan(app):
     """Manage application lifecycle - startup and shutdown."""
     # Startup: Initialize database and search (preserve injected test state)
