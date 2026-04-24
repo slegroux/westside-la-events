@@ -295,7 +295,7 @@ def events_list(events: List[Event], session=None):
 
     count_text = f'Found {len(events)} event{"s" if len(events) != 1 else ""}'
     return Div(
-        Div(count_text, style='margin-bottom: 1.5rem; color: var(--text-light); font-size: 1rem; font-weight: 600;'),
+        Div(count_text, cls='results-header'),
         Div(*[event_card(e, session) for e in events], cls='events-grid'),
     )
 

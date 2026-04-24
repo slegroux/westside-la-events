@@ -953,6 +953,13 @@ h1 {
     overflow: hidden;
 }
 
+.results-header {
+    margin-bottom: 1.5rem;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
 /* Events Grid - Enhanced Cards */
 #events-container {
     padding: 0;
@@ -1751,9 +1758,16 @@ footer .footer-photo-credit a:hover {
     }
 
     .view-toggle {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: var(--bg-color);
         width: 100%;
         justify-content: stretch;
-        margin: 1.5rem 0;
+        margin: 0 0 1rem;
+        padding: 0.5rem 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-radius: 0;
     }
 
     .view-toggle button {
