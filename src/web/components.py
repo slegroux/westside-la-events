@@ -234,7 +234,7 @@ def event_card(event: Event, session=None):
                     style='text-decoration: none; color: inherit; cursor: pointer;'
                 ),
                 cls='event-location'
-            ) if event.venue_name and not event.source_logo_url else None),
+            ) if event.venue_name else None),
             (A(
                 P(event.description, cls='event-description'),
                 **link_attrs,
