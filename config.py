@@ -473,6 +473,13 @@ EVENT_SOURCES = {
         'enabled': True,
         'uses_api': False,
         'note': 'Official Downtown Santa Monica events calendar covering live music, markets, arts, and community events'
+    },
+    'smdp': {
+        'name': 'Santa Monica Daily Press',
+        'url': 'https://www.smdp.com/events/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Santa Monica Daily Press events coverage via RSS feed'
     }
 }
 

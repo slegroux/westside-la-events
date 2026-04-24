@@ -71,6 +71,8 @@ class LogoScraper:
         'The Broad Stage': 'https://www.broadstage.org',
         'Nuart Theatre': 'https://www.landmarktheatres.com',
         'Shore Hotel': 'https://www.shorehotel.com',
+        'Santa Monica Daily Press': 'https://www.smdp.com',
+        'Downtown Santa Monica': 'https://downtownsm.com',
     }
 
     # Known logo URLs (fallback if scraping fails)
@@ -119,6 +121,7 @@ class LogoScraper:
         'Skirball Cultural Center': 'https://www.skirball.org/themes/custom/skirball/favicon.ico',
         'The Broad Stage': 'https://broadstage.org/media/i0kdq3nu/broadstage_logo_horizontal_purple_rgb.png',
         'Nuart Theatre': 'https://www.landmarktheatres.com/apple-touch-icon.png',
+        'Santa Monica Daily Press': 'https://storage.ghost.io/c/55/9f/559f9abc-8372-4a2e-8c2d-27386da4e363/content/images/2025/07/SMDP-new-logo-300x128-1-1.webp',
     }
 
     def __init__(self, cache_dir: str = "static/logos"):

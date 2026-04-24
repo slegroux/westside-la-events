@@ -64,6 +64,7 @@ from .westside_comedy import WestsideComedyScraper
 from .william_turner import WilliamTurnerScraper
 from .downtown_sm import DowntownSMScraper
 from .shore_hotel import ShoreHotelScraper
+from .smdp import SMDPScraper
 from .winston_house import WinstonHouseScraper
 
 
@@ -127,6 +128,7 @@ SCRAPER_MAP: Dict[str, Type] = {
     'jamesons_pub': JamesonsPubScraper,
     'arcana_books': ArcanaBooksScraper,
     'shore_hotel': ShoreHotelScraper,
+    'smdp': SMDPScraper,
     'downtown_sm': DowntownSMScraper,
 }
 
