@@ -29,12 +29,15 @@ def page_head(title: str, description: Optional[str] = None):
         # HTMX Extensions
         Script(src='https://unpkg.com/htmx.org@2.0.3/dist/ext/loading-states.js'),
         Script(src='https://unpkg.com/htmx.org@2.0.3/dist/ext/debug.js') if config.DEBUG else None,
-        # Leaflet CSS
-        Link(rel='stylesheet', href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+        # Leaflet CSS - preload (non-blocking), swap to stylesheet on load
+        Link(rel='preload', href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+             as_='style', onload="this.rel='stylesheet'",
              integrity='sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=', crossorigin='anonymous'),
         # Leaflet MarkerCluster CSS
-        Link(rel='stylesheet', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'),
-        Link(rel='stylesheet', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'),
+        Link(rel='preload', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css',
+             as_='style', onload="this.rel='stylesheet'"),
+        Link(rel='preload', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css',
+             as_='style', onload="this.rel='stylesheet'"),
         # Application CSS
         Link(rel='stylesheet', href='/static/css/style.css'),
         # Leaflet JS - load with defer to ensure proper order
