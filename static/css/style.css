@@ -1007,6 +1007,78 @@ h1 {
     position: relative;
 }
 
+/* Category-colored placeholder when no event image */
+.event-image-placeholder {
+    width: 100%;
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.event-image-placeholder::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(255,255,255,0.03) 0px,
+        rgba(255,255,255,0.03) 1px,
+        transparent 1px,
+        transparent 12px
+    );
+}
+
+.event-image-placeholder[data-category="Music"],
+.event-image-placeholder[data-category="Nightlife"] {
+    background: linear-gradient(135deg, #3b0764 0%, #7c3aed 100%);
+}
+
+.event-image-placeholder[data-category="Art"],
+.event-image-placeholder[data-category="Theater"],
+.event-image-placeholder[data-category="Theatre"],
+.event-image-placeholder[data-category="Date Night"] {
+    background: linear-gradient(135deg, #880e4f 0%, #e11d48 100%);
+}
+
+.event-image-placeholder[data-category="Food & Drink"],
+.event-image-placeholder[data-category="Food"],
+.event-image-placeholder[data-category="Comedy"] {
+    background: linear-gradient(135deg, #7c2d12 0%, #ea580c 100%);
+}
+
+.event-image-placeholder[data-category="Sports"],
+.event-image-placeholder[data-category="Wellness"],
+.event-image-placeholder[data-category="Outdoors"],
+.event-image-placeholder[data-category="Family"] {
+    background: linear-gradient(135deg, #064e3b 0%, #059669 100%);
+}
+
+.event-image-placeholder[data-category="Community"],
+.event-image-placeholder[data-category="Education"] {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+}
+
+.event-image-placeholder[data-category="Film"],
+.event-image-placeholder[data-category="Tech"] {
+    background: linear-gradient(135deg, #1e1b4b 0%, #4f46e5 100%);
+}
+
+.placeholder-label {
+    position: relative;
+    z-index: 1;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.75);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    text-align: center;
+    padding: 0 1rem;
+}
+
 .event-image::after {
     content: '';
     position: absolute;

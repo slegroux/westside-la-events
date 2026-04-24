@@ -75,6 +75,17 @@ class LogoScraper:
         'Santa Monica Daily Press': 'https://www.smdp.com',
         'Downtown Santa Monica': 'https://downtownsm.com',
         'The Bungalow Santa Monica': 'https://thebungalow.com',
+        "McCabe's Guitar Shop": 'https://www.mccabes.com',
+        'Bergamot Station Arts Center': 'https://www.bergamotstation.com',
+        'William Turner Gallery': 'https://www.williamturnergallery.com',
+        'Aviator Nation Dreamland': 'https://www.aviatornation.com',
+        'UCLA Fowler Museum': 'https://www.fowler.ucla.edu',
+        'Getty Center': 'https://www.getty.edu',
+        'Getty Villa': 'https://www.getty.edu/villa',
+        'Old Town Music Hall': 'https://www.oldtownmusichall.org',
+        'Geffen Playhouse': 'https://geffenplayhouse.org',
+        'La Puglia': 'https://www.lapugliasm.com',
+        'Santa Monica Farmers Markets': 'https://www.smgov.net/portals/farmersmarket/',
     }
 
     # Known logo URLs (fallback if scraping fails)
@@ -125,6 +136,17 @@ class LogoScraper:
         'Nuart Theatre': 'https://www.landmarktheatres.com/apple-touch-icon.png',
         'Santa Monica Daily Press': 'https://storage.ghost.io/c/55/9f/559f9abc-8372-4a2e-8c2d-27386da4e363/content/images/2025/07/SMDP-new-logo-300x128-1-1.webp',
         'The Bungalow Santa Monica': 'https://thebungalow.com/wp-content/uploads/2025/06/logo-santa-monica.svg',
+        "McCabe's Guitar Shop": 'https://www.mccabes.com/wp-content/uploads/McCabes-Logo-web.jpg',
+        'Bergamot Station Arts Center': 'https://bergamotstation.com/wp-content/uploads/2021/01/bergamot-logo.png',
+        'William Turner Gallery': 'https://www.williamturnergallery.com/wp-content/uploads/wtg-logo.png',
+        'Aviator Nation Dreamland': 'https://cdn.shopify.com/s/files/1/1149/5724/files/AVN_VIP_V5.png',
+        'UCLA Fowler Museum': 'https://www.fowler.ucla.edu/wp-content/themes/fowler-museum/dist/images/fowler-logo.svg',
+        'Getty Center': 'https://www.getty.edu/museum/images/content/gettyweblogo.gif',
+        'Getty Villa': 'https://www.getty.edu/museum/images/content/gettyweblogo.gif',
+        'Old Town Music Hall': 'https://www.oldtownmusichall.org/wp-content/uploads/2021/01/otmh-logo.png',
+        'Geffen Playhouse': 'https://geffenplayhouse.org/wp-content/themes/geffen-playhouse/dist/images/logo.svg',
+        'La Puglia': 'https://www.lapugliasm.com/wp-content/uploads/la-puglia-logo.png',
+        'Santa Monica Farmers Markets': 'https://www.santamonica.gov/media/Default/farmersmarket/farmers-market-logo.png',
     }
 
     def __init__(self, cache_dir: str = "static/logos"):

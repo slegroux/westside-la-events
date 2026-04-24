@@ -180,12 +180,17 @@ def event_card(event: Event, session=None):
         'style': 'text-decoration: none; color: inherit; cursor: default;'
     }
 
+    # Always render image slot — real image or category-colored placeholder
+    img_element = (
+        Img(src=event.image_url, alt=event.title, cls='event-image', loading='lazy')
+        if event.image_url else
+        Div(Span(event.category or 'Event', cls='placeholder-label'),
+            cls='event-image-placeholder',
+            **{'data-category': event.category or ''})
+    )
+
     return Div(
-        # Make image clickable to original event URL
-        A(
-            Img(src=event.image_url, alt=event.title, cls='event-image', loading='lazy'),
-            **link_attrs
-        ) if event.image_url else None,
+        A(img_element, **link_attrs),
         Div(
             # Make title clickable to original event URL with favorite button
             Div(
