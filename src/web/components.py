@@ -21,10 +21,6 @@ def page_head(title: str, description: Optional[str] = None):
         Meta(property='og:title', content=title),
         Meta(property='og:description', content=description or default_description),
         Meta(property='og:type', content='website'),
-        # Google Fonts - Inter for polished typography
-        Link(rel='preconnect', href='https://fonts.googleapis.com'),
-        Link(rel='preconnect', href='https://fonts.gstatic.com', crossorigin='anonymous'),
-        Link(rel='stylesheet', href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'),
         # Resource hints for performance - preconnect to external domains
         Link(rel='preconnect', href='https://unpkg.com'),
         Link(rel='dns-prefetch', href='https://unpkg.com'),

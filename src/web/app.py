@@ -77,6 +77,21 @@ app, rt = fast_app(
 
 # Starlette imports
 from starlette.responses import JSONResponse, HTMLResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+
+
+class StaticCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if path.startswith('/static/fonts/'):
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        elif path.startswith('/static/'):
+            response.headers['Cache-Control'] = 'public, max-age=3600'
+        return response
+
+
+app.add_middleware(StaticCacheMiddleware)
 
 
 # Setup analytics routes
