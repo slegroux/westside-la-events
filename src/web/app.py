@@ -103,9 +103,7 @@ setup_api(rt, state)
 
 
 # Error handlers
-@app.exception_handler(404)
 async def not_found_handler(request, exc):
-    """Handle 404 errors."""
     content = str(Html(
         page_head('Page Not Found - Westside LA Events'),
         Body(
@@ -124,11 +122,8 @@ async def not_found_handler(request, exc):
     return HTMLResponse(content=content, status_code=404)
 
 
-@app.exception_handler(500)
 async def server_error_handler(request, exc):
-    """Handle 500 errors."""
     logging.getLogger(__name__).error(f'Server error: {exc}', exc_info=True)
-
     content = str(Html(
         page_head('Server Error - Westside LA Events'),
         Body(
@@ -145,6 +140,10 @@ async def server_error_handler(request, exc):
         )
     ))
     return HTMLResponse(content=content, status_code=500)
+
+
+app.exception_handlers[404] = not_found_handler
+app.exception_handlers[500] = server_error_handler
 
 
 @app.exception_handler(Exception)
