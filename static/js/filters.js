@@ -1,7 +1,7 @@
 // Filter collapse/expand functionality with state persistence
 // Note: Using v2 key to reset previous expanded state defaults
 function getCollapseState(sectionId) {
-    const saved = localStorage.getItem('filter_collapse_v2_' + sectionId);
+    const saved = localStorage.getItem('filter_collapse_v3_' + sectionId);
     // Return null if no saved state (let the existing DOM state be preserved)
     if (saved === null) return null;
     return saved === 'expanded';
@@ -9,7 +9,7 @@ function getCollapseState(sectionId) {
 
 // Save collapse state to localStorage
 function saveCollapseState(sectionId, isExpanded) {
-    localStorage.setItem('filter_collapse_v2_' + sectionId, isExpanded ? 'expanded' : 'collapsed');
+    localStorage.setItem('filter_collapse_v3_' + sectionId, isExpanded ? 'expanded' : 'collapsed');
 }
 
 // Toggle filter section and save state
@@ -53,11 +53,11 @@ function restoreCollapseStates() {
 
             let savedState = getCollapseState(sectionId);
 
-            // If no saved state, default to collapsed and save it
+            // If no saved state: categories default to expanded, others collapsed
             if (savedState === null) {
-                savedState = false;
-                saveCollapseState(sectionId, false);
-                console.log(`Section ${sectionId}: No saved state, defaulting to collapsed`);
+                savedState = (sectionId === 'categories');
+                saveCollapseState(sectionId, savedState);
+                console.log(`Section ${sectionId}: No saved state, defaulting to ${savedState ? 'expanded' : 'collapsed'}`);
             }
 
             const isExpanded = savedState;

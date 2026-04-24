@@ -60,7 +60,7 @@ def page_header():
     """Shared page header component."""
     return Header(
         Div(
-            H1('\U0001f334 Westside LA Events'),
+            H1('Westside LA Events'),
             P('Discover the best events, activities, and experiences across LA\'s Westside', cls='header-subtitle'),
             cls='header-content container'
         )
