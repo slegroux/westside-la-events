@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 import json
 import re
+import zoneinfo
 from dateutil import parser as date_parser
 
 from .base import BaseScraper
@@ -264,7 +265,7 @@ class SoundsLikeLAScraper(BaseScraper):
             # Add parameters for upcoming events
             params = {
                 'per_page': 50,
-                'start_date': datetime.now().strftime('%Y-%m-%d'),
+                'start_date': datetime.now(zoneinfo.ZoneInfo('America/Los_Angeles')).strftime('%Y-%m-%d'),
                 'order': 'asc',
                 'orderby': 'event_date'
             }

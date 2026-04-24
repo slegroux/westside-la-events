@@ -79,8 +79,10 @@ class SantaMonicaEventsScraper(BaseScraper):
 
     def _scrape_via_api(self) -> List[Event]:
         """Fetch events using the Tribe Events REST API."""
-        from datetime import datetime
+        from datetime import datetime, timezone
+        import zoneinfo
         events: List[Event] = []
+        _LA = zoneinfo.ZoneInfo('America/Los_Angeles')
         api_url = f'{self.base_url}/wp-json/tribe/events/v1/events'
         page = 1
 
@@ -91,7 +93,7 @@ class SantaMonicaEventsScraper(BaseScraper):
                     params={
                         'per_page': 50,
                         'page': page,
-                        'start_date': datetime.now().strftime('%Y-%m-%d'),
+                        'start_date': datetime.now(_LA).strftime('%Y-%m-%d'),
                         'status': 'publish',
                     },
                     timeout=15,
