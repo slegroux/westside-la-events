@@ -1,5 +1,5 @@
 # Web Framework
-python-fasthtml>=0.7.0
+python-fasthtml==0.12.41
 uvicorn>=0.24.0
 
 # Web Scraping
