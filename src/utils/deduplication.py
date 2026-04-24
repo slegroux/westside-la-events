@@ -4,11 +4,21 @@ Event deduplication utilities.
 This module provides functions to detect and handle duplicate events
 from different sources.
 """
+import math
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from typing import List, Optional, Tuple
 
 from src.data.models import Event
+
+
+def _geo_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Haversine distance in km between two lat/lon points."""
+    R = 6371.0
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = math.sin(d_lat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lon / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
 def calculate_similarity(text1: str, text2: str) -> float:
@@ -96,16 +106,20 @@ def events_are_duplicates(
     event2: Event,
     title_threshold: float = 0.85,
     venue_threshold: float = 0.80,
-    date_tolerance_hours: int = 24
+    date_tolerance_hours: int = 24,
+    same_venue_date_hours: int = 3,
 ) -> Tuple[bool, dict]:
     """
     Determine if two events are duplicates.
 
     Two events are considered duplicates if:
-    1. Same URL (exact match) - HIGHEST PRIORITY, checked first
-    2. OR (They occur on the same or very close dates AND one of the following):
-       a. Titles are highly similar (>= title_threshold)
-       b. Titles are somewhat similar (>= 0.7) AND venues match (>= venue_threshold)
+    1. Same URL (exact match) - HIGHEST PRIORITY
+    2. Within date tolerance AND titles are highly similar (>= title_threshold)
+    3. Within date tolerance AND titles somewhat similar (>= 0.7) AND venues match
+    4. Within same_venue_date_hours AND venues are very similar (>= 0.85)
+       — catches cross-source events with different titles at the same venue
+    5. Within same_venue_date_hours AND both have GPS coords within 0.15 km
+       — catches events where venue names differ but location is the same
 
     Args:
         event1: First event
@@ -113,6 +127,7 @@ def events_are_duplicates(
         title_threshold: Minimum title similarity to consider duplicates (0-1)
         venue_threshold: Minimum venue similarity when combined with title (0-1)
         date_tolerance_hours: How many hours apart events can be (default 24)
+        same_venue_date_hours: Tighter tolerance for venue/geo-based matching (default 3)
 
     Returns:
         Tuple of (is_duplicate: bool, scores: dict with similarity metrics)
@@ -120,10 +135,11 @@ def events_are_duplicates(
     scores = {
         'title_similarity': 0.0,
         'venue_similarity': 0.0,
+        'geo_distance_km': None,
         'date_diff_hours': None,
         'same_url': False,
         'same_source': False,
-        'match_method': None  # Track which method detected the duplicate
+        'match_method': None,
     }
 
     # PRIORITY 1: Check for exact URL match FIRST (most reliable indicator)
@@ -189,6 +205,22 @@ def events_are_duplicates(
     if scores['title_similarity'] >= 0.7 and scores['venue_similarity'] >= venue_threshold:
         scores['match_method'] = 'title_venue'
         return True, scores
+
+    # 3. Same venue + tight date window — catches different-title cross-source events
+    if date_diff <= same_venue_date_hours and scores['venue_similarity'] >= 0.85:
+        scores['match_method'] = 'venue_date'
+        return True, scores
+
+    # 4. Same GPS location + tight date window — catches events where venue names differ
+    if date_diff <= same_venue_date_hours:
+        lat1, lon1 = getattr(event1, 'latitude', None), getattr(event1, 'longitude', None)
+        lat2, lon2 = getattr(event2, 'latitude', None), getattr(event2, 'longitude', None)
+        if lat1 and lon1 and lat2 and lon2:
+            dist = _geo_distance_km(lat1, lon1, lat2, lon2)
+            scores['geo_distance_km'] = dist
+            if dist <= 0.15:
+                scores['match_method'] = 'geo_date'
+                return True, scores
 
     return False, scores
 
