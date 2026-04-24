@@ -483,7 +483,6 @@ def filter_tallies_section(
 def search_section():
     """Search and filter section component."""
     return Form(
-        H2('Find Events'),
         Div(
             Input(
                 type='search',
@@ -503,6 +502,7 @@ def search_section():
                    hx_indicator='#loading-indicator'),
             cls='search-box'
         ),
+        Button('Clear Filters', type='button', cls='clear-filters-btn', onclick='clearAllFilters()'),
         Div(
             # Primary filters row (Date and Date Picker)
             Div(

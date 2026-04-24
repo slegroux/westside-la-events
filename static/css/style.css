@@ -281,14 +281,15 @@ h1 {
 
 .search-box {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
+    flex-direction: row;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
     position: relative;
 }
 
 .search-box input {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     padding: 0.875rem 1rem;
     border: 2px solid var(--border-color);
     border-radius: var(--radius);
@@ -309,8 +310,8 @@ h1 {
 }
 
 .search-box button {
-    width: 100%;
-    padding: 0.875rem 1rem;
+    width: auto;
+    padding: 0.875rem 1.25rem;
     background: var(--bg-color);
     color: var(--text-color);
     border: 2px solid var(--border-color);
@@ -320,6 +321,8 @@ h1 {
     cursor: pointer;
     transition: var(--transition);
     box-shadow: var(--shadow-sm);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .search-box button:hover {
@@ -328,6 +331,27 @@ h1 {
 
 .search-box button:active {
     box-shadow: var(--shadow-sm);
+}
+
+.clear-filters-btn {
+    background: transparent;
+    border: none;
+    color: var(--primary-color);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.25rem 0;
+    margin-bottom: 1rem;
+    text-align: left;
+    font-family: inherit;
+    transition: var(--transition);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    display: block;
+}
+
+.clear-filters-btn:hover {
+    color: var(--primary-dark);
 }
 
 /* Filters - Sidebar Design */
@@ -1615,6 +1639,7 @@ footer .footer-photo-credit a:hover {
     }
 
     .search-box input {
+        width: 100%;
         padding: 0.875rem 1rem;
         font-size: 1rem;
     }

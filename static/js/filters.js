@@ -211,6 +211,21 @@ document.body.addEventListener('htmx:afterRequest', function(event) {
     }
 });
 
+// Clear all filters and trigger HTMX refresh
+function clearAllFilters() {
+    const form = document.querySelector('.search-section');
+    if (!form) return;
+    const searchInput = form.querySelector('#search-input');
+    if (searchInput) searchInput.value = '';
+    const dateFilter = form.querySelector('#date-filter');
+    if (dateFilter) dateFilter.value = 'upcoming';
+    form.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+    const datePicker = form.querySelector('#date-picker');
+    if (datePicker) datePicker.value = '';
+    htmx.trigger(form, 'submit');
+}
+window.clearAllFilters = clearAllFilters;
+
 // Mobile Bottom Sheet Filter Drawer
 function openFilterSheet() {
     const sidebar = document.querySelector('.sidebar');
