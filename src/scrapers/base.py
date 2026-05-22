@@ -263,7 +263,8 @@ class BaseScraper(ABC):
         category: str = "",
         price: Optional[float] = None,
         is_free: bool = False,
-        price_note: str = ""
+        price_note: str = "",
+        strict_geo: bool = False
     ) -> Optional[Event]:
         """
         Create an Event object with geocoding, categorization, and location filtering.
@@ -293,12 +294,25 @@ class BaseScraper(ABC):
                 latitude, longitude = coords
 
         # Validate location - filter out events outside Westside/Malibu
-        is_valid, reason = validate_event_location(
-            latitude=latitude,
-            longitude=longitude,
-            address=address,
-            venue_name=venue_name
-        )
+        if strict_geo:
+            # Stricter validation for aggregator scrapers (e.g. Shore Hotel).
+            # When coords are available, accept only by bounding-box — no
+            # text/radius fallback that would let distant events slip through.
+            # When coords are missing, fall back to address text match only.
+            from src.utils.geo_filter import is_in_coverage_area, is_westside_address
+            if latitude is not None and longitude is not None:
+                is_valid = is_in_coverage_area(latitude, longitude)
+                reason = "coordinates_in_bounds" if is_valid else "coordinates_outside_area"
+            else:
+                is_valid = is_westside_address(address, venue_name=venue_name)
+                reason = "address_text_match" if is_valid else "address_not_recognized"
+        else:
+            is_valid, reason = validate_event_location(
+                latitude=latitude,
+                longitude=longitude,
+                address=address,
+                venue_name=venue_name
+            )
 
         if not is_valid:
             self.log(f"Skipping non-Westside event: '{title}' at {venue_name or address} ({reason})")

@@ -150,8 +150,6 @@ class ShoreHotelScraper(BaseScraper):
             src = img.get('src', '')
             if src and not any(src.endswith(p.lstrip('/')) or p in src for p in PLACEHOLDER_IMAGES):
                 image_url = src if src.startswith('http') else self.base_url + src
-        if not image_url and url and url != EVENTS_PAGE:
-            image_url = self._fetch_image_from_url(url)
         if not image_url:
             image_url = SHORE_HOTEL_FALLBACK_IMAGE
 
@@ -180,6 +178,7 @@ class ShoreHotelScraper(BaseScraper):
             image_url=image_url,
             category=category,
             price_note='TBD',
+            strict_geo=True,
         )
 
     def _fetch_image_from_url(self, url: str) -> str:
