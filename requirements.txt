@@ -1,5 +1,6 @@
 # Web Framework
-python-fasthtml==0.12.41
+python-fasthtml==0.12.50
+starlette<0.40.0
 uvicorn>=0.24.0
 
 # Web Scraping
