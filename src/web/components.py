@@ -141,6 +141,36 @@ def _format_event_date(event: Event) -> str:
     return start.strftime("%a, %b %d, %Y at %I:%M %p")
 
 
+# price_note text patterns that should promote to a FREE badge even when
+# is_free=False (some scrapers write 'Free admission' instead of setting the flag).
+_FREE_NOTE_PATTERNS = ('free', 'no charge', 'no cost', 'gratis', 'complimentary')
+
+
+def _is_free_note(note: str) -> bool:
+    lower = note.lower()
+    # Guard against price_note like 'Free for members, $20 otherwise' which is
+    # not really free — only promote when the note is dominated by the keyword.
+    if any(p in lower for p in ('$', 'otherwise', 'after', 'except', 'member')):
+        return False
+    return any(kw in lower for kw in _FREE_NOTE_PATTERNS)
+
+
+def _price_badge(event: Event):
+    """Return the price/FREE Span for an event card, or None to render nothing."""
+    if event.is_free:
+        return Span('FREE', cls='event-price free-badge')
+    if event.price:
+        return Span(f'${event.price:.2f}', cls='event-price')
+    if event.price_note:
+        note = event.price_note.strip()
+        if not note or note.upper() == 'TBD':
+            return None
+        if _is_free_note(note):
+            return Span('FREE', cls='event-price free-badge')
+        return Span(note, cls='event-price price-note')
+    return None
+
+
 def event_card(event: Event, session=None):
     """Component to render a single event card."""
     event_date_str = _format_event_date(event)
@@ -167,18 +197,7 @@ def event_card(event: Event, session=None):
             cls='event-source-container'
         )
 
-    # Price display
-    price_display = None
-    if event.is_free:
-        price_display = Span('FREE', cls='event-price free-badge')
-    elif event.price:
-        price_display = Span(f'${event.price:.2f}', cls='event-price')
-    elif event.price_note and event.price_note.upper() != 'TBD':
-        # Show price note for events with specific pricing info (e.g. "Free admission", "$20-$40")
-        price_display = Span(event.price_note, cls='event-price price-note')
-    else:
-        # No price information available — show nothing rather than confusing "$TBD"
-        price_display = None
+    price_display = _price_badge(event)
 
     # Create link attributes for external event URL
     link_attrs = {
