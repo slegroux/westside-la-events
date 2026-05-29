@@ -103,6 +103,12 @@ class RaymondKabbazScraper(BaseScraper):
             title_link = title_elem.find('a', class_='eventlist-title-link')
             title = self.clean_text(title_link.get_text()) if title_link else self.clean_text(title_elem.get_text())
 
+            # Squarespace event lists frequently include a placeholder card such
+            # as "MORE EVENTS to be announced SOON" that has no real date or
+            # ticketing - skip these so they don't pollute the calendar.
+            if re.search(r'(more events|to be announced|coming soon|tba)', title, re.IGNORECASE):
+                return None
+
             # Extract URL
             url = ""
             if title_link and title_link.get('href'):

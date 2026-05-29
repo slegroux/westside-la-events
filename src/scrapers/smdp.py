@@ -101,6 +101,10 @@ class SMDPScraper(BaseScraper):
 
         # --- Date ---
         event_date = self._extract_date(content_text, pub_date_str)
+        if event_date is None:
+            # No reliable event date found: skip rather than emit a dateless
+            # row that gets backdated by downstream tooling.
+            return None
 
         # --- Venue / Address ---
         venue_name, address = self._extract_location(content_text)
@@ -147,13 +151,24 @@ class SMDPScraper(BaseScraper):
         return text.strip()
 
     def _extract_date(self, content_text: str, pub_date_str: str) -> Optional[datetime]:
-        # Determine fallback year from pubDate (better than always using current year)
-        fallback_year = datetime.now().year
+        # Determine fallback year. Use the pubDate's year when it is recent,
+        # otherwise treat the article as old coverage and skip it. Articles
+        # that omit a year almost always refer to the current calendar year
+        # near publication time, so falling back to a years-old pubDate would
+        # silently backdate every undated mention.
+        now = datetime.now()
+        pub_dt = None
         if pub_date_str:
             try:
-                fallback_year = date_parser.parse(pub_date_str).year
+                pub_dt = date_parser.parse(pub_date_str).replace(tzinfo=None)
             except Exception:
-                pass
+                pub_dt = None
+
+        if pub_dt and (now - pub_dt).days > 30:
+            # Old article: don't try to manufacture a current event date.
+            return None
+
+        fallback_year = pub_dt.year if pub_dt else now.year
 
         # Try to find an explicit date in the article body
         for pattern in _DATE_PATTERNS:
@@ -173,18 +188,24 @@ class SMDPScraper(BaseScraper):
                     date_candidate += ' ' + time_match.group(1)
                 try:
                     parsed = date_parser.parse(date_candidate, fuzzy=True)
-                    # Sanity check: reject dates more than 1 year old or 2 years out
-                    now = datetime.now()
-                    if (now - parsed.replace(tzinfo=None)).days < 365 * 2 and \
-                       (parsed.replace(tzinfo=None) - now).days < 365 * 2:
+                    parsed_naive = parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
+                    # Reject anything more than 60 days in the past or 2 years out.
+                    if (now - parsed_naive).days < 60 and \
+                       (parsed_naive - now).days < 365 * 2:
                         return parsed
                 except Exception:
                     pass
 
-        # Fall back to RSS pubDate
+        # Fall back to RSS pubDate, but only if it's recent enough that the
+        # article could plausibly describe an upcoming event. The SMDP feed
+        # includes years of archived event coverage; using their pubDate as
+        # event_date would always backdate them.
         if pub_date_str:
             try:
-                return date_parser.parse(pub_date_str)
+                parsed = date_parser.parse(pub_date_str)
+                parsed_naive = parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
+                if (datetime.now() - parsed_naive).days <= 30:
+                    return parsed
             except Exception:
                 pass
 
