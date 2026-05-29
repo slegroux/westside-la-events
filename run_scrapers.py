@@ -159,6 +159,10 @@ def insert_events_to_db(db: Database, results: List[ScraperResult]) -> Dict[str,
     """
     Insert all scraped events into database.
 
+    Dedup is owned by Database.insert_event, which compares URL first and
+    then falls back to title/venue/date similarity. The runner only needs
+    to count what the DB reports back via the (event_id, was_duplicate) tuple.
+
     Args:
         db: Database instance
         results: List of scraper results
@@ -182,15 +186,10 @@ def insert_events_to_db(db: Database, results: List[ScraperResult]) -> Dict[str,
         skipped = 0
 
         for event in result.events:
-            # Check for duplicates
-            if event.url and event.event_date:
-                if db.event_exists(event.url, event.event_date):
-                    skipped += 1
-                    continue
-
-            # Insert event
-            event_id = db.insert_event(event)
-            if event_id:
+            event_id, was_duplicate = db.insert_event(event)
+            if was_duplicate:
+                skipped += 1
+            elif event_id:
                 saved += 1
 
         total_saved += saved
