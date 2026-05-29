@@ -268,13 +268,15 @@ class ParksCaliforniaScraper(BaseScraper):
         event_date = None
         end_date = None
 
-        # Look for "Date of event:" text in paragraphs
+        # Look for "Date of Event :" text in paragraphs (case + spacing
+        # varies across pages: 'Date of event:', 'Date of Event :', etc.)
+        date_label_re = re.compile(r'date\s+of\s+event\s*:', re.IGNORECASE)
         paragraphs = soup.find_all('p')
         for p in paragraphs:
             text = self.clean_text(p.get_text())
-            if 'Date of event:' in text:
-                # Extract the date part after "Date of event:"
-                date_text = text.replace('Date of event:', '').strip()
+            m = date_label_re.search(text)
+            if m:
+                date_text = text[m.end():].strip()
                 event_date = self._parse_date_text(date_text)
                 if event_date:
                     break
