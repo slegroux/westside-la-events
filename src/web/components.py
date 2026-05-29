@@ -1,12 +1,83 @@
 """
 Reusable UI component functions for LA Events Aggregator.
 """
+import json
+from datetime import datetime
 from fasthtml.common import *
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
 import config
 from src.data.models import Event
 from src.web.state import is_favorited
+
+
+_LA_TZ = ZoneInfo("America/Los_Angeles")
+
+
+def _iso_la(dt: datetime) -> str:
+    """Render a stored LA-local datetime as an ISO 8601 string with an LA offset.
+
+    Event datetimes persist naive (see scrapers/base.normalize_event_datetime),
+    but schema.org expects an unambiguous offset on startDate/endDate.
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_LA_TZ)
+    return dt.isoformat()
+
+
+def _event_json_ld(event: Event) -> Optional[str]:
+    """Build a schema.org Event JSON-LD payload for an event, or None if it
+    lacks the required fields (name + startDate + location)."""
+    if not event.title or not event.event_date:
+        return None
+    location_name = event.venue_name or event.address
+    if not location_name:
+        return None
+
+    data = {
+        "@context": "https://schema.org",
+        "@type": "Event",
+        "name": event.title,
+        "startDate": _iso_la(event.event_date),
+        "eventStatus": "https://schema.org/EventScheduled",
+        "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+        "location": {
+            "@type": "Place",
+            "name": event.venue_name or location_name,
+        },
+    }
+    if event.end_date:
+        data["endDate"] = _iso_la(event.end_date)
+    if event.address:
+        data["location"]["address"] = event.address
+    if event.latitude is not None and event.longitude is not None:
+        data["location"]["geo"] = {
+            "@type": "GeoCoordinates",
+            "latitude": event.latitude,
+            "longitude": event.longitude,
+        }
+    if event.image_url:
+        data["image"] = event.image_url
+    if event.description:
+        # Schema.org expects plain text; the description column may contain
+        # leftover HTML from some scrapers — strip aggressively for safety.
+        data["description"] = event.description[:500]
+    if event.url:
+        data["url"] = event.url
+
+    if event.is_free or event.price is not None:
+        offer = {
+            "@type": "Offer",
+            "priceCurrency": "USD",
+            "availability": "https://schema.org/InStock",
+        }
+        offer["price"] = "0" if event.is_free else f"{event.price:.2f}"
+        if event.url:
+            offer["url"] = event.url
+        data["offers"] = offer
+
+    return json.dumps(data, ensure_ascii=False)
 
 
 def page_head(title: str, description: Optional[str] = None):
@@ -218,7 +289,14 @@ def event_card(event: Event, session=None):
             **{'data-category': event.category or ''})
     )
 
+    json_ld = _event_json_ld(event)
+    json_ld_script = (
+        Script(NotStr(json_ld), type='application/ld+json')
+        if json_ld else None
+    )
+
     return Div(
+        json_ld_script,
         A(img_element, **link_attrs),
         Div(
             # Make title clickable to original event URL with favorite button
