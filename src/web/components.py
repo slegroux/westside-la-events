@@ -391,6 +391,25 @@ def skeleton_grid(count: int = 6):
     )
 
 
+def _date_bucket(event: Event, today):
+    """Return (ordinal, label) for grouping. Lower ordinal sorts earlier."""
+    dt = event.event_date
+    if not dt:
+        return (99, 'Date TBA')
+    d = dt.date() if hasattr(dt, 'date') else dt
+    diff = (d - today).days
+    if diff <= 0:
+        return (0, 'Today')
+    if diff == 1:
+        return (1, 'Tomorrow')
+    days_to_sunday = 6 - today.weekday()  # Mon=0 .. Sun=6
+    if diff <= days_to_sunday:
+        return (2, 'This Week')
+    if diff <= days_to_sunday + 7:
+        return (3, 'Next Week')
+    return (4, 'Later')
+
+
 def events_list(events: List[Event], session=None):
     """Component to render the events grid."""
     if not events:
@@ -402,9 +421,33 @@ def events_list(events: List[Event], session=None):
         )
 
     count_text = f'Found {len(events)} event{"s" if len(events) != 1 else ""}'
+    today = datetime.now(_LA_TZ).date()
+
+    # Group events by date bucket. When everything lands in a single bucket
+    # (e.g. a 'today' filter), render flat so we don't show a redundant
+    # 'Today' header above its own list.
+    groups: dict = {}
+    for e in events:
+        key = _date_bucket(e, today)
+        groups.setdefault(key, []).append(e)
+
+    if len(groups) <= 1:
+        return Div(
+            Div(count_text, cls='results-header'),
+            Div(*[event_card(e, session) for e in events], cls='events-grid'),
+        )
+
+    ordered = sorted(groups.items(), key=lambda kv: kv[0][0])
     return Div(
         Div(count_text, cls='results-header'),
-        Div(*[event_card(e, session) for e in events], cls='events-grid'),
+        *[
+            Div(
+                H2(label, cls='date-group-title'),
+                Div(*[event_card(e, session) for e in group_events], cls='events-grid'),
+                cls='date-group',
+            )
+            for (_ordinal, label), group_events in ordered
+        ],
     )
 
 
