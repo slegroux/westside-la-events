@@ -130,9 +130,20 @@ def favorite_button(event_id: int, is_fav: bool = False):
         )
 
 
+def _format_event_date(event: Event) -> str:
+    """Render an event's date for display, collapsing multi-day spans into a range."""
+    if not event.event_date:
+        return "Date TBA"
+    start = event.event_date
+    end = event.end_date
+    if end and end.date() > start.date():
+        return f'{start.strftime("%b %d")} – {end.strftime("%b %d, %Y")}'
+    return start.strftime("%a, %b %d, %Y at %I:%M %p")
+
+
 def event_card(event: Event, session=None):
     """Component to render a single event card."""
-    event_date_str = event.event_date.strftime("%a, %b %d, %Y at %I:%M %p") if event.event_date else "Date TBA"
+    event_date_str = _format_event_date(event)
 
     # Check if event is favorited
     is_fav = is_favorited(session, event.id) if session else False
