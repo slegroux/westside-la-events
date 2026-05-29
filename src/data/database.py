@@ -17,6 +17,27 @@ from src.utils.deduplication import (
 )
 import config
 
+from zoneinfo import ZoneInfo
+
+_LA_TZ = ZoneInfo("America/Los_Angeles")
+
+
+def _to_naive_local(dt: Optional[datetime]) -> Optional[datetime]:
+    """
+    Coerce a datetime to naive LA-local time.
+
+    Stored event_date strings are a mix of naive (LA-local) and offset-aware
+    values (e.g. '2026-03-20 19:00:00-07:00'), so datetime.fromisoformat()
+    yields both shapes. Subtracting an aware datetime from a naive one raises
+    TypeError, which previously crashed duplicate detection mid-insert. Strip
+    everything to naive LA-local so date math is always comparable.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(_LA_TZ).replace(tzinfo=None)
+
 
 def sanitize_fts_query(query: str) -> str:
     """
@@ -282,6 +303,12 @@ class Database:
             - event_id: ID of inserted or existing event
             - was_duplicate: True if duplicate was found and handled
         """
+        # Normalize incoming dates to naive LA-local so duplicate detection and
+        # storage never mix naive/aware datetimes (most scrapers already do this
+        # via create_event, but guard here for any that build Event directly).
+        event.event_date = _to_naive_local(event.event_date)
+        event.end_date = _to_naive_local(event.end_date)
+
         # Check for duplicates if requested
         if check_duplicates:
             duplicate_result = self.find_duplicate_event(event)
@@ -808,8 +835,8 @@ class Database:
             address=row['address'],
             latitude=row['latitude'],
             longitude=row['longitude'],
-            event_date=datetime.fromisoformat(row['event_date']) if row['event_date'] else None,
-            end_date=datetime.fromisoformat(row['end_date']) if row['end_date'] else None,
+            event_date=_to_naive_local(datetime.fromisoformat(row['event_date'])) if row['event_date'] else None,
+            end_date=_to_naive_local(datetime.fromisoformat(row['end_date'])) if row['end_date'] else None,
             category=row['category'],
             source=row['source'],
             url=row['url'],

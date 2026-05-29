@@ -486,7 +486,9 @@ EVENT_SOURCES = {
     'smdp': {
         'name': 'Santa Monica Daily Press',
         'url': 'https://www.smdp.com/events/',
-        'enabled': True,
+        'enabled': False,  # Shelved 2026-05-29: the /events/feed/ RSS is abandoned — newest item
+        # is ~175 days old, the rest 1.5-2 years. Scraper correctly refuses to backdate them, so it
+        # always yields 0. Re-enable only if SMDP publishes a fresh events feed/listing.
         'uses_api': False,
         'note': 'Santa Monica Daily Press events coverage via RSS feed'
     },
