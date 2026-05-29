@@ -22,3 +22,6 @@ python-dateutil>=2.8.0
 
 # Environment Variables
 python-dotenv>=1.0.0
+
+# Auth (Cloud Scheduler OIDC verification on /api/run-scrapers)
+google-auth>=2.20.0

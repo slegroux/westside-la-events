@@ -8,11 +8,10 @@
 #   --env-file      Path to .env file with additional environment variables
 #   --no-cache      Force a clean rebuild without using Docker layer cache
 #
-# IMPORTANT: Secrets are managed separately via Google Secret Manager
-# The SCRAPER_TOKEN is stored securely and automatically injected at runtime.
-# It persists across deployments. To rotate the token:
-#   1. Update the secret: echo -n "new-token" | gcloud secrets versions add scraper-token --data-file=-
-#   2. Redeploy (this script) - no additional steps needed
+# The /api/run-scrapers endpoint is authenticated via Cloud Scheduler OIDC.
+# Cloud Scheduler is configured to invoke Cloud Run with a Google-signed JWT
+# whose subject is SCHEDULER_SA below. The app verifies that token in
+# src/web/routes/api.py. No shared secrets are involved.
 
 set -e  # Exit on error
 
@@ -221,7 +220,8 @@ else
 fi
 
 # Prepare environment variables
-ENV_VARS="ENVIRONMENT=production,NTFY_TOPIC=westside-events-scraper"
+SCHEDULER_SA_FOR_ENV="scheduler-invoker@${PROJECT_ID}.iam.gserviceaccount.com"
+ENV_VARS="ENVIRONMENT=production,NTFY_TOPIC=westside-events-scraper,SCRAPER_INVOKER_SA=${SCHEDULER_SA_FOR_ENV}"
 
 # Add environment variables from file if provided
 if [ -n "$ENV_FILE" ]; then
@@ -293,36 +293,43 @@ echo ""
 echo "⏰ Setting up Cloud Scheduler for daily scraping..."
 SCHEDULER_JOB="scrape-daily"
 SCRAPER_URL="${SERVICE_URL}/api/run-scrapers"
+SCHEDULER_SA="scheduler-invoker@${PROJECT_ID}.iam.gserviceaccount.com"
 
-# Retrieve the SCRAPER_TOKEN from Secret Manager
-SCRAPER_TOKEN=$(gcloud secrets versions access latest --secret=scraper-token 2>/dev/null || true)
-
-if [ -z "$SCRAPER_TOKEN" ]; then
-    echo "  ⚠️  Warning: SCRAPER_TOKEN secret not found in Secret Manager"
-    echo "  Cloud Scheduler job will NOT be created."
-    echo "  To fix: echo -n 'your-token' | gcloud secrets create scraper-token --data-file=-"
+# Confirm the invoker service account exists; it has to be created once via:
+#   gcloud iam service-accounts create scheduler-invoker
+#   gcloud run services add-iam-policy-binding ${SERVICE_NAME} --region=${REGION} \
+#       --member=serviceAccount:${SCHEDULER_SA} --role=roles/run.invoker
+if ! gcloud iam service-accounts describe "${SCHEDULER_SA}" &>/dev/null; then
+    echo "  ⚠️  Service account ${SCHEDULER_SA} not found."
+    echo "  Create it once with:"
+    echo "    gcloud iam service-accounts create scheduler-invoker"
+    echo "    gcloud run services add-iam-policy-binding ${SERVICE_NAME} --region=${REGION} \\"
+    echo "        --member=serviceAccount:${SCHEDULER_SA} --role=roles/run.invoker"
+    echo "  Skipping scheduler setup."
 else
-    # Check if the job already exists
     if gcloud scheduler jobs describe ${SCHEDULER_JOB} --location=${REGION} &>/dev/null; then
-        echo "  Updating existing scheduler job..."
+        echo "  Updating existing scheduler job (OIDC)..."
         gcloud scheduler jobs update http ${SCHEDULER_JOB} \
             --location=${REGION} \
             --schedule="0 4 * * *" \
             --time-zone="America/Los_Angeles" \
             --uri="${SCRAPER_URL}" \
             --http-method=POST \
-            --update-headers="Authorization=Bearer ${SCRAPER_TOKEN}" \
+            --oidc-service-account-email="${SCHEDULER_SA}" \
+            --oidc-token-audience="${SERVICE_URL}" \
+            --remove-headers=Authorization \
             --attempt-deadline=1800s \
             --quiet
     else
-        echo "  Creating new scheduler job..."
+        echo "  Creating new scheduler job (OIDC)..."
         gcloud scheduler jobs create http ${SCHEDULER_JOB} \
             --location=${REGION} \
             --schedule="0 4 * * *" \
             --time-zone="America/Los_Angeles" \
             --uri="${SCRAPER_URL}" \
             --http-method=POST \
-            --headers="Authorization=Bearer ${SCRAPER_TOKEN}" \
+            --oidc-service-account-email="${SCHEDULER_SA}" \
+            --oidc-token-audience="${SERVICE_URL}" \
             --attempt-deadline=1800s \
             --quiet
     fi
@@ -354,5 +361,5 @@ echo ""
 echo "  • Check Cloud Storage:"
 echo "    gsutil ls gs://${BUCKET_NAME}/"
 echo ""
-echo "  • Verify secrets (SCRAPER_TOKEN):"
-echo "    gcloud run services describe ${SERVICE_NAME} --region ${REGION} --format='value(spec.template.spec.containers[0].env)'"
+echo "  • Verify scheduler is using OIDC:"
+echo "    gcloud scheduler jobs describe scrape-daily --location ${REGION} --format='value(httpTarget.oidcToken.serviceAccountEmail)'"
