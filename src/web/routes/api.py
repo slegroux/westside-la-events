@@ -60,40 +60,48 @@ def setup_routes(rt, state):
         """
         API endpoint to trigger scrapers and sync database to Cloud Storage.
         Used by Cloud Scheduler for automated scraping.
-
-        Process:
-        1. Start scrapers in background (non-blocking)
-        2. Return immediately with 202 Accepted
-        3. Scrapers run independently and upload when complete
-
-        This design allows Cloud Scheduler to succeed even with short timeouts,
-        while scrapers complete their work in the background.
         """
-        import hmac
         import subprocess
         import os
         import sys
         from pathlib import Path
         from starlette.responses import JSONResponse
 
-        # Verify the request is authorized (basic security)
-        # SCRAPER_TOKEN is injected securely from Google Secret Manager
-        auth_header = request.headers.get('Authorization', '')
-        expected_token = os.getenv('SCRAPER_TOKEN', '').strip()
+        # In production, require a Google-signed OIDC token from Cloud Scheduler.
+        # Locally (ENVIRONMENT != 'production') we bypass auth so it's easy to
+        # trigger a run from a dev shell.
+        if os.getenv('ENVIRONMENT') == 'production':
+            from google.oauth2 import id_token
+            from google.auth.transport import requests as google_requests
 
-        if not expected_token:
-            return JSONResponse({
-                'error': 'Misconfigured server',
-                'message': 'SCRAPER_TOKEN is not configured'
-            }, status_code=503)
+            expected_sa = os.getenv(
+                'SCRAPER_INVOKER_SA',
+                'scheduler-invoker@westside-la-events.iam.gserviceaccount.com',
+            )
+            expected_audience = os.getenv(
+                'SCRAPER_AUDIENCE',
+                'https://westside-events-406046958598.us-west1.run.app',
+            )
 
-        bearer_prefix = 'Bearer '
-        if not auth_header.startswith(bearer_prefix):
-            return JSONResponse({'error': 'Unauthorized'}, status_code=401)
+            auth_header = request.headers.get('Authorization', '')
+            bearer_prefix = 'Bearer '
+            if not auth_header.startswith(bearer_prefix):
+                return JSONResponse({'error': 'Unauthorized'}, status_code=401)
+            token = auth_header[len(bearer_prefix):].strip()
 
-        provided_token = auth_header[len(bearer_prefix):].strip()
-        if not hmac.compare_digest(provided_token, expected_token):
-            return JSONResponse({'error': 'Unauthorized'}, status_code=401)
+            try:
+                claims = id_token.verify_oauth2_token(
+                    token, google_requests.Request(), audience=expected_audience
+                )
+            except ValueError as e:
+                logger.warning(f"OIDC token verification failed: {e}")
+                return JSONResponse({'error': 'Unauthorized'}, status_code=401)
+
+            if claims.get('email') != expected_sa or not claims.get('email_verified'):
+                logger.warning(
+                    f"OIDC token had wrong subject: email={claims.get('email')}"
+                )
+                return JSONResponse({'error': 'Unauthorized'}, status_code=401)
 
         try:
             project_root = Path(__file__).resolve().parents[3]
