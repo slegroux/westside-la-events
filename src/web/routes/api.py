@@ -103,11 +103,13 @@ def setup_routes(rt, state):
             # handle (BufferedWriteHandler.OutOfOrderError).  Work around this by
             # scraping into a local /tmp directory and letting the existing gsutil
             # upload in run_scrapers.py push the result back to Cloud Storage.
-            import shutil
+            # Use SQLite's backup API instead of file copy so any uncheckpointed
+            # WAL pages are included in the seed snapshot.
+            from src.data.database import Database
             tmp_db = '/tmp/events.db'
             src_db = os.path.join(str(project_root), 'data', 'events.db')
             if os.path.exists(src_db):
-                shutil.copy2(src_db, tmp_db)
+                Database.snapshot_db(src_db, tmp_db)
 
             env = os.environ.copy()
             env['DATABASE_PATH'] = tmp_db

@@ -93,6 +93,30 @@ class Database:
             # (may not be supported on some filesystems)
             pass
 
+    @staticmethod
+    def snapshot_db(source_path: str, target_path: str) -> None:
+        """
+        Create a consistent WAL-safe snapshot of a SQLite database.
+
+        Why: WAL mode keeps uncommitted-to-main pages in `<db>-wal`. A naive
+        file copy of `<db>` alone can omit committed rows. SQLite's backup API
+        produces a single self-contained file with all data flushed.
+        """
+        target = Path(target_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            target.unlink()
+
+        src = sqlite3.connect(source_path, timeout=30.0)
+        try:
+            dst = sqlite3.connect(str(target), timeout=30.0)
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+        finally:
+            src.close()
+
     def init_db(self):
         """Initialize database schema."""
         with self.get_connection() as conn:
