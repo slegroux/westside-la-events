@@ -9,6 +9,7 @@ import time
 import os
 import requests
 from bs4 import BeautifulSoup
+from zoneinfo import ZoneInfo
 
 import config
 from src.data.models import Event
@@ -16,6 +17,25 @@ from src.utils.geocoding import get_geocoding_service
 from src.utils.categories import classify_event
 from src.utils.logo_scraper import LogoScraper
 from src.utils.geo_filter import validate_event_location
+
+
+LA_TZ = ZoneInfo("America/Los_Angeles")
+
+
+def normalize_event_datetime(dt: Optional[datetime]) -> Optional[datetime]:
+    """
+    Canonical event datetime: naive, LA-local.
+
+    Scrapers feed a mix of naive datetimes (already LA-local) and aware
+    datetimes (often UTC from APIs). Persisting both shapes leaves
+    timezone offsets in event_date strings, which breaks day-boundary
+    comparisons because SQLite's date() converts those to UTC.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(LA_TZ).replace(tzinfo=None)
 
 
 class BaseScraper(ABC):
@@ -329,8 +349,8 @@ class BaseScraper(ABC):
             address=address.strip() if address else "",
             latitude=latitude,
             longitude=longitude,
-            event_date=event_date,
-            end_date=end_date,
+            event_date=normalize_event_datetime(event_date),
+            end_date=normalize_event_datetime(end_date),
             category=category,
             source=self.source_name,
             url=url.strip() if url else "",
