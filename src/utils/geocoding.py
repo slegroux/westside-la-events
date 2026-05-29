@@ -3,6 +3,7 @@ Geocoding utility for converting addresses to lat/lng coordinates.
 Uses Nominatim (OpenStreetMap) geocoding service - completely free, no API key required.
 """
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Optional, Tuple
@@ -10,6 +11,11 @@ from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
 import config
+
+
+POSITIVE_TTL_SECONDS = 90 * 86400  # 90 days — addresses occasionally move/re-key
+NEGATIVE_TTL_SECONDS = 7 * 86400   # 7 days — transient outages shouldn't poison forever
+_CACHE_MISS = object()  # sentinel distinguishing "no entry" from cached-negative None
 
 
 class GeocodingService:
@@ -28,6 +34,10 @@ class GeocodingService:
         self.geolocator = Nominatim(user_agent="westside_la_events/1.0")
         self.cache = self._load_cache()
         self._dirty = False
+        # The geocoding service is shared across the scraper thread pool, so
+        # cache mutations and the _dirty flag need locking. RLock so that
+        # flush/clear can be called from inside a locked region if needed.
+        self._lock = threading.RLock()
 
     def _load_cache(self) -> dict:
         """Load geocoding cache from file."""
@@ -50,6 +60,57 @@ class GeocodingService:
         except IOError as e:
             print(f"Warning: Could not save geocoding cache: {e}")
 
+    def _lookup_cached(self, cache_key: str, now: float):
+        """
+        Look up a cache entry under lock. Returns:
+          - (lat, lng) tuple for a fresh positive hit
+          - None for a fresh negative hit (cached miss)
+          - _CACHE_MISS sentinel if absent or expired
+
+        Lazily migrates legacy positive entries to the timestamped schema
+        and evicts expired entries.
+        """
+        if cache_key not in self.cache:
+            return _CACHE_MISS
+        cached = self.cache[cache_key]
+
+        # Legacy bare-None negative — treat as expired and re-geocode
+        if cached is None or not isinstance(cached, dict):
+            del self.cache[cache_key]
+            self._dirty = True
+            return _CACHE_MISS
+
+        # Legacy positive: {'lat': ..., 'lng': ...} — migrate, return
+        if 'lat' in cached and 'lng' in cached:
+            coords = (cached['lat'], cached['lng'])
+            self.cache[cache_key] = {
+                'result': {'lat': coords[0], 'lng': coords[1]},
+                'cached_at': now,
+            }
+            self._dirty = True
+            return coords
+
+        result = cached.get('result')
+        cached_at = cached.get('cached_at', 0)
+
+        if result is None:
+            if now - cached_at < NEGATIVE_TTL_SECONDS:
+                return None
+            del self.cache[cache_key]
+            self._dirty = True
+            return _CACHE_MISS
+
+        # Positive entry — apply TTL, lazy-stamp legacy entries missing cached_at
+        if cached_at == 0:
+            cached['cached_at'] = now
+            self._dirty = True
+            return (result['lat'], result['lng'])
+        if now - cached_at < POSITIVE_TTL_SECONDS:
+            return (result['lat'], result['lng'])
+        del self.cache[cache_key]
+        self._dirty = True
+        return _CACHE_MISS
+
     def geocode(self, address: str, retry: int = 3) -> Optional[Tuple[float, float]]:
         """
         Geocode an address to latitude and longitude.
@@ -64,30 +125,16 @@ class GeocodingService:
         if not address or not address.strip():
             return None
 
-        # Check cache first
         cache_key = address.lower().strip()
-        if cache_key in self.cache:
-            cached = self.cache[cache_key]
-            if cached is None:
-                # Legacy format: permanent negative cache — treat as expired, retry geocoding
-                del self.cache[cache_key]
-                self._dirty = True
-            elif 'lat' in cached and 'lng' in cached:
-                # Legacy positive format: {'lat': ..., 'lng': ...}
-                return (cached['lat'], cached['lng'])
-            elif cached.get('result') is not None:
-                # New positive format: {'result': {'lat': ..., 'lng': ...}}
-                return (cached['result']['lat'], cached['result']['lng'])
-            else:
-                # New negative format: {'result': None, 'cached_at': ...}
-                # Expire after 7 days so transient outages don't cache failures forever
-                if time.time() - cached.get('cached_at', 0) < 7 * 86400:
-                    return None
-                else:
-                    del self.cache[cache_key]
-                    self._dirty = True
+        now = time.time()
 
-        # Try geocoding with retries (Nominatim has rate limit of 1 req/sec)
+        with self._lock:
+            cached = self._lookup_cached(cache_key, now)
+        if cached is not _CACHE_MISS:
+            return cached  # coords tuple or None for cached-negative
+
+        # Cache miss — geocode. Do the network call outside the lock so
+        # other threads can read/write the cache concurrently.
         for attempt in range(retry):
             try:
                 # Respect Nominatim's rate limit (1 request per second)
@@ -99,18 +146,19 @@ class GeocodingService:
                 )
 
                 if location:
-                    result = (location.latitude, location.longitude)
-                    # Cache successful result (deferred save); positive hits don't expire
-                    self.cache[cache_key] = {
-                        'result': {'lat': location.latitude, 'lng': location.longitude}
-                    }
-                    self._dirty = True
-                    return result
-                else:
-                    # Cache negative result with timestamp so it expires after 7 days
+                    coords = (location.latitude, location.longitude)
+                    with self._lock:
+                        self.cache[cache_key] = {
+                            'result': {'lat': coords[0], 'lng': coords[1]},
+                            'cached_at': time.time(),
+                        }
+                        self._dirty = True
+                    return coords
+
+                with self._lock:
                     self.cache[cache_key] = {'result': None, 'cached_at': time.time()}
                     self._dirty = True
-                    return None
+                return None
 
             except GeocoderTimedOut:
                 if attempt < retry - 1:
@@ -160,15 +208,17 @@ class GeocodingService:
 
     def flush_cache(self):
         """Save geocoding cache to disk if there are unsaved changes."""
-        if self._dirty:
-            self._save_cache()
-            self._dirty = False
+        with self._lock:
+            if self._dirty:
+                self._save_cache()
+                self._dirty = False
 
     def clear_cache(self):
         """Clear the geocoding cache."""
-        self.cache = {}
-        self._save_cache()
-        self._dirty = False
+        with self._lock:
+            self.cache = {}
+            self._save_cache()
+            self._dirty = False
 
     def is_in_westside(self, latitude: float, longitude: float) -> bool:
         """
@@ -190,11 +240,16 @@ class GeocodingService:
 
 # Global geocoding service instance
 _geocoding_service = None
+_geocoding_service_lock = threading.Lock()
 
 
 def get_geocoding_service() -> GeocodingService:
     """Get or create the global geocoding service instance."""
     global _geocoding_service
-    if _geocoding_service is None:
-        _geocoding_service = GeocodingService()
+    if _geocoding_service is not None:
+        return _geocoding_service
+    with _geocoding_service_lock:
+        # Double-checked: another thread may have initialized while we waited.
+        if _geocoding_service is None:
+            _geocoding_service = GeocodingService()
     return _geocoding_service
