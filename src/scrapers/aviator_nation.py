@@ -56,7 +56,7 @@ class AviatorNationScraper(BaseScraper):
     def _scrape_organizer_page(self, url: str) -> List[Event]:
         """
         Scrape an Aviator Nation organizer page by extracting event data
-        from window.__SERVER_DATA__.
+        from the Next.js __NEXT_DATA__ payload.
 
         Args:
             url: Organizer page URL
@@ -72,33 +72,27 @@ class AviatorNationScraper(BaseScraper):
                 self.log(f"Failed to fetch organizer page: {url}")
                 return events
 
-            # Extract window.__SERVER_DATA__
-            match = re.search(r'window\.__SERVER_DATA__\s*=\s*(\{.*?\});?\s*(?:window\.|</script>)', html, re.DOTALL)
+            # Eventbrite organizer pages are now Next.js apps. Event listings
+            # live in the __NEXT_DATA__ JSON blob at props.pageProps.upcomingEvents.
+            match = re.search(
+                r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
+                html, re.DOTALL,
+            )
             if not match:
-                self.log(f"No window.__SERVER_DATA__ found on page")
+                self.log("No __NEXT_DATA__ found on organizer page")
                 return events
 
-            # Parse the JavaScript object as JSON
             try:
-                json_str = match.group(1)
-                # Remove trailing commas that aren't valid JSON
-                json_str = re.sub(r',\s*([\]}])', r'\1', json_str)
-                data = json.loads(json_str)
+                data = json.loads(match.group(1))
             except json.JSONDecodeError as e:
-                self.log(f"Failed to parse SERVER_DATA: {e}")
+                self.log(f"Failed to parse __NEXT_DATA__: {e}")
                 return events
 
-            # Extract events from the data structure
-            # Events can be in multiple locations: upcoming_events, past_events, etc.
-            view_data = data.get('view_data', {})
-            events_data = view_data.get('events', {})
+            page_props = data.get('props', {}).get('pageProps', {})
+            upcoming_events = page_props.get('upcomingEvents', []) or []
 
-            # Get both upcoming and past events (we want all of them)
-            upcoming_events = events_data.get('upcoming_events', [])
-            past_events = events_data.get('past_events', [])
-
-            all_events = upcoming_events + past_events
-            self.log(f"Found {len(upcoming_events)} upcoming and {len(past_events)} past events")
+            all_events = list(upcoming_events)
+            self.log(f"Found {len(upcoming_events)} upcoming events")
 
             # Parse each event
             for i, event_data in enumerate(all_events, 1):
@@ -149,31 +143,40 @@ class AviatorNationScraper(BaseScraper):
             description = description_data
 
         # URL - build from event ID
-        event_id = data.get('id', '')
+        event_id = data.get('id') or data.get('eventbrite_event_id') or ''
         url = data.get('url', '')
         if not url and event_id:
             url = f"{self.base_url}/e/{event_id}"
 
-        # Dates
+        # Dates - new __NEXT_DATA__ format uses split start_date/start_time strings,
+        # legacy format used nested start/end dicts with 'local'/'utc'.
         event_date = None
         end_date = None
 
         start_data = data.get('start', {})
-        if start_data:
+        if isinstance(start_data, dict) and (start_data.get('local') or start_data.get('utc')):
             try:
-                start_str = start_data.get('local') or start_data.get('utc')
-                if start_str:
-                    event_date = date_parser.parse(start_str)
-            except:
+                event_date = date_parser.parse(start_data.get('local') or start_data.get('utc'))
+            except Exception:
+                pass
+        elif data.get('start_date'):
+            try:
+                start_str = f"{data['start_date']}T{data.get('start_time') or '00:00:00'}"
+                event_date = date_parser.parse(start_str)
+            except Exception:
                 pass
 
         end_data = data.get('end', {})
-        if end_data:
+        if isinstance(end_data, dict) and (end_data.get('local') or end_data.get('utc')):
             try:
-                end_str = end_data.get('local') or end_data.get('utc')
-                if end_str:
-                    end_date = date_parser.parse(end_str)
-            except:
+                end_date = date_parser.parse(end_data.get('local') or end_data.get('utc'))
+            except Exception:
+                pass
+        elif data.get('end_date'):
+            try:
+                end_str = f"{data['end_date']}T{data.get('end_time') or '00:00:00'}"
+                end_date = date_parser.parse(end_str)
+            except Exception:
                 pass
 
         # Venue - try to get from primary_venue
@@ -208,12 +211,16 @@ class AviatorNationScraper(BaseScraper):
                 venue_name = 'Aviator Nation Venice'
                 address = '1224 Abbot Kinney Blvd, Venice, CA 90291'
 
-        # Image
+        # Image - new __NEXT_DATA__ uses 'image', legacy used 'logo'
         image_url = ''
-        if 'logo_id' in data or 'logo' in data:
-            logo_data = data.get('logo', {})
-            if isinstance(logo_data, dict):
-                image_url = logo_data.get('url', '') or logo_data.get('original', {}).get('url', '')
+        image_data = data.get('image') or data.get('logo')
+        if isinstance(image_data, dict):
+            image_url = (
+                image_data.get('url', '')
+                or (image_data.get('original') or {}).get('url', '')
+            )
+        elif isinstance(image_data, str):
+            image_url = image_data
 
         # Price
         is_free = data.get('is_free', False)

@@ -145,7 +145,12 @@ class WestsideComedyScraper(BaseScraper):
 
     def _extract_eventbrite_event_data(self, html: str) -> Optional[Dict]:
         """
-        Extract single event data from Eventbrite event page.
+        Extract single event data from an Eventbrite event page.
+
+        Eventbrite's event pages now expose structured data via a
+        ``<script type="application/ld+json">`` block with ``@type`` of
+        ``Event``. We normalize that schema.org payload into the dict shape
+        ``_parse_eventbrite_event`` already understands (name/start/end/etc.).
 
         Args:
             html: HTML content of Eventbrite event page
@@ -154,18 +159,21 @@ class WestsideComedyScraper(BaseScraper):
             Dictionary containing event data or None if not found
         """
         try:
-            # Look for __NEXT_DATA__ which contains event information
-            next_data_pattern = r'<script\s+id="__NEXT_DATA__"[^>]*>(.*?)</script>'
-            match = re.search(next_data_pattern, html, re.DOTALL)
+            # Primary: schema.org Event embedded as JSON-LD.
+            for m in re.finditer(
+                r'<script type="application/ld\+json">(.*?)</script>',
+                html, re.DOTALL,
+            ):
+                try:
+                    ld = json.loads(m.group(1))
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(ld, dict) and ld.get('@type') == 'Event':
+                    normalized = self._normalize_ld_event(ld, html)
+                    if normalized:
+                        return normalized
 
-            if match:
-                data = json.loads(match.group(1))
-                # Navigate to event data
-                event_data = data.get('props', {}).get('pageProps', {}).get('event')
-                if event_data:
-                    return event_data
-
-            # Fallback: Try window.__SERVER_DATA__ if __NEXT_DATA__ not found
+            # Fallback: legacy window.__SERVER_DATA__ structure.
             server_data = self._extract_server_data(html)
             if server_data:
                 return server_data.get('event')
@@ -174,6 +182,61 @@ class WestsideComedyScraper(BaseScraper):
             self.log(f"Error extracting event data: {e}")
 
         return None
+
+    def _normalize_ld_event(self, ld: Dict, html: str) -> Dict:
+        """
+        Convert a schema.org Event JSON-LD dict into the legacy Eventbrite
+        event dict shape consumed by ``_parse_eventbrite_event``.
+        """
+        # Description / image meta fallbacks (some pages have only og:description).
+        if not ld.get('description'):
+            soup = BeautifulSoup(html, 'html.parser')
+            og_desc = soup.find('meta', property='og:description')
+            if og_desc and og_desc.get('content'):
+                ld['description'] = og_desc['content']
+
+        # Build legacy-ish shape.
+        normalized: Dict = {
+            'name': ld.get('name', ''),
+            'url': ld.get('url', ''),
+            'summary': ld.get('description', ''),
+            'description': {'text': ld.get('description', '')},
+            'logo': ld.get('image'),
+            'start': {'local': ld.get('startDate', '')},
+            'end': {'local': ld.get('endDate', '')},
+        }
+
+        # Venue
+        location = ld.get('location') or {}
+        if isinstance(location, dict):
+            addr = location.get('address') or {}
+            normalized['venue'] = {
+                'name': location.get('name', ''),
+                'address': {
+                    'address_1': addr.get('streetAddress', '') if isinstance(addr, dict) else '',
+                    'city': addr.get('addressLocality', '') if isinstance(addr, dict) else '',
+                    'region': addr.get('addressRegion', '') if isinstance(addr, dict) else '',
+                    'postal_code': addr.get('postalCode', '') if isinstance(addr, dict) else '',
+                },
+            }
+
+        # Price
+        offers = ld.get('offers') or []
+        if isinstance(offers, dict):
+            offers = [offers]
+        if offers:
+            first = offers[0] if isinstance(offers[0], dict) else {}
+            low = first.get('lowPrice') or first.get('price')
+            high = first.get('highPrice')
+            if low is not None and high is not None and str(low) != str(high):
+                normalized['price_range'] = f"${low} - ${high}"
+            elif low is not None:
+                try:
+                    normalized['price_range'] = 'free' if float(low) == 0 else f"${low}"
+                except (TypeError, ValueError):
+                    normalized['price_range'] = str(low)
+
+        return normalized
 
     def _fetch_website_event_details(self, event_url: str) -> Optional[Event]:
         """
@@ -314,14 +377,27 @@ class WestsideComedyScraper(BaseScraper):
                 self.log("Failed to fetch Eventbrite page")
                 return events
 
-            # Extract embedded JSON data from JavaScript
-            event_data = self._extract_server_data(html)
-            if not event_data:
-                self.log("Failed to extract event data from page")
+            # Eventbrite organizer pages are now Next.js apps. Event listings
+            # live in __NEXT_DATA__ at props.pageProps.upcomingEvents.
+            match = re.search(
+                r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>',
+                html, re.DOTALL,
+            )
+            if not match:
+                self.log("No __NEXT_DATA__ found on organizer page")
                 return events
 
-            # Get future events list
-            future_events = event_data.get('view_data', {}).get('events', {}).get('future_events', [])
+            try:
+                data = json.loads(match.group(1))
+            except json.JSONDecodeError as e:
+                self.log(f"Failed to parse __NEXT_DATA__: {e}")
+                return events
+
+            future_events = (
+                data.get('props', {})
+                .get('pageProps', {})
+                .get('upcomingEvents', [])
+            ) or []
             self.log(f"Found {len(future_events)} future events on Eventbrite")
 
             for i, event_json in enumerate(future_events, 1):
@@ -427,21 +503,36 @@ class WestsideComedyScraper(BaseScraper):
             # Event URL
             event_url = event_data.get('url', '')
 
-            # Parse dates
+            # Parse dates - supports both legacy nested {local: ...} shape and
+            # the new __NEXT_DATA__ split start_date/start_time fields.
             event_date = None
             end_date = None
-            start_data = event_data.get('start', {})
-            end_data = event_data.get('end', {})
+            start_data = event_data.get('start', {}) or {}
+            end_data = event_data.get('end', {}) or {}
 
-            if start_data.get('local'):
+            if isinstance(start_data, dict) and start_data.get('local'):
                 try:
                     event_date = date_parser.parse(start_data['local'])
                 except Exception as e:
                     self.log(f"Error parsing start date: {e}")
+            elif event_data.get('start_date'):
+                try:
+                    event_date = date_parser.parse(
+                        f"{event_data['start_date']}T{event_data.get('start_time') or '00:00:00'}"
+                    )
+                except Exception as e:
+                    self.log(f"Error parsing start date: {e}")
 
-            if end_data.get('local'):
+            if isinstance(end_data, dict) and end_data.get('local'):
                 try:
                     end_date = date_parser.parse(end_data['local'])
+                except Exception as e:
+                    self.log(f"Error parsing end date: {e}")
+            elif event_data.get('end_date'):
+                try:
+                    end_date = date_parser.parse(
+                        f"{event_data['end_date']}T{event_data.get('end_time') or '00:00:00'}"
+                    )
                 except Exception as e:
                     self.log(f"Error parsing end date: {e}")
 
@@ -459,9 +550,31 @@ class WestsideComedyScraper(BaseScraper):
                     price_match = re.search(r'\$(\d+(?:\.\d{2})?)', price_range)
                     if price_match:
                         price = float(price_match.group(1))
+            else:
+                # New __NEXT_DATA__ exposes ticket_availability with minimum_ticket_price.
+                ticket_availability = event_data.get('ticket_availability') or {}
+                if ticket_availability.get('is_free'):
+                    is_free = True
+                    price = 0.0
+                else:
+                    min_price = ticket_availability.get('minimum_ticket_price') or {}
+                    major = min_price.get('major_value')
+                    if major is not None:
+                        try:
+                            price = float(major)
+                            if price == 0:
+                                is_free = True
+                        except (TypeError, ValueError):
+                            pass
 
-            # Extract description
-            description = event_data.get('summary', '') or event_data.get('description', {}).get('text', '')
+            # Extract description (summary may be string or dict; description likewise)
+            summary = event_data.get('summary', '')
+            if isinstance(summary, dict):
+                summary = summary.get('text', '')
+            desc_field = event_data.get('description', '')
+            if isinstance(desc_field, dict):
+                desc_field = desc_field.get('text', '')
+            description = summary or desc_field
             if not description:
                 description = f"Comedy show at {self.venue_name}"
 
@@ -475,8 +588,11 @@ class WestsideComedyScraper(BaseScraper):
             if isinstance(logo_data, dict):
                 # Try various image size keys
                 for key in ['url', 'original', 'large', 'medium']:
-                    if logo_data.get(key):
-                        image_url = logo_data[key]
+                    val = logo_data.get(key)
+                    if isinstance(val, dict):
+                        val = val.get('url')
+                    if val:
+                        image_url = val
                         break
             elif isinstance(logo_data, str):
                 image_url = logo_data
@@ -485,8 +601,9 @@ class WestsideComedyScraper(BaseScraper):
             venue_name = self.venue_name
             address = self.venue_address
 
-            # Try to get venue from data if available
-            venue_data = event_data.get('venue', {})
+            # Try to get venue from data if available - new __NEXT_DATA__ uses
+            # 'primary_venue', legacy event detail uses 'venue'.
+            venue_data = event_data.get('primary_venue') or event_data.get('venue') or {}
             if venue_data:
                 venue_name = venue_data.get('name', self.venue_name)
                 venue_address = venue_data.get('address', {})
