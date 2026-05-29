@@ -38,26 +38,27 @@ class GeffenPlayhouseScraper(BaseScraper):
 
             soup = self.parse_html(html)
 
-            # Find all show links - they follow the pattern /shows/[show-slug]/
-            show_links = soup.find_all('a', href=re.compile(r'/shows/[a-z0-9-]+/?'))
+            # Each show is rendered inside a div.show-details containing h1 (title),
+            # p (date range), summary, and a "Learn More" link pointing to /shows/<slug>/.
+            show_cards = soup.find_all('div', class_='show-details')
 
-            self.log(f"Found {len(show_links)} show links")
+            self.log(f"Found {len(show_cards)} show cards")
 
-            # Process unique show URLs
             seen_urls = set()
-            for link in show_links:
+            for card in show_cards:
                 try:
-                    url = self.normalize_url(link['href'], self.base_url)
-                    if url in seen_urls or '/shows/' not in url:
+                    # Locate the show detail URL via the "Learn More" link
+                    detail_link = card.find('a', href=re.compile(r'/shows/[a-z0-9-]+/?'))
+                    if not detail_link:
+                        continue
+                    url = self.normalize_url(detail_link['href'], self.base_url)
+                    if url in seen_urls:
                         continue
                     seen_urls.add(url)
 
-                    # Find the card container for this show
-                    card = link.find_parent(['div', 'article', 'section'])
-                    if card:
-                        event = self._parse_event(card, url)
-                        if event:
-                            events.append(event)
+                    event = self._parse_event(card, url)
+                    if event:
+                        events.append(event)
                 except Exception as e:
                     self.log(f"Error parsing event: {e}")
                     continue
@@ -82,18 +83,25 @@ class GeffenPlayhouseScraper(BaseScraper):
         Returns:
             Event object or None
         """
-        # Extract title from h3 element
-        title_elem = item.find('h3')
+        # Title is in the h1 element inside .show-details
+        title_elem = item.find('h1')
         if not title_elem:
-            title_elem = item.find('a', href=re.compile(r'/shows/'))
-
+            title_elem = item.find('h3')
         if not title_elem:
             return None
 
+        # Replace <br> with spaces so multi-line titles collapse cleanly
+        for br in title_elem.find_all('br'):
+            br.replace_with(' ')
         title = self.clean_text(title_elem.get_text())
 
-        # Remove premiere designations like "World Premiere" from title
-        title = re.sub(r'(World Premiere|Los Angeles Premiere|The .* Production of)\s*', '', title, flags=re.IGNORECASE).strip()
+        # Strip any premiere/designation prefixes that may leak in
+        title = re.sub(
+            r'^(World Premiere|Los Angeles Premiere|West Coast Premiere|The .* Production of)\s*',
+            '',
+            title,
+            flags=re.IGNORECASE,
+        ).strip()
 
         # Extract description
         description = ""

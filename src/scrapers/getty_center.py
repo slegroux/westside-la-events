@@ -52,8 +52,19 @@ class GettyCenterScraper(BaseScraper):
                         continue
                     seen_urls.add(url)
 
-                    # Find the event container
+                    # The immediate parent of the image link is just an image cell.
+                    # Walk up until we find an ancestor that contains the title (h4)
+                    # so we get the full event row.
                     event_container = link.find_parent(['div', 'article', 'section'])
+                    cur = event_container
+                    for _ in range(6):
+                        if cur is None:
+                            break
+                        if cur.find('h4'):
+                            event_container = cur
+                            break
+                        cur = cur.parent
+
                     if event_container:
                         event = self._parse_event(event_container, url)
                         if event:
@@ -115,25 +126,38 @@ class GettyCenterScraper(BaseScraper):
 
         # Extract date/time
         event_date = None
-        # Look for date strings like "Friday OCT 25" or time strings like "6:30 pm"
-        date_text = item.get_text()
+        # Look for date strings like "Friday OCT 25" or "Daily through Nov 18"
+        date_text = item.get_text(' ', strip=True)
 
         # Try to find date and time patterns
+        # Form 1: "Friday OCT 25"
         date_match = re.search(r'([A-Z][a-z]+)\s+([A-Z]{3})\s+(\d{1,2})', date_text)
+        # Form 2: "through Nov 18" or "Daily through Nov 18"
+        if not date_match:
+            date_match2 = re.search(r'through\s+([A-Z][a-z]{2,8})\s+(\d{1,2})', date_text, re.IGNORECASE)
+        else:
+            date_match2 = None
         time_match = re.search(r'(\d{1,2}:\d{2}\s*[ap]m)', date_text, re.IGNORECASE)
 
-        if date_match:
+        if date_match or date_match2:
             try:
-                # Construct date string from matches
-                month = date_match.group(2)
-                day = date_match.group(3)
-                current_year = datetime.now().year
-                date_str = f"{month} {day} {current_year}"
+                if date_match:
+                    month = date_match.group(2)
+                    day = date_match.group(3)
+                else:
+                    month = date_match2.group(1)
+                    day = date_match2.group(2)
 
+                now = datetime.now()
+                # Try current year first, but roll to next year if the resulting
+                # date has already passed (Getty's calendar always shows upcoming).
+                base = f"{month} {day} {now.year}"
                 if time_match:
-                    date_str += f" {time_match.group(1)}"
-
-                event_date = date_parser.parse(date_str)
+                    base += f" {time_match.group(1)}"
+                parsed = date_parser.parse(base)
+                if parsed < now.replace(hour=0, minute=0, second=0, microsecond=0):
+                    parsed = parsed.replace(year=now.year + 1)
+                event_date = parsed
             except Exception as e:
                 self.log(f"Error parsing date: {e}")
 
