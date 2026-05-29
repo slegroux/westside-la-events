@@ -737,19 +737,26 @@ class Database:
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
-            # PHASE 1: Check for exact URL match first (fastest check)
-            # This catches the same event from different sources immediately
+            # PHASE 1: Check for exact URL match first (fastest check).
+            # We only consider a URL collision a duplicate when the event_date
+            # is also within a day. Some venues (farmers markets, weekly
+            # classes) emit every occurrence under a single canonical URL —
+            # treating those as one event collapses an entire schedule into a
+            # single row.
             if event.url:
                 cursor.execute("""
                     SELECT * FROM events
                     WHERE url = ?
-                    LIMIT 1
                 """, (event.url.strip(),))
 
-                row = cursor.fetchone()
-                if row:
+                for row in cursor.fetchall():
                     existing_event = self._row_to_event(row)
-                    # Create scores dict to match expected return format
+                    if existing_event.event_date and event.event_date:
+                        diff_h = abs(
+                            (existing_event.event_date - event.event_date).total_seconds()
+                        ) / 3600.0
+                        if diff_h >= 24:
+                            continue  # different occurrence, keep looking
                     scores = {
                         'same_url': True,
                         'same_source': existing_event.source == event.source,
