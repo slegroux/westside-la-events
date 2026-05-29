@@ -109,48 +109,45 @@ class AeroTheaterScraper(BaseScraper):
             from bs4 import BeautifulSoup
             title = html.unescape(BeautifulSoup(raw_title, 'html.parser').get_text())
 
+            # Skip placeholder/test entries the venue leaves in their CMS
+            # (e.g. "Test Event", "E2E Scheduled Test"). Match the whole title
+            # so real films like "THE TESTAMENTS" are not affected.
+            if re.fullmatch(r'(?i)\s*(test event|e2e scheduled test)\s*', title):
+                return None
+
             # Extract ACF (Advanced Custom Fields) data
             acf_data = event.get('acf', {})
+            event_hero = acf_data.get('event_hero', {}) or {}
 
-            # Extract date and time - MUST have a date to be a valid event
-            # The API provides date in YYYYMMDD format and time as separate field
+            # Extract date and time - MUST have a date to be a valid event.
+            # As of the 2026 ACF schema, American Cinematheque stores the
+            # screening date/time as human-readable strings under event_hero:
+            #   dates -> "FRI JUN 12, 2026", times -> "7:30 PM"
+            # We deliberately do NOT fall back to the WordPress post `date`,
+            # which is the publish date (always in the past) and would cause
+            # every event to be silently dropped by the past-event filter.
             event_date = None
 
-            # Get date and time from ACF fields
-            date_str = acf_data.get('event_start_date', '')  # Format: YYYYMMDD (e.g., "20251116")
-            time_str = acf_data.get('event_start_time', '')  # Format: "11:00 am"
-
-            if date_str:
+            dates_str = (event_hero.get('dates') or '').strip()
+            times_str = (event_hero.get('times') or '').strip()
+            if dates_str:
                 try:
-                    # Combine date and time for accurate parsing
-                    if time_str:
-                        # Parse YYYYMMDD format and combine with time
-                        combined = f"{date_str} {time_str}"
-                        event_date = date_parser.parse(combined)
-                    else:
-                        # Parse just the date in YYYYMMDD format
-                        event_date = datetime.strptime(date_str, '%Y%m%d')
+                    event_date = date_parser.parse(f"{dates_str} {times_str}".strip())
                 except Exception as e:
-                    self.log(f"Error parsing date '{date_str}' with time '{time_str}': {e}")
-                    pass
+                    self.log(f"Error parsing hero date '{dates_str}' time '{times_str}': {e}")
 
-            # Fallback: try event_date field
+            # Fallback: legacy flat ACF fields (YYYYMMDD + "11:00 am")
             if not event_date:
-                date_str = acf_data.get('event_date', '')
+                date_str = acf_data.get('event_start_date', '')  # Format: YYYYMMDD
+                time_str = acf_data.get('event_start_time', '')  # Format: "11:00 am"
                 if date_str:
                     try:
-                        event_date = date_parser.parse(date_str)
-                    except:
-                        pass
-
-            # Fallback: try post date
-            if not event_date:
-                date_str = event.get('date', '')
-                if date_str:
-                    try:
-                        event_date = date_parser.parse(date_str)
-                    except:
-                        pass
+                        if time_str:
+                            event_date = date_parser.parse(f"{date_str} {time_str}")
+                        else:
+                            event_date = datetime.strptime(date_str, '%Y%m%d')
+                    except Exception as e:
+                        self.log(f"Error parsing date '{date_str}' with time '{time_str}': {e}")
 
             if not event_date:
                 self.log(f"No date found for event: {title}")
@@ -170,15 +167,19 @@ class AeroTheaterScraper(BaseScraper):
             # Extract URL
             url = event.get('link', '')
 
-            # Extract image from ACF event_card_image field (primary) or embedded data (fallback)
+            # Extract image. Prefer event_hero.image_url / hero_image (2026 schema),
+            # then the ACF event_card_image, then embedded featured media.
             image_url = ""
             try:
-                # Try ACF event_card_image first (this is what American Cinematheque uses)
-                event_card_image = acf_data.get('event_card_image', {})
-                if isinstance(event_card_image, dict) and 'url' in event_card_image:
-                    image_url = event_card_image['url']
-
-                # Fallback to embedded featured media if no ACF image
+                image_url = event_hero.get('image_url', '') or ''
+                if not image_url:
+                    hero_image = event_hero.get('hero_image', {})
+                    if isinstance(hero_image, dict):
+                        image_url = hero_image.get('url', '') or ''
+                if not image_url:
+                    event_card_image = acf_data.get('event_card_image', {})
+                    if isinstance(event_card_image, dict):
+                        image_url = event_card_image.get('url', '') or ''
                 if not image_url:
                     embedded = event.get('_embedded', {})
                     featured_media = embedded.get('wp:featuredmedia', [])
@@ -186,11 +187,24 @@ class AeroTheaterScraper(BaseScraper):
                         image_url = featured_media[0].get('source_url', '')
             except Exception as e:
                 self.log(f"Error extracting image: {e}")
-                pass
 
-            # Extract price info
-            is_free = acf_data.get('event_free', False) or acf_data.get('product_free_event', False)
-            price = 0.0 if is_free else None
+            # Extract price info. The 2026 schema exposes a human-readable
+            # string under event_hero.pricing, e.g.
+            #   "$14.00 (member) ; $19.00 (general admission)"
+            is_free = bool(acf_data.get('event_free', False) or acf_data.get('product_free_event', False))
+            price = None
+            price_note = ""
+            pricing_str = (event_hero.get('pricing') or '').strip()
+            if 'free' in pricing_str.lower():
+                is_free = True
+            if is_free:
+                price = 0.0
+            elif pricing_str:
+                amounts = [float(m) for m in re.findall(r'\$\s*(\d+(?:\.\d{1,2})?)', pricing_str)]
+                if amounts:
+                    price = min(amounts)
+            if price is None and not is_free:
+                price_note = "TBD"
 
             # Venue details
             venue_name = "Aero Theatre"
@@ -207,7 +221,8 @@ class AeroTheaterScraper(BaseScraper):
                 image_url=image_url,
                 category="Film",
                 price=price,
-                is_free=is_free
+                is_free=is_free,
+                price_note=price_note
             )
 
         except Exception as e:

@@ -150,6 +150,13 @@ EVENT_SOURCES = {
         'url': 'https://events.ucla.edu',
         'enabled': True
     },
+    'ucla_design': {
+        'name': 'UCLA Design Media Arts',
+        'url': 'https://www.design.ucla.edu/events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'UCLA Design Media Arts exhibitions, lectures, and events (Broad Art Center, Westwood)'
+    },
     'hammer': {
         'name': 'Hammer Museum',
         'url': 'https://hammer.ucla.edu/events',
@@ -435,7 +442,9 @@ EVENT_SOURCES = {
     'old_town_music_hall': {
         'name': 'Old Town Music Hall',
         'url': 'https://prod5.agileticketing.net/websales/pages/list.aspx?epguid=046f24e9-20f3-4095-9ab6-2596f53377e0&',
-        'enabled': True,
+        'enabled': False,  # Shelved: Agile Ticketing is behind Imperva/Incapsula bot protection
+        # (edet=12 JS challenge) that requests and headed Playwright both fail. Venue is also
+        # in El Segundo, outside the Westside geo-fence. Needs a paid unblocker proxy to revive.
         'uses_api': False,
         'note': 'Historic cinema and music venue in El Segundo showing classic films and live performances with Wurlitzer organ'
     },

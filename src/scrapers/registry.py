@@ -56,6 +56,7 @@ from .timeout import TimeoutScraper
 from .tripp import TrippScraper
 from .ucla import UCLAScraper
 from .ucla_botanical import UCLABotanicalScraper
+from .ucla_design import UCLADesignScraper
 from .venice_beach import VeniceBeachScraper
 from .venice_west import VeniceWestScraper
 from .victorian import VictorianScraper
@@ -79,6 +80,7 @@ SCRAPER_MAP: Dict[str, Type] = {
     'discover_la': DiscoverLAScraper,
     'eventbrite': EventbriteScraper,
     'ucla': UCLAScraper,
+    'ucla_design': UCLADesignScraper,
     'hammer': HammerScraper,
     'lacma': LACMAScraper,
     'venice_beach': VeniceBeachScraper,
