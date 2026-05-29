@@ -309,6 +309,10 @@ if ! gcloud iam service-accounts describe "${SCHEDULER_SA}" &>/dev/null; then
 else
     if gcloud scheduler jobs describe ${SCHEDULER_JOB} --location=${REGION} &>/dev/null; then
         echo "  Updating existing scheduler job (OIDC)..."
+        # NOTE: do not add --remove-headers here. OIDC auth lives in oidcToken,
+        # not an Authorization header, and --remove-headers crashes gcloud with
+        # "'NoneType' object does not support item assignment" when the job has
+        # no user-set headers map (gcloud bug, SDK 560.0.0).
         gcloud scheduler jobs update http ${SCHEDULER_JOB} \
             --location=${REGION} \
             --schedule="0 4 * * *" \
@@ -317,7 +321,6 @@ else
             --http-method=POST \
             --oidc-service-account-email="${SCHEDULER_SA}" \
             --oidc-token-audience="${SERVICE_URL}" \
-            --remove-headers=Authorization \
             --attempt-deadline=1800s \
             --quiet
     else
