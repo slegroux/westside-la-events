@@ -149,8 +149,11 @@ async def run_all_scrapers_async(
     # Run all tasks concurrently and gather results
     results = await asyncio.gather(*tasks, return_exceptions=False)
 
-    # Cleanup executor
-    executor.shutdown(wait=True)
+    # Cleanup executor without blocking on hung scrapers. asyncio.wait_for
+    # cancels the awaiting coroutine but cannot kill the underlying thread,
+    # so wait=True would block here indefinitely if any scraper hung past
+    # its 120s timeout. cancel_futures=True drops anything still queued.
+    executor.shutdown(wait=False, cancel_futures=True)
 
     return results
 
@@ -411,16 +414,19 @@ async def main_async():
 def main():
     """Entry point that runs the async main function."""
     try:
-        # Run async main
         asyncio.run(main_async())
     except KeyboardInterrupt:
         print("\n\nScraping interrupted by user.")
-        sys.exit(0)
+        os._exit(0)
     except Exception as e:
         print(f"\n\nFatal error: {e}")
         import traceback
         traceback.print_exc()
-        sys.exit(1)
+        os._exit(1)
+
+    # Force exit so a hung scraper thread (which the ThreadPoolExecutor
+    # cannot kill) cannot keep the process alive past a successful run.
+    os._exit(0)
 
 
 if __name__ == '__main__':
