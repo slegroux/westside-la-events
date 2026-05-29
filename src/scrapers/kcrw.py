@@ -30,9 +30,17 @@ class KCRWScraper(BaseScraper):
         events = []
 
         try:
-            html = self.fetch_page(self.events_url)
+            # KCRW (kcrw.com) sits behind Vercel's bot challenge for plain
+            # requests (HTTP 429 with challenge token). The events list is
+            # also rendered client-side by Next.js, so static HTML has no
+            # event cards. Use a real browser via Playwright instead.
+            html = self.fetch_page_js(
+                self.events_url,
+                wait_selector='[class*="EventCard_cardContainer__"]',
+                timeout=30000
+            )
             if not html:
-                self.log("Failed to fetch events page")
+                self.log("Failed to fetch events page (JS render)")
                 return events
 
             soup = self.parse_html(html)
@@ -54,14 +62,12 @@ class KCRWScraper(BaseScraper):
 
             self.log(f"Found {len(event_items)} event cards")
 
-            # Collect detail URLs and prefetch them concurrently
-            detail_urls = []
-            for item in event_items:
-                parent_link = item.find_parent('a')
-                if parent_link and parent_link.get('href'):
-                    detail_urls.append(self.normalize_url(parent_link['href'], self.base_url))
-            if detail_urls:
-                self.prefetch_pages(detail_urls)
+            # Detail pages also sit behind Vercel's bot challenge, so
+            # plain HTTP prefetching returns HTML challenge pages instead
+            # of real content. Skip detail fetching — card data (title,
+            # date, venue, tag, image, URL) is sufficient. Running
+            # Playwright per detail page would explode runtime (16+ JS
+            # navigations) for minimal gain (description text).
 
             for item in event_items:
                 try:
@@ -147,25 +153,12 @@ class KCRWScraper(BaseScraper):
             if src:
                 image_url = src  # Already full URL from Contentful CDN
 
-        # Fetch detailed information from event page
-        details = self._fetch_event_details(url) if url else {}
-
-        # Use description from details
-        description = details.get('description', '')
-
-        # Use more accurate time from details page if available
-        if details.get('event_date'):
-            event_date = details['event_date']
-
-        end_date = details.get('end_date')
-
-        # Use price information from details
-        price = details.get('price')
-        is_free = details.get('is_free', False)
-
-        # Use high-res image if available
-        if details.get('image_url'):
-            image_url = details['image_url']
+        # Detail pages are behind Vercel bot challenge; skip them and
+        # rely on card data only.
+        description = ""
+        end_date = None
+        price = None
+        is_free = False
 
         return self.create_event(
             title=title,
