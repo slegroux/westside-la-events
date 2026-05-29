@@ -359,23 +359,31 @@ async def main_async():
         bucket = 'gs://westside-la-events-data'
 
         try:
-            # Upload events database
+            # Upload events database. Use SQLite backup API to produce a
+            # consistent snapshot — copying the main file alone can miss
+            # rows still living in the WAL.
+            events_snapshot = '/tmp/events_snapshot.db'
             print("Uploading events.db...")
+            Database.snapshot_db(config.DATABASE_PATH, events_snapshot)
             subprocess.run(
-                ['gsutil', 'cp', config.DATABASE_PATH, f'{bucket}/events.db'],
+                ['gsutil', 'cp', events_snapshot, f'{bucket}/events.db'],
                 check=True,
                 timeout=60
             )
+            os.unlink(events_snapshot)
             print("✓ events.db uploaded")
 
             # Upload analytics database
             if os.path.exists('data/analytics.db'):
+                analytics_snapshot = '/tmp/analytics_snapshot.db'
                 print("Uploading analytics.db...")
+                Database.snapshot_db('data/analytics.db', analytics_snapshot)
                 subprocess.run(
-                    ['gsutil', 'cp', 'data/analytics.db', f'{bucket}/analytics.db'],
+                    ['gsutil', 'cp', analytics_snapshot, f'{bucket}/analytics.db'],
                     check=True,
                     timeout=60
                 )
+                os.unlink(analytics_snapshot)
                 print("✓ analytics.db uploaded")
 
             # Upload geocode cache

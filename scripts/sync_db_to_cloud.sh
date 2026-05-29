@@ -162,13 +162,23 @@ fi
 echo "☁️  Uploading database to Cloud Storage..."
 
 if [ "$DRY_RUN" = false ]; then
-    # Upload events database
-    gsutil cp "${LOCAL_DB}" "gs://${BUCKET_NAME}/events.db"
+    # Snapshot SQLite DBs before upload so any uncheckpointed WAL pages
+    # are included. A raw `gsutil cp` of the main file alone can miss
+    # committed rows that still live in <db>-wal.
+    EVENTS_SNAPSHOT="/tmp/events_snapshot.db"
+    rm -f "${EVENTS_SNAPSHOT}"
+    sqlite3 "${LOCAL_DB}" ".backup '${EVENTS_SNAPSHOT}'"
+    gsutil cp "${EVENTS_SNAPSHOT}" "gs://${BUCKET_NAME}/events.db"
+    rm -f "${EVENTS_SNAPSHOT}"
     echo "   ✓ Uploaded events.db"
 
     # Upload analytics database if it exists
     if [ -f "${LOCAL_ANALYTICS}" ]; then
-        gsutil cp "${LOCAL_ANALYTICS}" "gs://${BUCKET_NAME}/analytics.db"
+        ANALYTICS_SNAPSHOT="/tmp/analytics_snapshot.db"
+        rm -f "${ANALYTICS_SNAPSHOT}"
+        sqlite3 "${LOCAL_ANALYTICS}" ".backup '${ANALYTICS_SNAPSHOT}'"
+        gsutil cp "${ANALYTICS_SNAPSHOT}" "gs://${BUCKET_NAME}/analytics.db"
+        rm -f "${ANALYTICS_SNAPSHOT}"
         echo "   ✓ Uploaded analytics.db"
     fi
 
