@@ -988,44 +988,37 @@ h1 {
 .events-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1rem;
+    gap: 1.5rem;
     margin: 0 0 4rem;
 }
 
 .event-card {
-    background: white;
     border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-sm);
     overflow: hidden;
-    transition: var(--transition);
-    border: 1px solid var(--border-light);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
     display: flex;
     flex-direction: column;
     position: relative;
+    /* Glass/modern: a gradient hairline border (double background-clip trick)
+       over a soft, airy shadow. Replaces the flat border + top accent bar. */
+    border: 1px solid transparent;
+    background:
+        linear-gradient(var(--card-bg), var(--card-bg)) padding-box,
+        linear-gradient(140deg,
+            rgba(8, 145, 178, 0.45),
+            rgba(124, 58, 237, 0.16) 45%,
+            rgba(249, 115, 22, 0.40)) border-box;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04),
+                0 10px 30px -16px rgba(15, 23, 42, 0.16);
 }
 
-.event-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--category-default);
-    opacity: 1;
-    transition: var(--transition);
-    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
-    z-index: 1;
-}
+/* Glass look drops the old top category bar (category now lives in the badge). */
+.event-card::before { content: none; }
 
 .event-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-    border-color: var(--border-color);
-}
-
-.event-card:hover::before {
-    height: 4px;
+    transform: translateY(-4px);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04),
+                0 18px 42px -16px rgba(8, 145, 178, 0.30);
 }
 
 /* Category-Specific Card Accents - Consolidated Colors */
@@ -1069,17 +1062,41 @@ h1 {
     background: var(--category-indigo);
 }
 
-/* Card media wrapper — anchors the date chip overlay over the event image. */
+/* Card media wrapper — anchors the date chip overlay over the event image.
+   overflow:hidden clips the hover zoom so it never bleeds into the content. */
 .event-card-media {
     position: relative;
     display: block;
     line-height: 0;
+    overflow: hidden;
 }
 
 /* Only the image-link wrapper should fill the wrapper as a block. The
    date chip is excluded so it can keep its inline-flex stacked layout. */
 .event-card-media > a:not(.event-date-chip) {
     display: block;
+}
+
+/* Subtle top scrim so frosted chips stay legible over bright photos. */
+.event-card-media::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 45%;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.30), rgba(0, 0, 0, 0));
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Slow zoom on hover for a premium, tactile feel. */
+.event-image,
+.event-image-placeholder {
+    transition: transform 0.45s cubic-bezier(0.2, 0.6, 0.2, 1);
+}
+
+.event-card:hover .event-image,
+.event-card:hover .event-image-placeholder {
+    transform: scale(1.05);
 }
 
 /* Date chip — top-left pill on the image. Rendered as an <a> when an
@@ -1096,10 +1113,14 @@ h1 {
     justify-content: center;
     min-width: 3rem;
     padding: 0.375rem 0.5rem;
-    background: var(--card-bg);
+    /* Frosted glass: translucent, blurred, with a hairline highlight. */
+    background: rgba(255, 255, 255, 0.62);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+    backdrop-filter: blur(12px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.65);
     color: var(--text-color);
-    border-radius: 0.5rem;
-    box-shadow: var(--shadow-md);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.28);
     font-family: inherit;
     line-height: 1.1;
     text-decoration: none;
@@ -1132,6 +1153,21 @@ a.event-date-chip:focus-visible {
     font-weight: 700;
     letter-spacing: 0.05em;
     color: var(--text-light);
+}
+
+/* Start time, below the date, with a hairline divider. Teal accent sets it
+   apart from the date and ties it to the card's primary color. */
+.event-date-chip-time {
+    margin-top: 0.2rem;
+    padding-top: 0.2rem;
+    width: 100%;
+    text-align: center;
+    border-top: 1px solid rgba(15, 23, 42, 0.12);
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--primary-dark);
+    white-space: nowrap;
 }
 
 /* Multi-day range variant: two stacked dates with a thin divider between.
@@ -1394,10 +1430,18 @@ a.event-date-chip:focus-visible {
 }
 
 .event-meta-pin {
+    display: inline-flex;
+    align-items: center;
     margin-right: 0.25rem;
-    font-size: 0.9em;
-    align-self: flex-start;
-    line-height: 1.4;
+    margin-top: 0.1rem;
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.event-meta-pin svg {
+    display: block;
+    width: 14px;
+    height: 14px;
 }
 
 /* Venue (primary) + address (secondary) stacked inside a single link. */
@@ -1460,14 +1504,18 @@ a.event-date-chip:focus-visible {
 }
 
 .event-category {
-    padding: 0.375rem 1rem;
-    background: var(--category-default);
-    color: white;
+    --cat: var(--category-default);
+    padding: 0.3rem 0.85rem;
+    /* Soft tinted-glass chip: category color carried at low intensity so it
+       complements the title instead of shouting over it. */
+    background: color-mix(in srgb, var(--cat) 14%, white);
+    color: color-mix(in srgb, var(--cat) 82%, black);
+    border: 1px solid color-mix(in srgb, var(--cat) 28%, transparent);
     border-radius: 2rem;
     font-size: var(--text-xs);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     text-decoration: none;
     display: inline-block;
 }
@@ -1483,11 +1531,11 @@ a.event-date-chip:focus-visible {
     opacity: 0.9;
 }
 
-/* Category-specific badge colors - Consolidated */
+/* Category-specific accent color (drives the tinted-glass badge above). */
 .event-category[data-category="Music"],
 .event-category[data-category="Nightlife"],
 .event-category[data-category="entertainment"] {
-    background: var(--category-purple);
+    --cat: var(--category-purple);
 }
 
 .event-category[data-category="Art"],
@@ -1495,13 +1543,13 @@ a.event-date-chip:focus-visible {
 .event-category[data-category="Date Night"],
 .event-category[data-category="Theater"],
 .event-category[data-category="Theatre"] {
-    background: var(--category-pink);
+    --cat: var(--category-pink);
 }
 
 .event-category[data-category="Food & Drink"],
 .event-category[data-category="Food"],
 .event-category[data-category="Comedy"] {
-    background: var(--category-orange);
+    --cat: var(--category-orange);
 }
 
 .event-category[data-category="Sports"],
@@ -1509,23 +1557,23 @@ a.event-date-chip:focus-visible {
 .event-category[data-category="Outdoors"],
 .event-category[data-category="Family"],
 .event-category[data-category="Free"] {
-    background: var(--category-green);
+    --cat: var(--category-green);
 }
 
 .event-category[data-category="Community"],
 .event-category[data-category="Education"],
 .event-category[data-category="Educational"],
 .event-category[data-category="Bookstore Events"] {
-    background: var(--category-blue);
+    --cat: var(--category-blue);
 }
 
 .event-category[data-category="Film"],
 .event-category[data-category="Tech"] {
-    background: var(--category-indigo);
+    --cat: var(--category-indigo);
 }
 
 .event-category[data-category="Other"] {
-    background: var(--category-default);
+    --cat: var(--category-default);
 }
 
 .event-source-container {

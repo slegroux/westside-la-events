@@ -259,21 +259,29 @@ def _format_event_time(event: Event) -> str:
     return dt.strftime('%-I:%M %p')
 
 
+# Inline SVG icons (stroke uses currentColor so CSS controls the tint).
+# Crisp and identical across platforms, unlike emoji glyphs.
+_PIN_SVG = (
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" '
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+    'stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>'
+    '<circle cx="12" cy="10" r="3"/></svg>'
+)
+
+
 def _event_meta_row(event: Event):
     """Single-line metadata row: '7:30 PM · FREE · 📍 Venue Name'.
 
     The chip on the image conveys the date; this row carries the rest of
     the at-a-glance facts: time-of-day, price, and the clickable venue.
     """
-    time_str = _format_event_time(event)
+    # Time now lives in the date chip on the image, so it's omitted here to
+    # avoid showing it twice. This row carries price + the clickable venue.
     parts = []
-    if time_str:
-        parts.append(Span(time_str, cls='event-meta-time'))
 
     price = _price_badge(event)
     if price is not None:
-        if parts:
-            parts.append(Span('·', cls='event-meta-sep', **{'aria-hidden': 'true'}))
         parts.append(price)
     if event.venue_name or event.address:
         # Show the venue name as the primary label and the address as a
@@ -291,7 +299,7 @@ def _event_meta_row(event: Event):
         if show_address and venue:
             place_children.append(Span(display_address, cls='event-meta-address'))
         venue_link = A(
-            Span('\U0001f4cd', cls='event-meta-pin', **{'aria-hidden': 'true'}),
+            Span(NotStr(_PIN_SVG), cls='event-meta-pin', **{'aria-hidden': 'true'}),
             Span(*place_children, cls='event-meta-place'),
             href='#',
             cls='venue-location-link',
@@ -347,11 +355,17 @@ def _date_chip(event: Event):
         )
         chip_cls = 'event-date-chip event-date-chip-range'
     else:
-        chip_inner = (
+        chip_inner = [
             Span(start.strftime('%a').upper(), cls='event-date-chip-dow'),
             Span(start.strftime('%-d'), cls='event-date-chip-day'),
             Span(start.strftime('%b').upper(), cls='event-date-chip-mon'),
-        )
+        ]
+        # Append the start time below the date when one is known (skips the
+        # midnight default). The meta row drops time so it isn't shown twice.
+        time_str = _format_event_time(event)
+        if time_str:
+            chip_inner.append(Span(time_str, cls='event-date-chip-time'))
+        chip_inner = tuple(chip_inner)
         chip_cls = 'event-date-chip'
 
     if event.id is not None:
