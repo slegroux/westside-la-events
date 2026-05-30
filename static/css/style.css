@@ -1076,11 +1076,15 @@ h1 {
     line-height: 0;
 }
 
-.event-card-media > a {
+/* Only the image-link wrapper should fill the wrapper as a block. The
+   date chip is excluded so it can keep its inline-flex stacked layout. */
+.event-card-media > a:not(.event-date-chip) {
     display: block;
 }
 
-/* Date chip — top-left pill on the image with day/month at a glance. */
+/* Date chip — top-left pill on the image. Rendered as an <a> when an
+   event has an id so a tap downloads the .ics; the visual is identical
+   to the decorative variant for events without ids. */
 .event-date-chip {
     position: absolute;
     top: 0.75rem;
@@ -1098,7 +1102,16 @@ h1 {
     box-shadow: var(--shadow-md);
     font-family: inherit;
     line-height: 1.1;
-    pointer-events: none;  /* don't intercept the image's click-through link */
+    text-decoration: none;
+}
+
+a.event-date-chip {
+    cursor: pointer;
+}
+
+a.event-date-chip:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
 }
 
 .event-date-chip-dow {
@@ -1136,38 +1149,6 @@ h1 {
 .event-date-chip-sep {
     font-size: 0.75rem;
     color: var(--text-light);
-}
-
-/* Source badge — top-right of image, logo-only, glanceable trust signal. */
-.event-source-badge {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    z-index: 2;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
-    padding: 0.25rem;
-    background: var(--card-bg);
-    border-radius: var(--radius-full);
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-light);
-    overflow: hidden;
-    text-decoration: none;
-    transition: transform 0.15s ease;
-}
-
-.event-source-badge:hover {
-    transform: scale(1.05);
-}
-
-.event-source-badge-img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
 }
 
 .event-image {
