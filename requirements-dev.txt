@@ -2,5 +2,6 @@
 pytest>=7.4.0
 pytest-cov>=4.1.0
 pytest-asyncio>=0.21.0
+pytest-playwright>=0.4.0  # provides the `page`/`browser_context_args` fixtures used by tests/e2e
 httpx>=0.25.0
 ruff>=0.4.0

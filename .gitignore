@@ -39,6 +39,9 @@ data/*.db-journal
 data/*.db-wal
 data/*.db-shm
 
+# Database backups (ephemeral snapshots)
+data/backup/
+
 # Logs
 logs/*.log
 *.log
@@ -83,6 +86,10 @@ temp/
 # Claude Code (keep skills tracked for version control)
 .claude/*
 !.claude/skills/
+
+# oh-my-claudecode workflow artifacts and transient run state
+.omc/
+state/
 
 # Google Cloud deployment info (contains sensitive tokens)
 .gcloud-deployment-info
