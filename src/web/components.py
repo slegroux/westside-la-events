@@ -250,6 +250,7 @@ def _event_meta_row(event: Event):
         parts.append(Span(time_str, cls='event-meta-time'))
     if event.venue_name:
         venue_link = A(
+            Span('\U0001f4cd', cls='event-meta-pin', **{'aria-hidden': 'true'}),
             event.venue_name,
             href='#',
             cls='venue-location-link',

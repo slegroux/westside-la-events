@@ -1373,6 +1373,11 @@ a.event-date-chip:focus-visible {
     text-decoration: underline;
 }
 
+.event-meta-pin {
+    margin-right: 0.25rem;
+    font-size: 0.9em;
+}
+
 .event-description {
     color: var(--text-light);
     font-size: var(--text-sm);
