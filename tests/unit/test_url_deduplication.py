@@ -177,7 +177,7 @@ class TestDatabaseURLDeduplication:
         event2 = Event(
             title="Updated Event",
             venue_name="Venue B",
-            event_date=datetime(2025, 11, 15),  # Different date
+            event_date=datetime(2025, 11, 12, 20, 0),  # same day, within the 24h URL window
             source="Source2",
             url="https://example.com/unique-event"  # Same URL
         )
@@ -193,6 +193,33 @@ class TestDatabaseURLDeduplication:
         events = temp_db.get_all_events()
         assert len(events) == 1
 
+    def test_database_same_url_far_apart_treated_as_separate(self, temp_db):
+        """Same URL but dates >24h apart are distinct occurrences, not duplicates.
+
+        Recurring venues (farmers markets, weekly classes) reuse one canonical
+        URL for every occurrence; collapsing them would lose the schedule.
+        This pins the behavior added in commit 1ef58f2.
+        """
+        event1 = Event(
+            title="Weekly Market",
+            event_date=datetime(2025, 11, 12),
+            source="Source1",
+            url="https://example.com/recurring",
+        )
+        event2 = Event(
+            title="Weekly Market",
+            event_date=datetime(2025, 11, 19),  # one week later, same URL
+            source="Source1",
+            url="https://example.com/recurring",
+        )
+
+        id1, is_dup1 = temp_db.insert_event(event1)
+        id2, is_dup2 = temp_db.insert_event(event2)
+
+        assert is_dup1 is False
+        assert is_dup2 is False  # kept as a separate occurrence
+        assert len(temp_db.get_all_events()) == 2
+
     def test_database_url_check_faster_than_date_check(self, temp_db):
         """Database should find URL duplicates without needing date range query."""
         # Insert event with a date
@@ -204,10 +231,11 @@ class TestDatabaseURLDeduplication:
         )
         temp_db.insert_event(event1)
 
-        # Try to insert same URL with very different date (would fail date tolerance)
+        # Try to insert same URL on the same day (within the 24h URL window).
+        # The URL fast-path should match it without a date-range scan.
         event2 = Event(
             title="New Event",
-            event_date=datetime(2025, 11, 12),  # 10 months later
+            event_date=datetime(2024, 1, 1, 12, 0),  # same day, within the 24h URL window
             source="Source2",
             url="https://example.com/event/999"
         )
@@ -381,11 +409,13 @@ class TestURLDeduplicationPerformance:
 
     def test_url_check_finds_duplicate_quickly(self, temp_db_with_many_events):
         """URL check should find duplicate without scanning all events."""
-        # Try to insert event with existing URL but very different date
+        # Try to insert event with existing URL on the same day. event/50 was
+        # inserted with date Nov 1 + 50 days = 2025-12-21, so stay within the
+        # 24h URL window to exercise the direct URL fast-path.
         existing_url = "https://example.com/event/50"
         new_event = Event(
             title="New Event",
-            event_date=datetime(2025, 1, 1),  # Very different date
+            event_date=datetime(2025, 12, 21, 12, 0),  # within the 24h URL window of event/50
             source="Source2",
             url=existing_url
         )

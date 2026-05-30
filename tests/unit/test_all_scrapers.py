@@ -131,11 +131,21 @@ class TestScraperBasicFunctionality:
     """Test basic scraping functionality for all scrapers."""
 
     @pytest.mark.parametrize("scraper_class,expected_name", SCRAPERS)
+    @patch('requests.Session.get')
+    @patch('src.scrapers.base.BaseScraper.fetch_page_js')
     @patch('src.scrapers.base.BaseScraper.fetch_page')
-    def test_scraper_returns_list(self, mock_fetch, scraper_class, expected_name, mock_geocoding_service):
+    def test_scraper_returns_list(self, mock_fetch, mock_fetch_js, mock_session_get, scraper_class, expected_name, mock_geocoding_service):
         """Test that scrape() returns a list."""
-        # Mock failed fetch to avoid actual network calls
+        # Mock every network path so this stays an offline unit test:
+        # the HTTP fetch, the JS/Playwright fetch (else JS scrapers launch a
+        # real browser), and the direct session.get used by API scrapers.
         mock_fetch.return_value = None
+        mock_fetch_js.return_value = None
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.json.side_effect = Exception('mocked failure')
+        mock_response.text = ''
+        mock_session_get.return_value = mock_response
 
         scraper = scraper_class()
         result = scraper.scrape()
@@ -144,10 +154,12 @@ class TestScraperBasicFunctionality:
 
     @pytest.mark.parametrize("scraper_class,expected_name", SCRAPERS)
     @patch('requests.Session.get')
+    @patch('src.scrapers.base.BaseScraper.fetch_page_js')
     @patch('src.scrapers.base.BaseScraper.fetch_page')
-    def test_scraper_handles_failed_fetch(self, mock_fetch, mock_session_get, scraper_class, expected_name, mock_geocoding_service):
+    def test_scraper_handles_failed_fetch(self, mock_fetch, mock_fetch_js, mock_session_get, scraper_class, expected_name, mock_geocoding_service):
         """Test that scrapers handle failed page fetches gracefully."""
         mock_fetch.return_value = None
+        mock_fetch_js.return_value = None
         # Also mock session.get for scrapers that use APIs directly
         mock_response = MagicMock()
         mock_response.status_code = 500
@@ -161,10 +173,19 @@ class TestScraperBasicFunctionality:
         assert events == []
 
     @pytest.mark.parametrize("scraper_class,expected_name", SCRAPERS)
+    @patch('requests.Session.get')
+    @patch('src.scrapers.base.BaseScraper.fetch_page_js')
     @patch('src.scrapers.base.BaseScraper.fetch_page')
-    def test_scraper_handles_empty_html(self, mock_fetch, scraper_class, expected_name, mock_geocoding_service):
+    def test_scraper_handles_empty_html(self, mock_fetch, mock_fetch_js, mock_session_get, scraper_class, expected_name, mock_geocoding_service):
         """Test that scrapers handle empty HTML gracefully."""
-        mock_fetch.return_value = "<html><body></body></html>"
+        empty_html = "<html><body></body></html>"
+        mock_fetch.return_value = empty_html
+        mock_fetch_js.return_value = empty_html
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = empty_html
+        mock_response.json.return_value = {}
+        mock_session_get.return_value = mock_response
 
         scraper = scraper_class()
         events = scraper.scrape()
