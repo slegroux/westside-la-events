@@ -238,16 +238,21 @@ def _format_event_time(event: Event) -> str:
 
 
 def _event_meta_row(event: Event):
-    """Single-line metadata row: '7:30 PM · Venue Name'.
+    """Single-line metadata row: '7:30 PM · FREE · 📍 Venue Name'.
 
-    Replaces the previous stacked date row + venue-with-📍 row. The chip on
-    the image already conveys the date, so this row earns its space by
-    adding time-of-day and a clickable venue (which opens the map modal).
+    The chip on the image conveys the date; this row carries the rest of
+    the at-a-glance facts: time-of-day, price, and the clickable venue.
     """
     time_str = _format_event_time(event)
     parts = []
     if time_str:
         parts.append(Span(time_str, cls='event-meta-time'))
+
+    price = _price_badge(event)
+    if price is not None:
+        if parts:
+            parts.append(Span('·', cls='event-meta-sep', **{'aria-hidden': 'true'}))
+        parts.append(price)
     if event.venue_name or event.address:
         # Show the venue name as the primary label and the address as a
         # smaller secondary line. Skip the address line when it just echoes
@@ -392,8 +397,6 @@ def event_card(event: Event, session=None):
             cls='event-source-container'
         )
 
-    price_display = _price_badge(event)
-
     # Create link attributes for external event URL
     link_attrs = {
         'href': event.url,
@@ -427,7 +430,8 @@ def event_card(event: Event, session=None):
             cls='event-card-media',
         ),
         Div(
-            # Make title clickable to original event URL with favorite button
+            # Title clickable to event URL; favorite button on the right when
+            # there's a session. Price has moved to the metadata row.
             Div(
                 Div(
                     A(
@@ -437,9 +441,8 @@ def event_card(event: Event, session=None):
                     cls='event-title-wrapper'
                 ),
                 favorite_button(event.id, is_fav),
-                price_display,
                 cls='event-header'
-            ) if (price_display or session) else A(
+            ) if session else A(
                 H2(event.title, cls='event-title'),
                 **link_attrs
             ),
