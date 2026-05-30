@@ -172,6 +172,14 @@ def mock_geocoding_service(monkeypatch):
                 return (33.9850, -118.4695)
             return (34.0522, -118.2437)  # Default LA coordinates
 
+        def geocode_with_fallback(self, address, venue_name=None):
+            """Mirror the real service's fallback entry point (used by create_event)."""
+            if address and address.strip():
+                return self.geocode(address)
+            if venue_name and venue_name.strip():
+                return self.geocode(venue_name)
+            return (34.0522, -118.2437)
+
         def is_in_westside(self, lat, lng):
             """Mock westside check."""
             return True

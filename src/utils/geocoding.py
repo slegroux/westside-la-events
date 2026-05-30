@@ -3,6 +3,7 @@ Geocoding utility for converting addresses to lat/lng coordinates.
 Uses Nominatim (OpenStreetMap) geocoding service - completely free, no API key required.
 """
 import json
+import re
 import threading
 import time
 from pathlib import Path
@@ -16,6 +17,56 @@ import config
 POSITIVE_TTL_SECONDS = 90 * 86400  # 90 days — addresses occasionally move/re-key
 NEGATIVE_TTL_SECONDS = 7 * 86400   # 7 days — transient outages shouldn't poison forever
 _CACHE_MISS = object()  # sentinel distinguishing "no entry" from cached-negative None
+
+
+# Written-out ordinal street names -> numeric form, which Nominatim matches.
+_ORDINAL_WORDS = {
+    'first': '1st', 'second': '2nd', 'third': '3rd', 'fourth': '4th',
+    'fifth': '5th', 'sixth': '6th', 'seventh': '7th', 'eighth': '8th',
+    'ninth': '9th', 'tenth': '10th', 'eleventh': '11th', 'twelfth': '12th',
+}
+_STREET_TYPES = r'st|street|ave|avenue|blvd|boulevard|dr|drive|pl|place|ct|court|rd|road|way|ln|lane'
+# Coverage-area cities used as a locality hint when geocoding by venue name.
+_CITY_HINTS = (
+    'Santa Monica', 'Venice', 'Culver City', 'Marina del Rey', 'Pacific Palisades',
+    'Malibu', 'Beverly Hills', 'West Los Angeles', 'Westwood', 'Mar Vista',
+    'Playa Vista', 'Playa del Rey', 'Brentwood', 'Inglewood', 'El Segundo',
+)
+
+
+def normalize_address(address: str) -> str:
+    """Best-effort cleanup of a messy address into a form Nominatim can match.
+
+    Conservative transforms only: strip parentheticals and any narrative after a
+    ZIP, drop suite/unit numbers, collapse a leading street-number range to its
+    start, and convert written-out ordinal street names to digits. Returns the
+    cleaned address (which may equal the input).
+    """
+    if not address:
+        return ''
+    s = address.strip()
+    s = re.sub(r'\s*\([^)]*\)', '', s)                       # "(between 4th & Ocean)"
+    s = re.sub(r'(\b\d{5}\b).*$', r'\1', s)                  # narrative after a ZIP
+    s = re.sub(r'^(\s*\d+)\s*[-–]\s*\d+', r'\1', s)     # "155-199 Foo" -> "155 Foo"
+    s = re.sub(r'\s*#\s*\w+', '', s)                         # "#374"
+    s = re.sub(r'\s*\b(?:suite|ste|unit|apt|apartment|fl|floor)\b\.?\s*#?\s*\w+', '', s, flags=re.I)
+    s = re.sub(
+        r'\b(' + '|'.join(_ORDINAL_WORDS) + r')\b(?=\s+(?:' + _STREET_TYPES + r')\b)',
+        lambda m: _ORDINAL_WORDS[m.group(1).lower()],
+        s, flags=re.I,
+    )
+    s = re.sub(r'\s{2,}', ' ', s).strip().strip(',').strip()
+    return s
+
+
+def _extract_city_hint(address: str) -> str:
+    """Pick a 'City, CA' locality from an address, for venue-name fallback."""
+    if address:
+        low = address.lower()
+        for city in _CITY_HINTS:
+            if city.lower() in low:
+                return f'{city}, CA'
+    return 'Los Angeles, CA'
 
 
 class GeocodingService:
@@ -174,6 +225,34 @@ class GeocodingService:
             except Exception as e:
                 print(f"Unexpected geocoding error for address '{address}': {e}")
                 return None
+
+        return None
+
+    def geocode_with_fallback(
+        self, address: str, venue_name: Optional[str] = None
+    ) -> Optional[Tuple[float, float]]:
+        """Geocode an address, retrying with a normalized form and finally a
+        venue-name + city lookup before giving up.
+
+        Many scraped addresses fail Nominatim verbatim (street-number ranges,
+        "#" suites, parentheticals, written-out ordinals, trailing narrative).
+        This tries progressively cleaner queries so the event still lands on the
+        map instead of silently dropping off it.
+        """
+        if address and address.strip():
+            coords = self.geocode(address)
+            if coords:
+                return coords
+            normalized = normalize_address(address)
+            if normalized and normalized.lower() != address.lower().strip():
+                coords = self.geocode(normalized)
+                if coords:
+                    return coords
+
+        if venue_name and venue_name.strip():
+            coords = self.geocode(f'{venue_name.strip()}, {_extract_city_hint(address)}')
+            if coords:
+                return coords
 
         return None
 

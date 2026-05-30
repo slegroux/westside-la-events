@@ -306,10 +306,12 @@ class BaseScraper(ABC):
         Returns:
             Event object if in coverage area, None otherwise
         """
-        # Geocode address if provided
+        # Geocode (with address normalization + venue-name fallback) if we have
+        # anything to locate on. The fallback recovers messy addresses that fail
+        # Nominatim verbatim and venue-only events with no street address.
         latitude, longitude = None, None
-        if address:
-            coords = self.geocoding_service.geocode(address)
+        if address or venue_name:
+            coords = self.geocoding_service.geocode_with_fallback(address, venue_name=venue_name)
             if coords:
                 latitude, longitude = coords
 

@@ -53,8 +53,9 @@ def geocode_missing_events():
         if improved_address != address:
             print(f"  Improved Address: {improved_address}")
 
-        # Try to geocode
-        result = geocoder.geocode(improved_address)
+        # Try to geocode (normalization + venue-name fallback handle messy
+        # addresses; manual ADDRESS_IMPROVEMENTS still take precedence above).
+        result = geocoder.geocode_with_fallback(improved_address, venue_name=venue_name)
 
         if result:
             lat, lng = result

@@ -27,6 +27,7 @@ from src.utils.geocoding import (
     NEGATIVE_TTL_SECONDS,
     _CACHE_MISS,
     get_geocoding_service,
+    normalize_address,
 )
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
@@ -481,3 +482,99 @@ class TestGetGeocodingService:
         b = get_geocoding_service()
         assert a is b
         assert isinstance(a, GeocodingService)
+
+
+# ---------------------------------------------------------------------------
+# Address normalization
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestNormalizeAddress:
+    def test_collapses_leading_number_range(self):
+        assert normalize_address('155-199 Arizona Ave, Santa Monica, CA 90401') == \
+            '155 Arizona Ave, Santa Monica, CA 90401'
+
+    def test_strips_suite_hash(self):
+        assert normalize_address('395 Santa Monica Pl #374, Santa Monica, CA') == \
+            '395 Santa Monica Pl, Santa Monica, CA'
+
+    def test_strips_suite_word(self):
+        assert normalize_address('1100 Glendon Ave Suite 700, Los Angeles, CA') == \
+            '1100 Glendon Ave, Los Angeles, CA'
+
+    def test_strips_parenthetical(self):
+        assert normalize_address('Arizona Avenue (between 4th & Ocean), Santa Monica, 90401') == \
+            'Arizona Avenue, Santa Monica, 90401'
+
+    def test_truncates_narrative_after_zip(self):
+        assert normalize_address(
+            '1211 4th Street, Santa Monica, CA 90401 - between Wilshire and Arizona'
+        ) == '1211 4th Street, Santa Monica, CA 90401'
+
+    def test_converts_written_ordinal_street(self):
+        assert normalize_address('1211 Fourth Street, Santa Monica, CA') == \
+            '1211 4th Street, Santa Monica, CA'
+
+    def test_leaves_clean_address_unchanged(self):
+        a = '221 Broadway, Santa Monica, CA 90401'
+        assert normalize_address(a) == a
+
+    def test_does_not_rewrite_ordinal_words_that_are_not_streets(self):
+        # "First Baptist Church" is a name, not a street, so it must be left alone.
+        assert normalize_address('First Baptist Church, Venice, CA') == \
+            'First Baptist Church, Venice, CA'
+
+    def test_empty_inputs(self):
+        assert normalize_address('') == ''
+        assert normalize_address(None) == ''
+
+
+class _MappingGeolocator:
+    """Fake geolocator that resolves ONLY the exact query strings in `mapping`."""
+
+    def __init__(self, mapping):
+        self.mapping = mapping
+        self.calls = 0
+        self.queries = []
+
+    def geocode(self, address, timeout=None):
+        self.calls += 1
+        self.queries.append(address)
+        hit = self.mapping.get(address)
+        return _FakeLocation(hit[0], hit[1]) if hit else None
+
+
+@pytest.mark.unit
+class TestGeocodeWithFallback:
+    def _svc(self, tmp_path, mapping):
+        svc = GeocodingService(cache_file=str(tmp_path / 'c.json'))
+        svc.geolocator = _MappingGeolocator(mapping)
+        return svc
+
+    def test_raw_address_resolves(self, tmp_path):
+        svc = self._svc(tmp_path, {'221 Broadway, Santa Monica, CA 90401': (34.01, -118.49)})
+        assert svc.geocode_with_fallback('221 Broadway, Santa Monica, CA 90401') == (34.01, -118.49)
+
+    def test_normalized_address_resolves_when_raw_fails(self, tmp_path):
+        # The raw range-address misses; the normalized "155 Arizona..." hits.
+        svc = self._svc(tmp_path, {'155 Arizona Ave, Santa Monica, CA 90401': (34.02, -118.50)})
+        assert svc.geocode_with_fallback(
+            '155-199 Arizona Ave, Santa Monica, CA 90401'
+        ) == (34.02, -118.50)
+
+    def test_venue_fallback_when_address_fails(self, tmp_path):
+        # Address contains "Santa Monica" -> venue fallback uses that locality.
+        svc = self._svc(tmp_path, {"Jameson's Pub, Santa Monica, CA": (34.00, -118.48)})
+        assert svc.geocode_with_fallback(
+            '123 Fake St, Santa Monica, CA', venue_name="Jameson's Pub"
+        ) == (34.00, -118.48)
+
+    def test_venue_fallback_with_empty_address_defaults_to_la(self, tmp_path):
+        svc = self._svc(tmp_path, {"Jameson's Pub, Los Angeles, CA": (34.00, -118.48)})
+        assert svc.geocode_with_fallback('', venue_name="Jameson's Pub") == (34.00, -118.48)
+
+    def test_returns_none_when_nothing_resolves(self, tmp_path):
+        svc = self._svc(tmp_path, {})
+        assert svc.geocode_with_fallback(
+            '123 Nowhere St, Santa Monica, CA', venue_name='Ghost Venue'
+        ) is None
