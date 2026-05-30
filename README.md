@@ -2,11 +2,11 @@
 
 > **Live Demo**: https://westside-events-406046958598.us-west1.run.app
 
-A FastHTML-powered web application that aggregates events from 30+ sources across LA's Westside, providing a unified search interface with intelligent filtering, interactive maps, and analytics.
+A FastHTML-powered web application that aggregates events from 60+ sources across LA's Westside, providing a unified search interface with intelligent filtering, interactive maps, and analytics.
 
 ## Features
 
-- **Multi-Source Aggregation**: 35+ scrapers collecting events from venues, museums, cultural centers, and community organizations
+- **Multi-Source Aggregation**: 60+ scrapers collecting events from venues, museums, cultural centers, and community organizations
 - **Smart Search**: Full-text search with date filtering, category tags, and location-based queries
 - **Interactive Maps**: Leaflet + OpenStreetMap visualization with clustered markers and detailed event cards
 - **Analytics Dashboard**: Track popular events, user engagement, and traffic sources
@@ -17,7 +17,7 @@ A FastHTML-powered web application that aggregates events from 30+ sources acros
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - Google Geocoding API key (optional - only for address geocoding)
 
 ### Installation
@@ -28,7 +28,7 @@ git clone https://github.com/slegroux/LA.git
 cd LA
 
 # 2. Create environment
-micromamba create -n la python=3.10 -y
+micromamba create -n la python=3.11 -y
 micromamba activate la
 
 # 3. Install dependencies
@@ -57,7 +57,7 @@ open http://127.0.0.1:8000
 
 ## Data Sources
 
-Currently scraping 35+ sources including:
+Currently scraping 60+ sources including:
 
 **Venues & Cultural Centers**
 - Santa Monica, West Hollywood, Culver City official sites
@@ -123,7 +123,7 @@ See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for complete deployment guide c
 LA/
 ├── src/
 │   ├── data/           # Database models and operations
-│   ├── scrapers/       # Event scrapers (30+ sources)
+│   ├── scrapers/       # Event scrapers (60+ sources)
 │   ├── search/         # Search and filter functionality
 │   ├── utils/          # Geocoding, categorization
 │   └── web/            # FastHTML web application
@@ -193,13 +193,15 @@ DATABASE_PATH = "data/events.db"
 ANALYTICS_DB_PATH = "data/analytics.db"
 
 # Scraper settings
-REQUEST_DELAY = 1  # seconds between requests
-REQUEST_TIMEOUT = 30  # seconds
+SCRAPER_CONFIG = {
+    'delay_seconds': 1,    # delay between requests
+    'timeout_seconds': 30, # per-request timeout
+}
 
 # Geographic bounds (Westside LA)
 WESTSIDE_BOUNDS = {
-    'north': 34.1, 'south': 33.9,
-    'east': -118.3, 'west': -118.6
+    'min_lat': 33.90, 'max_lat': 34.15,
+    'min_lng': -118.75, 'max_lng': -118.33
 }
 ```
 
@@ -222,7 +224,7 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
 See [PLAN.md](PLAN.md) for detailed development roadmap.
 
 **Current priorities:**
-- [ ] Add more venue scrapers (target: 50+ sources)
+- [x] Add more venue scrapers (60+ sources and counting)
 - [ ] Implement user accounts and personalized recommendations
 - [ ] Mobile app (React Native)
 - [ ] Email notifications for saved searches

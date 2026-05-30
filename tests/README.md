@@ -32,22 +32,22 @@ tests/
 
 ### Run All Tests
 ```bash
-PYTHONNOUSERSITE=1 micromamba run python -m pytest tests/ -v
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/ -v
 ```
 
 ### Run Specific Test File
 ```bash
-PYTHONNOUSERSITE=1 micromamba run python -m pytest tests/unit/test_database.py -v
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/test_database.py -v
 ```
 
 ### Run Specific Test
 ```bash
-PYTHONNOUSERSITE=1 micromamba run python -m pytest tests/unit/test_database.py::TestEvent::test_event_creation -v
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/unit/test_database.py::TestEvent::test_event_creation -v
 ```
 
 ### Run Tests with Coverage
 ```bash
-PYTHONNOUSERSITE=1 micromamba run python -m pytest tests/ --cov=src --cov-report=html
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest tests/ --cov=src --cov-report=html
 ```
 
 ### Run Tests by Marker
@@ -73,9 +73,12 @@ PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest -m "not slow"
 
 ### Run E2E Tests
 
-E2E tests require the web server to be running first:
+E2E tests require Playwright browsers (one-time install) and the web server running:
 
 ```bash
+# First-time setup: install the Playwright browser engine
+micromamba run -n la playwright install chromium
+
 # Terminal 1: Start the web server
 micromamba run -n la uvicorn src.web.app:app --host 0.0.0.0 --port 8000
 
@@ -251,7 +254,7 @@ jobs:
 ### Import Errors
 Use `PYTHONNOUSERSITE=1` to avoid conflicts with system Python packages:
 ```bash
-PYTHONNOUSERSITE=1 micromamba run python -m pytest
+PYTHONNOUSERSITE=1 micromamba run -n la python -m pytest
 ```
 
 ### Slow Tests

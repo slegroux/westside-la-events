@@ -926,7 +926,7 @@ SCRAPER_RETRY_COUNT=3
 
 1. Create environment:
    ```bash
-   micromamba create -n la python=3.10 -y
+   micromamba create -n la python=3.11 -y
    micromamba activate la
    pip install -r requirements.txt
    ```

@@ -14,15 +14,18 @@ This guide covers local development setup, adding scrapers, and working with the
 
 ## Environment Setup
 
-### Option 1: Using conda (Recommended)
+### Option 1: Using micromamba (Recommended)
 
-This project uses a conda environment named `la`.
+This project uses a micromamba environment named `la`.
 
 **1. Create the environment**:
 ```bash
-conda create -n la python=3.11 -y
-conda activate la
+micromamba create -n la python=3.11 -y
+micromamba activate la
 pip install -r requirements.txt -r requirements-dev.txt
+
+# Install Playwright browsers (required for JS-rendered scrapers and E2E tests)
+micromamba run -n la playwright install chromium
 ```
 
 **3. Configure direnv**:
@@ -53,12 +56,12 @@ cp .env.example .env
 
 **6. Initialize the database**:
 ```bash
-conda run -n la python -c "from src.data.database import Database; Database('data/events.db')"
+micromamba run -n la python -c "from src.data.database import Database; Database('data/events.db')"
 ```
 
 ### Option 2: Using venv (Alternative)
 
-**Note:** Using conda (Option 1) is recommended. All scripts use `conda run -n la`.
+**Note:** Using micromamba (Option 1) is recommended. All scripts use `micromamba run -n la`.
 
 **1. Create and activate environment**:
 ```bash
@@ -69,6 +72,9 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 **2. Install dependencies**:
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
+
+# Install Playwright browsers (required for JS-rendered scrapers and E2E tests)
+playwright install chromium
 ```
 
 **3. Set up environment variables**:
