@@ -276,11 +276,18 @@ def setup_routes(rt, state):
         free_only: str = '',
         specific_date: str = '',
         favorites_only: str = '',
+        limit: int = config.MAP_MAX_EVENTS,
         session=None
     ):
-        """API endpoint to get events as JSON."""
+        """API endpoint to get events as JSON (consumed by the map).
+
+        Defaults to a high limit so the map shows every matching event as a pin,
+        not just the list view's first page. Bounded by MAP_MAX_EVENTS.
+        """
         from starlette.responses import JSONResponse
-        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session)
+        limit = max(1, min(limit, config.MAP_MAX_EVENTS))
+        events = _fetch_events(q, date_filter, category, source, venue,
+                               free_only, specific_date, favorites_only, session, limit=limit)
         return JSONResponse([event.to_dict() for event in events])
 
     @rt('/api/events/{event_id}/calendar')

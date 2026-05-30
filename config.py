@@ -525,6 +525,10 @@ MAX_SEARCH_RESULTS = 500
 # Map Settings
 MAP_ZOOM_DEFAULT = 11
 MAP_MARKER_CLUSTER_THRESHOLD = 50
+# The map plots every matching event as a clustered pin, so it is not bound by
+# the list view's page size (DEFAULT_SEARCH_LIMIT). Leaflet.markercluster
+# handles thousands of markers; this cap just bounds the JSON payload.
+MAP_MAX_EVENTS = int(os.getenv('MAP_MAX_EVENTS', '5000'))
 
 
 # ---------------------------------------------------------------------------
