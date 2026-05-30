@@ -70,6 +70,41 @@ def _iso_la(dt: datetime) -> str:
     return dt.isoformat()
 
 
+_HTML_TAG_RE = re.compile(r'<[^>]+>')
+_WS_COLLAPSE_RE = re.compile(r'\s+')
+
+
+def _strip_html_to_text(html: str) -> str:
+    """Reduce HTML markup in scraped fields to plain text.
+
+    Scrapers occasionally store leftover markup in event.description.
+    Plain text only; collapsed whitespace.
+    """
+    if not html:
+        return ''
+    text = _HTML_TAG_RE.sub(' ', html)
+    return _WS_COLLAPSE_RE.sub(' ', text).strip()
+
+
+def _safe_json_in_html(payload: dict) -> str:
+    """Serialize for embedding inside a <script> tag.
+
+    json.dumps doesn't escape characters that would let a JSON value break
+    out of the surrounding HTML context — most notably '<' (which could
+    end a <script> early via '</script>'). Apply OWASP's JSON-in-HTML
+    escapes so the payload is safe even with adversarial scraper content.
+    """
+    encoded = json.dumps(payload, ensure_ascii=False)
+    return (
+        encoded
+        .replace('<', '\\u003c')
+        .replace('>', '\\u003e')
+        .replace('&', '\\u0026')
+        .replace(' ', '\\u2028')
+        .replace(' ', '\\u2029')
+    )
+
+
 def _event_json_ld(event: Event) -> Optional[str]:
     """Build a schema.org Event JSON-LD payload for an event, or None if it
     lacks the required fields (name + startDate + location)."""
@@ -104,9 +139,7 @@ def _event_json_ld(event: Event) -> Optional[str]:
     if event.image_url:
         data["image"] = event.image_url
     if event.description:
-        # Schema.org expects plain text; the description column may contain
-        # leftover HTML from some scrapers — strip aggressively for safety.
-        data["description"] = event.description[:500]
+        data["description"] = _strip_html_to_text(event.description)[:500]
     if event.url:
         data["url"] = event.url
 
@@ -121,7 +154,7 @@ def _event_json_ld(event: Event) -> Optional[str]:
             offer["url"] = event.url
         data["offers"] = offer
 
-    return json.dumps(data, ensure_ascii=False)
+    return _safe_json_in_html(data)
 
 
 def page_head(title: str, description: Optional[str] = None):
