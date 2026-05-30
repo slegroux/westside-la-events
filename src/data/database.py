@@ -13,7 +13,9 @@ from .models import Event
 from src.utils.deduplication import (
     events_are_duplicates,
     find_duplicate,
-    merge_event_data
+    merge_event_data,
+    normalize_title,
+    normalize_venue,
 )
 import config
 
@@ -794,19 +796,61 @@ class Database:
                     }
                     return existing_event, scores
 
+            # PHASE 1.5: same-source multi-day events (ongoing exhibitions).
+            # The Tribe Events API re-emits an ongoing show with its start_date
+            # clamped to each scrape's query date, so the same exhibition keeps
+            # reappearing with a drifting start/end and a date-stamped URL —
+            # PHASE 1 (needs same URL within 24h) and PHASE 2 (excludes the same
+            # source) both miss it. Collapse on (source, title, venue) with
+            # overlapping date ranges. Restricted to genuinely multi-day events
+            # (>= 2 days) so legitimate single-day recurring occurrences (weekly
+            # classes, farmers markets) are left untouched.
+            ev_start = _to_naive_local(event.event_date)
+            ev_end = _to_naive_local(event.end_date)
+            if ev_start and ev_end and (ev_end - ev_start).days >= 2:
+                norm_title = normalize_title(event.title)
+                norm_venue = normalize_venue(event.venue_name)
+                if norm_title:
+                    cursor.execute(
+                        "SELECT * FROM events WHERE source = ? AND end_date IS NOT NULL AND end_date != ''",
+                        (event.source,),
+                    )
+                    for row in cursor.fetchall():
+                        existing = self._row_to_event(row)
+                        ex_start, ex_end = existing.event_date, existing.end_date
+                        if not (ex_start and ex_end) or (ex_end - ex_start).days < 2:
+                            continue
+                        if normalize_title(existing.title) != norm_title:
+                            continue
+                        if norm_venue and normalize_venue(existing.venue_name) != norm_venue:
+                            continue
+                        # Overlapping date ranges => same ongoing event.
+                        if ex_start <= ev_end and ev_start <= ex_end:
+                            scores = {
+                                'same_url': False,
+                                'same_source': True,
+                                'match_method': 'multiday_overlap',
+                                'title_similarity': 1.0,
+                                'venue_similarity': 1.0,
+                                'date_diff_hours': None,
+                            }
+                            return existing, scores
+
             # PHASE 2: No URL match, fall back to date-based similarity matching
             if not event.event_date:
                 return None
 
-            # Query events within date tolerance (excluding same source for non-URL matches)
+            # Query events within date tolerance. Include the same source too:
+            # events_are_duplicates() applies a strict same-source rule (identical
+            # title + venue within 1h) so a show listed by one source under two
+            # URLs is collapsed, while distinct recurring occurrences stay separate.
             start_date = event.event_date - timedelta(hours=date_tolerance_hours)
             end_date = event.event_date + timedelta(hours=date_tolerance_hours)
 
             cursor.execute("""
                 SELECT * FROM events
                 WHERE event_date BETWEEN ? AND ?
-                AND source != ?
-            """, (start_date, end_date, event.source))
+            """, (start_date, end_date))
 
             rows = cursor.fetchall()
             existing_events = [self._row_to_event(row) for row in rows]

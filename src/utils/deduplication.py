@@ -174,12 +174,23 @@ def events_are_duplicates(
     # Check if same source
     scores['same_source'] = event1.source == event2.source
     if scores['same_source']:
-        # Same source + same title + same venue + same date = duplicate
-        # (catches scrapers that produce the same event on every run with no URL)
+        # Same source + same title + same venue + same time = duplicate. Catches
+        # a show listed under two URLs by one source (e.g. a venue's own page and
+        # its Eventbrite link). Require the venue to match when both are known so
+        # aggregator sources (Eventbrite, Meetup) don't merge same-titled events
+        # at different venues; the <1h window keeps distinct recurring occurrences
+        # on other days/times separate.
         title1 = normalize_title(event1.title)
         title2 = normalize_title(event2.title)
-        if title1 and title1 == title2 and date_diff < 1:
+        venue1 = normalize_venue(event1.venue_name)
+        venue2 = normalize_venue(event2.venue_name)
+        # Require a known, matching venue on both sides. This collapses a show
+        # listed by one source under two URLs while staying conservative: when
+        # venue info is missing we leave same-source events alone (a scraper may
+        # legitimately emit distinct same-titled events with no venue).
+        if title1 and title1 == title2 and date_diff < 1 and venue1 and venue1 == venue2:
             scores['title_similarity'] = 1.0
+            scores['venue_similarity'] = 1.0
             scores['match_method'] = 'exact_same_source'
             return True, scores
         return False, scores

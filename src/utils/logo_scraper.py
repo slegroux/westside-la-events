@@ -149,7 +149,10 @@ class LogoScraper:
         'Old Town Music Hall': 'https://www.oldtownmusichall.org/wp-content/uploads/2021/01/otmh-logo.png',
         'Geffen Playhouse': 'https://geffenplayhouse.org/wp-content/themes/geffen-playhouse/dist/images/logo.svg',
         'La Puglia': 'https://www.lapugliasm.com/wp-content/uploads/la-puglia-logo.png',
-        'Santa Monica Farmers Markets': 'https://www.santamonica.gov/media/Default/farmersmarket/farmers-market-logo.png',
+        # santamonica.gov no longer serves a farmers-market logo (the old path
+        # 404s and the site exposes no og:image/icon). Use the official market
+        # header image from the city's Bynder CDN so the source has a picture.
+        'Santa Monica Farmers Markets': 'https://cityofsantamonica.getbynder.com/m/3c685e9639708c15/Desktop_Header-Baskets-of-Multi-Colored-Cherry-Tomatoes.jpg',
     }
 
     def __init__(self, cache_dir: str = "static/logos"):

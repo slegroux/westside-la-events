@@ -134,14 +134,21 @@ class TestEventsAreDuplicates:
         assert scores['title_similarity'] >= 0.85
 
     def test_same_source_exact_duplicate(self):
-        """Same source + exact same title + same date = duplicate."""
+        """Same source + exact same title + same venue + same date = duplicate.
+
+        Mirrors a show listed by one source under two URLs (e.g. a venue's own
+        page and its Eventbrite link). A matching venue is required so we never
+        merge same-titled events when venue info is absent.
+        """
         event1 = Event(
             title="Same Event",
+            venue_name="Westside Comedy Theater",
             event_date=datetime(2025, 11, 12),
             source="KCRW"
         )
         event2 = Event(
             title="Same Event",
+            venue_name="Westside Comedy Theater",
             event_date=datetime(2025, 11, 12),
             source="KCRW"
         )
