@@ -54,7 +54,7 @@ def setup_routes(rt, state):
                         ),
 
                         # Right Main Content Area
-                        Div(
+                        Main(
                             # View Toggle
                             Div(
                                 Button(Span('\u2630', style='margin-right: 0.4rem; font-size: 1.1em;'), 'List', type='button', id='list-view-btn', cls='view-btn active',
@@ -68,19 +68,30 @@ def setup_routes(rt, state):
                                        hx_swap='innerHTML',
                                        hx_include='.search-section'),
                                 cls='view-toggle',
-                                id='view-toggle'
+                                id='view-toggle',
+                                role='tablist',
+                                **{'aria-label': 'View mode'}
                             ),
 
                             # View Container (holds either list or map)
                             Div(
                                 # Map Container (hidden by default)
                                 Div(id='map', style='display: none;'),
-                                # Events Grid - Now with server-rendered content
-                                Div(events_list(initial_events, session), id='events-container', **{'data-loading': 'skeleton'}),
+                                # Events Grid - server-rendered + live-updated by HTMX
+                                Div(
+                                    events_list(initial_events, session),
+                                    id='events-container',
+                                    **{
+                                        'data-loading': 'skeleton',
+                                        'aria-live': 'polite',
+                                        'aria-busy': 'false',
+                                    },
+                                ),
                                 id='view-container'
                             ),
 
-                            cls='main-content'
+                            cls='main-content',
+                            id='main-content'
                         ),
 
                         cls='layout-grid'
@@ -94,23 +105,32 @@ def setup_routes(rt, state):
                 # Scroll-to-top button
                 Button('\u2191', cls='scroll-to-top', id='scroll-to-top', onclick='window.scrollTo({top: 0, behavior: "smooth"})', type='button', title='Back to top'),
                 page_footer(),
-                # Add script to show skeleton during HTMX requests
+                # Add script to show skeleton during HTMX requests + manage aria state
                 Script('''
-                    // Show skeleton screens during HTMX requests
+                    document.body.addEventListener('htmx:beforeRequest', function(event) {
+                        const target = event.detail.target;
+                        if (target && target.id === 'events-container') {
+                            target.setAttribute('aria-busy', 'true');
+                        }
+                    });
                     document.body.addEventListener('htmx:beforeSwap', function(event) {
                         const target = event.detail.target;
                         if (target && target.id === 'events-container') {
-                            // Show skeleton while loading
                             const skeleton = `
                                 <div style="margin-bottom: 1.5rem; color: var(--text-light); font-size: 1rem; font-weight: 600;">Loading events...</div>
                                 <div class="events-grid">
                                     ${'<div class="skeleton-card"><div class="skeleton-image"></div><div class="skeleton-content"><div class="skeleton-title"></div><div class="skeleton-text short"></div><div class="skeleton-text medium"></div><div class="skeleton-footer"><div class="skeleton-badge"></div><div class="skeleton-badge"></div></div></div></div>'.repeat(6)}
                                 </div>
                             `;
-                            // Only show skeleton if we're not already showing content
                             if (target.getAttribute('data-loading') === 'skeleton') {
                                 target.innerHTML = skeleton;
                             }
+                        }
+                    });
+                    document.body.addEventListener('htmx:afterSwap', function(event) {
+                        const target = event.detail.target;
+                        if (target && target.id === 'events-container') {
+                            target.setAttribute('aria-busy', 'false');
                         }
                     });
                 ''')
