@@ -298,10 +298,10 @@ def _date_chip(event: Event):
     start = event.event_date
     end = event.end_date
     if end and end.date() > start.date():
+        # Two-line stack reads better than a compressed 'MAY 30 → NOV 9' pill.
         chip_inner = (
-            Span(start.strftime('%b %-d').upper(), cls='event-date-chip-day'),
-            Span('→', cls='event-date-chip-sep'),
-            Span(end.strftime('%b %-d').upper(), cls='event-date-chip-day'),
+            Span(start.strftime('%b %-d').upper(), cls='event-date-chip-range-line'),
+            Span(end.strftime('%b %-d').upper(), cls='event-date-chip-range-line'),
         )
         chip_cls = 'event-date-chip event-date-chip-range'
     else:
