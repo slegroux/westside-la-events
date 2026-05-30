@@ -284,6 +284,8 @@ class BaseScraper(ABC):
         price: Optional[float] = None,
         is_free: bool = False,
         price_note: str = "",
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
         strict_geo: bool = False
     ) -> Optional[Event]:
         """
@@ -315,11 +317,13 @@ class BaseScraper(ABC):
         # Geocode (with address normalization + venue-name fallback) if we have
         # anything to locate on. The fallback recovers messy addresses that fail
         # Nominatim verbatim and venue-only events with no street address.
-        latitude, longitude = None, None
-        if address or venue_name:
-            coords = self.geocoding_service.geocode_with_fallback(address, venue_name=venue_name)
-            if coords:
-                latitude, longitude = coords
+        # Use caller-provided coordinates (e.g. a source's JSON-LD geo) when
+        # available; otherwise geocode the address/venue.
+        if latitude is None or longitude is None:
+            if address or venue_name:
+                coords = self.geocoding_service.geocode_with_fallback(address, venue_name=venue_name)
+                if coords:
+                    latitude, longitude = coords
 
         # Hard denylist: specific non-Westside venues (e.g. Mid-City farmers
         # markets) that sit inside the coverage box but should never be listed.

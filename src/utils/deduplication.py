@@ -277,6 +277,23 @@ def find_duplicate(
     return None
 
 
+def _is_no_time(dt) -> bool:
+    """True if a datetime carries no real time-of-day (midnight default)."""
+    return dt is not None and dt.hour == 0 and dt.minute == 0 and dt.second == 0
+
+
+def _prefer_timed(primary_dt, secondary_dt):
+    """Merge two datetimes for the same event, preferring one with a real time.
+
+    A re-scrape often supplies a proper start/end time for a record previously
+    stored at midnight (no time parsed). In that case take the secondary so the
+    time is corrected; otherwise keep the primary (falling back to secondary).
+    """
+    if _is_no_time(primary_dt) and secondary_dt is not None and not _is_no_time(secondary_dt):
+        return secondary_dt
+    return primary_dt or secondary_dt
+
+
 def merge_event_data(primary: Event, secondary: Event) -> Event:
     """
     Merge data from two duplicate events, preferring non-empty values.
@@ -300,8 +317,8 @@ def merge_event_data(primary: Event, secondary: Event) -> Event:
         address=primary.address or secondary.address,
         latitude=primary.latitude if primary.latitude is not None else secondary.latitude,
         longitude=primary.longitude if primary.longitude is not None else secondary.longitude,
-        event_date=primary.event_date or secondary.event_date,
-        end_date=primary.end_date or secondary.end_date,
+        event_date=_prefer_timed(primary.event_date, secondary.event_date),
+        end_date=_prefer_timed(primary.end_date, secondary.end_date),
         category=primary.category or secondary.category,
         source=primary.source,  # Keep primary source
         url=primary.url or secondary.url,

@@ -127,6 +127,17 @@ class AviatorDreamlandScraper(BaseScraper):
                             self.log(f"Failed to parse date: {date_str}")
                             continue
 
+                        # Merge the show time into event_date when present, e.g.
+                        # "Doors 7pm | Show 8pm" -> 20:00 (prefer the Show time).
+                        tmatch = (re.search(r'show\s*:?\s*(\d{1,2})(?::(\d{2}))?\s*([ap]m)', time_text, re.I)
+                                  or re.search(r'(\d{1,2})(?::(\d{2}))?\s*([ap]m)', time_text, re.I))
+                        if tmatch:
+                            hour = int(tmatch.group(1)) % 12
+                            if tmatch.group(3).lower() == 'pm':
+                                hour += 12
+                            minute = int(tmatch.group(2)) if tmatch.group(2) else 0
+                            event_date = event_date.replace(hour=hour, minute=minute)
+
                         # Build description
                         description = f"Live music event at {self.venue_name} in Malibu."
                         if time_text:

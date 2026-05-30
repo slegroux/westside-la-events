@@ -450,3 +450,21 @@ class TestMergeEventData:
         merged = merge_event_data(primary, secondary)
         assert merged.price == 25.0
         assert merged.is_free is True  # Takes True from secondary
+
+    def test_prefers_real_time_over_stale_midnight(self):
+        """A re-scrape carrying a real start time overwrites a stored midnight."""
+        primary = Event(id=1, title="Show", source="S",
+                        event_date=datetime(2026, 5, 30, 0, 0, 0))   # midnight / no time
+        secondary = Event(id=2, title="Show", source="S",
+                          event_date=datetime(2026, 5, 30, 20, 0, 0))  # 8pm
+        merged = merge_event_data(primary, secondary)
+        assert merged.event_date == datetime(2026, 5, 30, 20, 0, 0)
+
+    def test_keeps_primary_time_over_secondary_midnight(self):
+        """A real primary time is NOT clobbered by a secondary midnight."""
+        primary = Event(id=1, title="Show", source="S",
+                        event_date=datetime(2026, 5, 30, 19, 30, 0))
+        secondary = Event(id=2, title="Show", source="S",
+                          event_date=datetime(2026, 5, 30, 0, 0, 0))
+        merged = merge_event_data(primary, secondary)
+        assert merged.event_date == datetime(2026, 5, 30, 19, 30, 0)

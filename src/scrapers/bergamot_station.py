@@ -111,36 +111,50 @@ class BergamotStationScraper(BaseScraper):
         if desc_elem:
             description = self.clean_text(desc_elem.get_text())
 
-        # Extract dates - format like "Oct 11 to Nov 22"
+        # Extract dates. Prefer the structured <time> elements (robust, and they
+        # carry the opening time); fall back to the "Oct 11 to Nov 22" text.
         event_date = None
         end_date = None
         text_content = item.get_text()
 
-        # Look for date range pattern
-        date_range_pattern = r'([A-Z][a-z]{2})\s+(\d{1,2})\s+to\s+([A-Z][a-z]{2})\s+(\d{1,2})'
-        date_match = re.search(date_range_pattern, text_content)
+        def _cls(t):
+            return ' '.join(t.get('class') or [])
 
+        date_el = next((t for t in item.find_all('time')
+                        if t.get('datetime') and 'event-date' in _cls(t)), None)
+        if date_el:
+            try:
+                event_date = date_parser.parse(date_el['datetime'])
+                # Opening time, if exposed (e.g. <time class="event-time-12hr">11:00 AM</time>)
+                time_el = next((t for t in item.find_all('time')
+                                if 'time-12hr' in _cls(t) and t.get_text(strip=True)), None)
+                if time_el:
+                    try:
+                        tt = date_parser.parse(time_el.get_text(strip=True))
+                        event_date = event_date.replace(hour=tt.hour, minute=tt.minute)
+                    except Exception:
+                        pass
+            except Exception as e:
+                self.log(f"Error parsing <time> date: {e}")
+                event_date = None
+
+        # Date-range text ("Oct 11 to Nov 22") supplies the end date (and the
+        # start date as a fallback when no <time> element was found).
+        date_match = re.search(
+            r'([A-Z][a-z]{2})\s+(\d{1,2})\s+to\s+([A-Z][a-z]{2})\s+(\d{1,2})', text_content)
         if date_match:
             try:
-                start_month = date_match.group(1)
-                start_day = int(date_match.group(2))
-                end_month = date_match.group(3)
-                end_day = int(date_match.group(4))
-
                 current_year = datetime.now().year
-
-                # Parse start date
-                event_date = date_parser.parse(f"{start_month} {start_day}, {current_year}")
-
-                # Parse end date
-                end_date = date_parser.parse(f"{end_month} {end_day}, {current_year}")
-
-                # If end date is before start date, it's probably next year
+                if event_date is None:
+                    event_date = date_parser.parse(
+                        f"{date_match.group(1)} {date_match.group(2)}, {current_year}")
+                end_date = date_parser.parse(
+                    f"{date_match.group(3)} {date_match.group(4)}, {current_year}")
                 if end_date < event_date:
-                    end_date = date_parser.parse(f"{end_month} {end_day}, {current_year + 1}")
-
+                    end_date = date_parser.parse(
+                        f"{date_match.group(3)} {date_match.group(4)}, {current_year + 1}")
             except Exception as e:
-                self.log(f"Error parsing dates: {e}")
+                self.log(f"Error parsing date range: {e}")
 
         # Address - Bergamot Station in Santa Monica
         address = "2525 Michigan Ave, Santa Monica, CA 90404"
