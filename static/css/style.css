@@ -1365,12 +1365,32 @@ a.event-date-chip:focus-visible {
     color: var(--text-light);
     text-decoration: none;
     cursor: pointer;
-    transition: color 0.15s ease;
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    margin: -0.125rem -0.25rem;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
-.event-meta-row .venue-location-link:hover {
+/* No underline on hover — that was making the whole venue/address pair
+   read like a verbose hyperlink. Instead use a subtle background lift
+   and tint only the venue name. */
+.event-meta-row .venue-location-link:hover,
+.event-meta-row .venue-location-link:focus-visible {
+    background: var(--bg-secondary);
+    text-decoration: none;
+}
+
+.event-meta-row .venue-location-link:hover .event-meta-venue,
+.event-meta-row .venue-location-link:focus-visible .event-meta-venue {
     color: var(--primary-color);
-    text-decoration: underline;
+}
+
+.event-meta-row .venue-location-link:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 1px;
 }
 
 .event-meta-pin {
