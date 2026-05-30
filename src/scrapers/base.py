@@ -16,7 +16,7 @@ from src.data.models import Event
 from src.utils.geocoding import get_geocoding_service
 from src.utils.categories import classify_event
 from src.utils.logo_scraper import LogoScraper
-from src.utils.geo_filter import validate_event_location
+from src.utils.geo_filter import validate_event_location, is_denylisted_venue
 
 
 LA_TZ = ZoneInfo("America/Los_Angeles")
@@ -312,6 +312,12 @@ class BaseScraper(ABC):
             coords = self.geocoding_service.geocode(address)
             if coords:
                 latitude, longitude = coords
+
+        # Hard denylist: specific non-Westside venues (e.g. Mid-City farmers
+        # markets) that sit inside the coverage box but should never be listed.
+        if is_denylisted_venue(venue_name=venue_name, title=title):
+            self.log(f"Skipping denylisted venue: '{title}' at {venue_name or address}")
+            return None
 
         # Validate location - filter out events outside Westside/Malibu
         if strict_geo:

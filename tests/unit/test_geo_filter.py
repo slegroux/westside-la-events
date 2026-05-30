@@ -15,6 +15,7 @@ from src.utils.geo_filter import (
     extract_zip_codes,
     is_westside_address,
     validate_event_location,
+    is_denylisted_venue,
     get_location_area,
 )
 
@@ -297,3 +298,41 @@ class TestGetLocationArea:
 
     def test_outside(self):
         assert get_location_area(*DOWNTOWN_LA) == "outside"
+
+
+@pytest.mark.unit
+class TestVenueDenylist:
+    """Test the explicit non-Westside venue denylist (Mid-City farmers markets)."""
+
+    def test_mid_city_markets_denied(self):
+        for venue in [
+            "Miracle Mile Certified Farmers Market",
+            "Melrose Place Certified Farmers Market",
+            "La Cienega Farmers Market @18th Street",
+            "La Cienega Farmers Market @Kaiser WLA",
+            "Farm Habit Certified Farmers Market at Cedars Sinai",
+            "Wellington Square Certified Farmers' Market",
+        ]:
+            assert is_denylisted_venue(venue_name=venue) is True, venue
+
+    def test_matches_in_title_too(self):
+        assert is_denylisted_venue(title="Miracle Mile Certified Farmers Market") is True
+
+    def test_legit_venues_not_denied(self):
+        # Nearby major venues that share coords/zips must NOT be denied,
+        # plus legitimate Westside farmers markets.
+        for venue in [
+            "LACMA",
+            "Academy Museum of Motion Pictures",
+            "Petersen Automotive Museum",
+            "The Broad Stage",
+            "Beverly Hills Farmers Market",
+            "Culver City Farmers Market",
+            "Mar Vista Farmers Market",
+            "Saturday Downtown Farmers Market",
+        ]:
+            assert is_denylisted_venue(venue_name=venue) is False, venue
+
+    def test_empty_inputs(self):
+        assert is_denylisted_venue() is False
+        assert is_denylisted_venue(venue_name="", title="") is False

@@ -68,6 +68,20 @@ WESTSIDE_ZIP_CODES = {
     '90263', '90264', '90265'
 }
 
+# Specific non-Westside venues to always exclude, even when their coordinates
+# fall inside the coverage bounding box. These are aggregator-listed (e.g. Shore
+# Hotel) farmers markets in Mid-City / Beverly Grove / Miracle Mile that share
+# coordinates and zip codes with legitimate venues nearby (LACMA, the Academy
+# Museum, the Petersen, etc.), so they cannot be excluded geographically.
+# Matched as case-insensitive substrings against the venue name and title.
+NON_WESTSIDE_VENUE_DENYLIST = (
+    'miracle mile certified farmers market',
+    'melrose place certified farmers market',
+    'la cienega farmers market',
+    'farm habit certified farmers market',     # at Cedars-Sinai (Beverly Grove)
+    'wellington square certified farmers',
+)
+
 # Reference point: Santa Monica Pier
 SANTA_MONICA_PIER = (34.0095, -118.4977)
 MAX_DISTANCE_MILES = 12  # Radius to consider "Westside" (covers Malibu, excludes Hollywood/DTLA)
@@ -216,6 +230,20 @@ def is_westside_address(address: str, city: str = None, venue_name: str = None) 
         return True
 
     return False
+
+
+def is_denylisted_venue(venue_name: Optional[str] = None,
+                        title: Optional[str] = None) -> bool:
+    """Return True if the venue/title matches a known non-Westside venue.
+
+    Used to exclude specific aggregator-listed venues (e.g. Mid-City farmers
+    markets) that fall inside the coverage box but are not part of the Westside
+    and cannot be separated geographically from nearby legitimate venues.
+    """
+    haystack = ' '.join(filter(None, [venue_name or '', title or ''])).lower()
+    if not haystack:
+        return False
+    return any(term in haystack for term in NON_WESTSIDE_VENUE_DENYLIST)
 
 
 def validate_event_location(latitude: Optional[float] = None,
