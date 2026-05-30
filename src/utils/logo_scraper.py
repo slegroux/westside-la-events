@@ -117,6 +117,7 @@ class LogoScraper:
         'Apero Francophone': 'https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F789199169%2F147203442267%2F1%2Foriginal.20240613-175946?auto=format%2Ccompress&q=75&sharp=10&s=013e5c242fa306aeee088837cd6377f3',
         'UCLA': 'https://newsroom.ucla.edu/file?fid=58a741882cfac20c4a08ef0b',
         'UCLA Design Media Arts': 'https://www.design.ucla.edu/assets/android-icon-192x192.png',
+        'Village Well Books & Coffee': 'https://cdn1.bookmanager.com/i/9916539/logo_navbar.png?mtime=1587316814',
         'Hammer Museum': 'https://hammer.ucla.edu/sites/default/files/logo_0.png',
         'LACMA': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/LACMA_logo.svg/320px-LACMA_logo.svg.png',
         'Venice Beach Events': 'https://www.visitveniceca.com/wp-content/uploads/2021/03/venice-logo.png',

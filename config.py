@@ -123,6 +123,13 @@ EVENT_SOURCES = {
         'uses_api': False,
         'note': 'Arcana: Books on the Arts event announcements'
     },
+    'village_well': {
+        'name': 'Village Well Books & Coffee',
+        'url': 'https://villagewell.com/calendar',
+        'enabled': True,
+        'uses_api': True,
+        'note': 'Culver City bookstore/cafe events via the Bookmanager events API (SAN 9916539)'
+    },
     'timeout': {
         'name': 'Timeout LA',
         'url': 'https://www.timeout.com/los-angeles/things-to-do/things-to-do-in-los-angeles-this-week',

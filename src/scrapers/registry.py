@@ -58,6 +58,7 @@ from .ucla import UCLAScraper
 from .ucla_botanical import UCLABotanicalScraper
 from .ucla_design import UCLADesignScraper
 from .venice_beach import VeniceBeachScraper
+from .village_well import VillageWellScraper
 from .venice_west import VeniceWestScraper
 from .victorian import VictorianScraper
 from .west_hollywood import WestHollywoodScraper
@@ -131,6 +132,7 @@ SCRAPER_MAP: Dict[str, Type] = {
     'papille_gustative': PapilleGustativeScraper,
     'jamesons_pub': JamesonsPubScraper,
     'arcana_books': ArcanaBooksScraper,
+    'village_well': VillageWellScraper,
     'shore_hotel': ShoreHotelScraper,
     'fairmont_miramar': FairmontMiramarScraper,
     'smdp': SMDPScraper,
