@@ -665,6 +665,14 @@ h1 {
     box-shadow: var(--shadow-md);
 }
 
+/* Keyboard focus ring — the real <input> is visually hidden, so the
+   label needs to surface the focus state itself. */
+.category-checkbox-label:has(input:focus-visible),
+.source-checkbox-label:has(input:focus-visible) {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
 .category-checkbox-label input[type="checkbox"],
 .source-checkbox-label input[type="checkbox"] {
     position: absolute;
@@ -1260,7 +1268,7 @@ a:hover .calendar-download-icon {
 }
 
 .event-location a:hover {
-    color: var(--primary);
+    color: var(--primary-color);
     text-decoration: underline;
 }
 
@@ -1692,8 +1700,9 @@ footer .footer-photo-credit a:hover {
 
     .category-checkbox-label,
     .source-checkbox-label {
-        padding: 0.5rem 0.875rem;
-        font-size: 0.725rem;
+        padding: 0.625rem 0.875rem;
+        font-size: 0.8125rem;
+        min-height: 44px;  /* WCAG AA / iOS HIG tap target */
     }
 
     .category-checkbox-label::before,
@@ -2270,13 +2279,13 @@ footer .footer-photo-credit a:hover {
     align-items: center;
     padding: 1.5rem;
     border-bottom: 1px solid var(--border-color);
-    background-color: var(--surface-color);
+    background-color: var(--card-bg);
 }
 
 .venue-map-modal-header h3 {
     margin: 0;
     font-size: 1.25rem;
-    color: var(--text-primary);
+    color: var(--text-color);
 }
 
 .venue-map-close {
@@ -2299,8 +2308,8 @@ footer .footer-photo-credit a:hover {
 }
 
 .venue-map-close:hover {
-    background-color: var(--hover-bg);
-    color: var(--text-primary);
+    background-color: var(--bg-secondary);
+    color: var(--text-color);
 }
 
 .venue-map-modal-footer {
@@ -2320,7 +2329,7 @@ footer .footer-photo-credit a:hover {
 .venue-map-modal-footer .btn-primary {
     display: inline-block;
     padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     color: white;
     text-decoration: none;
     border-radius: var(--radius-lg);
@@ -2473,8 +2482,8 @@ footer .footer-photo-credit a:hover {
     .filter-fab {
         display: flex;
         position: fixed;
-        bottom: 1.5rem;
-        right: 1.5rem;
+        bottom: calc(1.5rem + env(safe-area-inset-bottom));
+        right: calc(1.5rem + env(safe-area-inset-right));
         z-index: 1000;
         background: var(--gradient-primary);
         color: white;
@@ -2545,8 +2554,8 @@ footer .footer-photo-credit a:hover {
 .scroll-to-top {
     display: none;
     position: fixed;
-    bottom: 2rem;
-    left: 1.5rem;
+    bottom: calc(2rem + env(safe-area-inset-bottom));
+    left: calc(1.5rem + env(safe-area-inset-left));
     z-index: 999;
     background: var(--gradient-primary);
     color: white;
