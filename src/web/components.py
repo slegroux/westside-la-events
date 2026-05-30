@@ -3,6 +3,7 @@ Reusable UI component functions for LA Events Aggregator.
 """
 import json
 import os
+import re
 from datetime import datetime
 from fasthtml.common import *
 from typing import List, Optional
@@ -14,6 +15,27 @@ from src.web.state import is_favorited
 
 
 _LA_TZ = ZoneInfo("America/Los_Angeles")
+
+
+_TRAILING_STATE_ZIP_RE = re.compile(
+    r',\s*(California|CA)\s*,?\s*\d{5}(-\d{4})?\s*$'
+    r'|,\s*(California|CA)\s*$'
+    r'|,\s*\d{5}(-\d{4})?\s*$',
+    re.IGNORECASE,
+)
+
+
+def _compact_address(address: str) -> str:
+    """Strip trailing US state + zip noise from a display address.
+
+    The full address is still stored on the venue link's data-address
+    attribute for the map modal — this just shortens what the card shows
+    so a long '…, California, 90094' tail doesn't dominate the row.
+    """
+    if not address:
+        return ''
+    cleaned = _TRAILING_STATE_ZIP_RE.sub('', address.strip())
+    return cleaned.strip().rstrip(',').strip()
 
 
 def _compute_asset_version() -> str:
@@ -260,13 +282,14 @@ def _event_meta_row(event: Event):
         # address verbatim).
         venue = event.venue_name or ''
         address = event.address or ''
-        show_address = bool(address) and (
-            not venue or not address.lower().startswith(venue.lower())
+        display_address = _compact_address(address)
+        show_address = bool(display_address) and (
+            not venue or not display_address.lower().startswith(venue.lower())
         )
-        primary = venue or address
+        primary = venue or display_address
         place_children = [Span(primary, cls='event-meta-venue')]
         if show_address and venue:
-            place_children.append(Span(address, cls='event-meta-address'))
+            place_children.append(Span(display_address, cls='event-meta-address'))
         venue_link = A(
             Span('\U0001f4cd', cls='event-meta-pin', **{'aria-hidden': 'true'}),
             Span(*place_children, cls='event-meta-place'),
