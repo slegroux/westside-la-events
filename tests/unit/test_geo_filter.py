@@ -25,6 +25,8 @@ VENICE_BEACH = (33.9850, -118.4695)              # clearly inside Westside
 MALIBU_BEACH = (34.0259, -118.7798)              # clearly inside Malibu
 DOWNTOWN_LA = (34.0522, -118.2437)               # outside (east of Westside)
 PASADENA = (34.1478, -118.1445)                  # outside (north + east)
+HANCOCK_PARK = (34.0747, -118.3234)              # outside: Larchmont, just east of -118.33
+INGLEWOOD_SOFI = (33.9535, -118.3392)            # inside: Inglewood/SoFi, west of -118.33
 
 
 @pytest.mark.unit
@@ -62,8 +64,19 @@ class TestIsInWestside:
         assert is_in_westside(*VENICE_BEACH) is True
 
     def test_clearly_outside_east(self):
-        # Downtown LA longitude is east of the Westside east bound (-118.25).
+        # Downtown LA longitude is east of the Westside east bound (-118.33).
         assert is_in_westside(*DOWNTOWN_LA) is False
+
+    def test_hancock_park_larchmont_excluded(self):
+        # Larchmont / Hancock Park (~-118.32) sits just east of the -118.33
+        # boundary and is NOT Westside (regression for the Hollywood-adjacent
+        # farmers-market leak that the old -118.25 bound allowed).
+        assert is_in_westside(*HANCOCK_PARK) is False
+        assert is_in_coverage_area(*HANCOCK_PARK) is False
+
+    def test_inglewood_sofi_included(self):
+        # Inglewood / SoFi Stadium (~-118.34) is west of -118.33 and stays in.
+        assert is_in_westside(*INGLEWOOD_SOFI) is True
 
     def test_clearly_outside_north(self):
         # Pasadena is north of the north bound and east of the east bound.

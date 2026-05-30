@@ -11,7 +11,11 @@ import re
 WESTSIDE_BOUNDS = {
     'north': 34.0900,  # Sunset Blvd area (Westside proper)
     'south': 33.9400,  # Inglewood area (includes SoFi Stadium, Intuit Dome)
-    'east': -118.2500,  # Includes Culver City & Inglewood
+    # ~La Brea Ave. Matches config.WESTSIDE_BOUNDS max_lng (the documented
+    # eastern edge). Keeps Culver City (~-118.39) and Inglewood/SoFi (~-118.34)
+    # while excluding Hollywood, Hancock Park/Larchmont (~-118.32) and points
+    # further east. NOTE: -118.2500 previously let in Hollywood/Mid-Wilshire.
+    'east': -118.3300,
     'west': -118.5500   # Pacific Ocean
 }
 
