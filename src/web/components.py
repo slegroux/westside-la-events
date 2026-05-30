@@ -248,19 +248,23 @@ def _event_meta_row(event: Event):
     parts = []
     if time_str:
         parts.append(Span(time_str, cls='event-meta-time'))
-    if event.venue_name:
+    if event.venue_name or event.address:
+        # Prefer the address — the venue name is usually already in the title,
+        # so repeating it here just adds noise. Fall back to venue when the
+        # event has no address on file.
+        link_text = event.address or event.venue_name
         venue_link = A(
             Span('\U0001f4cd', cls='event-meta-pin', **{'aria-hidden': 'true'}),
-            event.venue_name,
+            link_text,
             href='#',
             cls='venue-location-link',
             **{
-                'data-venue-name': event.venue_name,
+                'data-venue-name': event.venue_name or '',
                 'data-latitude': str(event.latitude) if event.latitude else '',
                 'data-longitude': str(event.longitude) if event.longitude else '',
                 'data-address': event.address or '',
             },
-            title=f'View {event.venue_name} on map',
+            title=f'View {event.venue_name or link_text} on map',
         )
         if parts:
             parts.append(Span('·', cls='event-meta-sep', **{'aria-hidden': 'true'}))
