@@ -2,6 +2,7 @@
 Reusable UI component functions for LA Events Aggregator.
 """
 import json
+import os
 from datetime import datetime
 from fasthtml.common import *
 from typing import List, Optional
@@ -13,6 +14,27 @@ from src.web.state import is_favorited
 
 
 _LA_TZ = ZoneInfo("America/Los_Angeles")
+
+
+def _compute_asset_version() -> str:
+    """Cache-busting token for locally-served static assets (JS/CSS).
+
+    /static is cached for an hour, so a deploy that fixes a script wouldn't
+    reach returning visitors until their cache expired. Cloud Run sets
+    K_REVISION (unique per deploy), so appending it as ?v= makes each deploy
+    serve fresh assets immediately. Locally, fall back to map.js's mtime so
+    editing an asset busts its cache too.
+    """
+    rev = os.getenv('K_REVISION')
+    if rev:
+        return rev
+    try:
+        return str(int(os.path.getmtime(config.BASE_DIR / 'static' / 'js' / 'map.js')))
+    except OSError:
+        return 'dev'
+
+
+ASSET_VERSION = _compute_asset_version()
 
 
 def _iso_la(dt: datetime) -> str:
@@ -110,20 +132,20 @@ def page_head(title: str, description: Optional[str] = None):
         Link(rel='preload', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css',
              as_='style', onload="this.rel='stylesheet'"),
         # Application CSS
-        Link(rel='stylesheet', href='/static/css/style.css'),
+        Link(rel='stylesheet', href=f'/static/css/style.css?v={ASSET_VERSION}'),
         # Leaflet JS - load with defer to ensure proper order
         Script(src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
                integrity='sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=', crossorigin='anonymous', defer=True),
         # Leaflet MarkerCluster JS
         Script(src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js', defer=True),
         # Application JavaScript - defer to load after Leaflet
-        Script(src='/static/js/map.js', defer=True),
+        Script(src=f'/static/js/map.js?v={ASSET_VERSION}', defer=True),
         # Toast notification system
-        Script(src='/static/js/toast.js', defer=True),
+        Script(src=f'/static/js/toast.js?v={ASSET_VERSION}', defer=True),
         # Analytics tracking (if enabled)
-        Script(src='/static/js/analytics.js', defer=True) if config.ENABLE_ANALYTICS else None,
+        Script(src=f'/static/js/analytics.js?v={ASSET_VERSION}', defer=True) if config.ENABLE_ANALYTICS else None,
         # Filter collapse/expand functionality with state persistence
-        Script(src='/static/js/filters.js', defer=True),
+        Script(src=f'/static/js/filters.js?v={ASSET_VERSION}', defer=True),
     )
 
 

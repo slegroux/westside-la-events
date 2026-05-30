@@ -5,7 +5,9 @@ let currentMapContainerId = null;
 let loadMapEventsRetryCount = 0;
 const MAX_RETRY_COUNT = 5;
 
-const LEAFLET_IMAGE_BASE = 'https://unpkg.com/leaflet@1.9.4/dist/images';
+// Self-hosted Leaflet marker images (served from /static, not a CDN) so pins
+// never depend on unpkg being reachable or on Leaflet's CSS-path detection.
+const LEAFLET_IMAGE_BASE = '/static/images/leaflet';
 let defaultIconsConfigured = false;
 
 // Pin Leaflet's default marker icon URLs explicitly. By default Leaflet derives
