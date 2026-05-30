@@ -155,6 +155,13 @@ class ShoreHotelScraper(BaseScraper):
 
         category = self._map_category(raw_category, title)
 
+        # Shore Hotel lists date-only ranges (no times). Farmers markets always
+        # run set morning hours, so give them a sensible 9am-1pm window instead
+        # of an event that shows as midnight with no hours.
+        if event_date and 'farmers market' in title.lower() and event_date.hour == 0 and event_date.minute == 0:
+            event_date = event_date.replace(hour=9)
+            end_date = event_date.replace(hour=13)
+
         actual_venue = venue_name or self.venue_name
         # Prefer the parsed street address; fall back to venue name so the
         # geocoder can place the event correctly (e.g. "Hollywood Bowl" → outside

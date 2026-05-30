@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 import config
 from src.data.models import Event
-from src.utils.geocoding import get_geocoding_service
+from src.utils.geocoding import get_geocoding_service, resolve_known_venue_address
 from src.utils.categories import classify_event
 from src.utils.logo_scraper import LogoScraper
 from src.utils.geo_filter import validate_event_location, is_denylisted_venue
@@ -306,6 +306,12 @@ class BaseScraper(ABC):
         Returns:
             Event object if in coverage area, None otherwise
         """
+        # If the venue is listed only by name (no usable street address), swap in
+        # its known canonical address so it both geocodes and shows a real address.
+        known_addr = resolve_known_venue_address(venue_name)
+        if known_addr:
+            address = known_addr
+
         # Geocode (with address normalization + venue-name fallback) if we have
         # anything to locate on. The fallback recovers messy addresses that fail
         # Nominatim verbatim and venue-only events with no street address.

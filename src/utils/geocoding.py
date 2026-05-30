@@ -19,6 +19,25 @@ NEGATIVE_TTL_SECONDS = 7 * 86400   # 7 days — transient outages shouldn't pois
 _CACHE_MISS = object()  # sentinel distinguishing "no entry" from cached-negative None
 
 
+# Canonical street addresses for venues that are listed only by name (often a
+# building or room, e.g. a college's "Main Stage") and therefore don't geocode.
+# Keyed by a lowercase substring of the venue name.
+KNOWN_VENUE_ADDRESSES = {
+    'santa monica college theatre arts': '1900 Pico Blvd, Santa Monica, CA 90405',
+}
+
+
+def resolve_known_venue_address(venue_name: Optional[str]) -> Optional[str]:
+    """Return a canonical street address for a known venue name, else None."""
+    if not venue_name:
+        return None
+    v = venue_name.lower()
+    for key, addr in KNOWN_VENUE_ADDRESSES.items():
+        if key in v:
+            return addr
+    return None
+
+
 # Written-out ordinal street names -> numeric form, which Nominatim matches.
 _ORDINAL_WORDS = {
     'first': '1st', 'second': '2nd', 'third': '3rd', 'fourth': '4th',

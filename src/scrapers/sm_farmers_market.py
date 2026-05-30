@@ -55,6 +55,25 @@ class SantaMonicaFarmersMarketScraper(BaseScraper):
         self.base_url = 'https://www.santamonica.gov'
         self.events_url = f'{self.base_url}/categories/programs/farmers-market'
 
+    @staticmethod
+    def _parse_time_range(text: str):
+        """Parse '8:30am-1:30pm' into ((start_h, start_m), (end_h, end_m))."""
+        import re
+
+        def to_24h(h, m, ap):
+            h = int(h)
+            m = int(m) if m else 0
+            if ap == 'pm' and h != 12:
+                h += 12
+            elif ap == 'am' and h == 12:
+                h = 0
+            return h, m
+
+        matches = re.findall(r'(\d{1,2}):?(\d{2})?\s*([ap]m)', text.lower())
+        if len(matches) >= 2:
+            return to_24h(*matches[0]), to_24h(*matches[1])
+        return None
+
     def scrape(self) -> List[Event]:
         """
         Generate events for Santa Monica Farmers Markets.
@@ -78,20 +97,14 @@ class SantaMonicaFarmersMarketScraper(BaseScraper):
 
                     event_date = today + timedelta(days=days_ahead + (week * 7))
 
-                    # Parse start time from time string
-                    import re
-                    time_match = re.search(r'(\d{1,2}):?(\d{2})?([ap]m)', market['time'])
-                    if time_match:
-                        hour = int(time_match.group(1))
-                        minute = int(time_match.group(2)) if time_match.group(2) else 0
-                        am_pm = time_match.group(3)
-
-                        if am_pm == 'pm' and hour != 12:
-                            hour += 12
-                        elif am_pm == 'am' and hour == 12:
-                            hour = 0
-
-                        event_date = event_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                    # Parse both start and end times from e.g. "8:30am-1:30pm"
+                    # so every market carries real hours (not just a start time).
+                    end_date = None
+                    times = self._parse_time_range(market['time'])
+                    if times:
+                        (sh, sm), (eh, em) = times
+                        event_date = event_date.replace(hour=sh, minute=sm, second=0, microsecond=0)
+                        end_date = event_date.replace(hour=eh, minute=em, second=0, microsecond=0)
 
                     # Create event
                     event = self.create_event(
@@ -100,6 +113,7 @@ class SantaMonicaFarmersMarketScraper(BaseScraper):
                         venue_name=market['name'],
                         address=market['address'],
                         event_date=event_date,
+                        end_date=end_date,
                         url=self.events_url,
                         image_url="https://cityofsantamonica.getbynder.com/m/3c685e9639708c15/Desktop_Header-Baskets-of-Multi-Colored-Cherry-Tomatoes.jpg",
                         category="Food & Drink",
