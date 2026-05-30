@@ -22,10 +22,25 @@ def setup_routes(rt, state):
         # Get initial events - default to "upcoming"
         initial_events = state.search.search(date_filter='upcoming', limit=100)
 
+        # Live counts for the header. Cheap two-row query so the count
+        # also includes multi-day events that are currently running today.
+        with state.db.get_connection() as conn:
+            total_count = conn.execute(
+                "SELECT COUNT(*) FROM events "
+                "WHERE substr(event_date,1,10) >= date('now','localtime')"
+            ).fetchone()[0]
+            today_count = conn.execute("""
+                SELECT COUNT(*) FROM events
+                WHERE substr(event_date,1,10) = date('now','localtime')
+                   OR (end_date IS NOT NULL
+                       AND substr(event_date,1,10) <= date('now','localtime')
+                       AND substr(end_date,1,10) >= date('now','localtime'))
+            """).fetchone()[0]
+
         return Html(
             page_head('Westside LA Events'),
             Body(
-                page_header(),
+                page_header(total_count=total_count, today_count=today_count),
                 # Mobile filter bottom sheet overlay
                 Div(cls='bottom-sheet-overlay', id='bottom-sheet-overlay', onclick='closeFilterSheet()'),
                 # Mobile filter FAB button

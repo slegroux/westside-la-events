@@ -172,12 +172,45 @@ def page_head(title: str, description: Optional[str] = None):
     )
 
 
-def page_header():
-    """Shared page header component."""
+def page_header(total_count: Optional[int] = None, today_count: Optional[int] = None):
+    """Slim sticky nav-style header: wordmark · live counter · Tonight shortcut.
+
+    Counts are optional — when omitted the counter section is hidden,
+    keeping the header usable on routes that don't compute stats.
+    """
+    counter_parts: list = []
+    if total_count is not None:
+        counter_parts.extend([
+            Span(f'{total_count:,}', cls='header-stat-num'),
+            Span('events', cls='header-stat-label'),
+        ])
+    if today_count is not None and total_count is not None:
+        counter_parts.extend([
+            Span('·', cls='header-stat-sep', **{'aria-hidden': 'true'}),
+            Span(f'{today_count}', cls='header-stat-num'),
+            Span('today', cls='header-stat-label'),
+        ])
+    counter = Div(*counter_parts, cls='header-stats') if counter_parts else None
+
+    tonight = A(
+        'Tonight',
+        href='#',
+        cls='header-tonight',
+        onclick=(
+            "const sel=document.getElementById('date-filter');"
+            "if(sel){sel.value='today';"
+            "sel.dispatchEvent(new Event('change',{bubbles:true}));"
+            "window.scrollTo({top:0,behavior:'smooth'});}"
+            "return false;"
+        ),
+        title='Show events happening today',
+    )
+
     return Header(
         Div(
-            H1('Westside LA Events'),
-            P('Discover the best events, activities, and experiences across LA\'s Westside', cls='header-subtitle'),
+            H1(A('Westside LA Events', href='/'), cls='header-wordmark'),
+            counter,
+            tonight,
             cls='header-content container'
         )
     )

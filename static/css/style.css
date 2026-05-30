@@ -199,78 +199,108 @@ body {
 /* Header - hero bar. Richer teal gradient + a soft colored glow and a thin
    gradient accent strip (replaces the hard orange border) to match the
    glass/modern card language. */
+/* Slim sticky nav-style header. Deep ink so it pairs with the warm sandy
+   page background; no rainbow strip, no gradient, no text-shadow. */
 header {
-    background: linear-gradient(135deg, #0e7490 0%, #0891b2 55%, #0e7490 100%);
-    box-shadow: 0 6px 28px -10px rgba(8, 145, 178, 0.5);
-    padding: 1rem 0 1.25rem;
-    position: relative;
-}
-
-header::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--primary-light), var(--secondary-color), var(--accent-light));
+    background: #0f172a;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .header-content {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    text-align: center;
-    gap: 0.25rem;
-    position: relative;
-    z-index: 1;
+    justify-content: space-between;
+    gap: 1.25rem;
+    min-height: 64px;
+    text-align: left;
+    flex-wrap: nowrap;
 }
 
-.header-title-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.header-logo-left {
-    font-size: 4rem;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-}
-
-.header-logo-right {
-    height: 4rem !important;
-    width: auto !important;
-    max-height: 4rem;
-    max-width: 4rem;
-    object-fit: contain;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-h1 {
+.header-wordmark {
     font-family: var(--font-display);
-    font-size: var(--text-2xl);
-    font-weight: 700;
+    font-size: 1.25rem;
+    font-weight: 600;
     color: white;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    letter-spacing: -0.01em;
-    margin-bottom: 0;
-    line-height: 1.05;
+    letter-spacing: -0.005em;
+    line-height: 1;
+    margin: 0;
+    text-shadow: none;
+    flex-shrink: 0;
 }
 
-.header-title {
-    margin-bottom: 0;
+.header-wordmark a {
+    color: inherit;
+    text-decoration: none;
 }
 
-.header-subtitle {
-    font-size: var(--text-sm);
-    color: rgba(255, 255, 255, 0.85);
-    font-weight: 400;
-    max-width: 600px;
+.header-wordmark a:hover {
+    opacity: 0.85;
+}
+
+.header-stats {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.875rem;
+    line-height: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+}
+
+.header-stat-num {
+    color: white;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.header-stat-label { font-weight: 400; }
+
+.header-stat-sep {
+    opacity: 0.45;
+    margin: 0 0.15rem;
+}
+
+.header-tonight {
+    color: white;
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--radius-full);
+    font-weight: 500;
+    font-size: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    transition: background 0.15s ease, border-color 0.15s ease;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.header-tonight:hover,
+.header-tonight:focus-visible {
+    background: rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.32);
+    outline: none;
+}
+
+.header-tonight:focus-visible {
+    box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+@media (max-width: 640px) {
+    .header-content {
+        gap: 0.75rem;
+        min-height: 56px;
+    }
+    /* On phones, drop the stats to give wordmark + Tonight breathing room. */
+    .header-stats { display: none; }
+    .header-wordmark { font-size: 1.05rem; }
+    .header-tonight { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
 }
 
 /* Search Section - Sidebar Design */
