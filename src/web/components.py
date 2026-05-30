@@ -239,6 +239,27 @@ def _format_event_date(event: Event) -> str:
     return start.strftime("%a, %b %d, %Y at %I:%M %p")
 
 
+def _date_chip(event: Event):
+    """Compact date pill that sits over the event card image."""
+    if not event.event_date:
+        return Div(Span('TBA', cls='event-date-chip-day'), cls='event-date-chip')
+    start = event.event_date
+    end = event.end_date
+    if end and end.date() > start.date():
+        return Div(
+            Span(start.strftime('%b %-d').upper(), cls='event-date-chip-day'),
+            Span('→', cls='event-date-chip-sep'),
+            Span(end.strftime('%b %-d').upper(), cls='event-date-chip-day'),
+            cls='event-date-chip event-date-chip-range',
+        )
+    return Div(
+        Span(start.strftime('%a').upper(), cls='event-date-chip-dow'),
+        Span(start.strftime('%-d'), cls='event-date-chip-day'),
+        Span(start.strftime('%b').upper(), cls='event-date-chip-mon'),
+        cls='event-date-chip',
+    )
+
+
 # price_note text patterns that should promote to a FREE badge even when
 # is_free=False (some scrapers write 'Free admission' instead of setting the flag).
 _FREE_NOTE_PATTERNS = ('free', 'no charge', 'no cost', 'gratis', 'complimentary')
@@ -324,7 +345,11 @@ def event_card(event: Event, session=None):
 
     return Div(
         json_ld_script,
-        A(img_element, **link_attrs),
+        Div(
+            A(img_element, **link_attrs),
+            _date_chip(event),
+            cls='event-card-media',
+        ),
         Div(
             # Make title clickable to original event URL with favorite button
             Div(
