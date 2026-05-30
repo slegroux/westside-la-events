@@ -9,7 +9,7 @@ from typing import List
 import logging
 
 import config
-from src.web.components import events_list, filter_tallies_section
+from src.web.components import events_list, filter_tallies_section, category_filter_bar
 from src.web.services import _fetch_events
 from src.web.state import get_session_id
 
@@ -31,10 +31,11 @@ def setup_routes(rt, state):
         free_only: str = '',
         specific_date: str = '',
         favorites_only: str = '',
+        time_of_day: List[str] = None,
         session=None
     ):
         """HTMX endpoint to get events list HTML fragment."""
-        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session)
+        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session, time_of_day=time_of_day)
         # Return just the HTML fragment without full page wrapper
         result = events_list(events, session)
         return HTMLResponse(to_xml(result))
@@ -49,11 +50,12 @@ def setup_routes(rt, state):
         free_only: str = '',
         specific_date: str = '',
         favorites_only: str = '',
+        time_of_day: List[str] = None,
         session=None
     ):
         """HTMX endpoint to switch to list view."""
         # Get current events based on active filters
-        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session)
+        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session, time_of_day=time_of_day)
 
         result = Div(
             # Map Container (hidden)
@@ -90,11 +92,12 @@ def setup_routes(rt, state):
         free_only: str = '',
         specific_date: str = '',
         favorites_only: str = '',
+        time_of_day: List[str] = None,
         session=None
     ):
         """HTMX endpoint to switch to map view."""
         # Get current events based on active filters
-        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session)
+        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session, time_of_day=time_of_day)
 
         result = Div(
             # Map Container (visible) - explicit height required for Leaflet
@@ -149,13 +152,14 @@ def setup_routes(rt, state):
         free_only: str = '',
         specific_date: str = '',
         favorites_only: str = '',
+        time_of_day: List[str] = None,
         session=None
     ):
         """HTMX endpoint that updates all filter-related sections using OOB swaps."""
         logger.info(f"Search query: '{q}', date_filter: {date_filter}, categories: {category}, sources: {source}, venues: {venue}")
 
         # Get events list
-        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session)
+        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session, time_of_day=time_of_day)
         logger.info(f"Found {len(events)} events for query '{q}'")
 
         # Track search
@@ -176,8 +180,10 @@ def setup_routes(rt, state):
 
         events_html = events_list(events, session)
 
-        # Get filter tallies
+        # Get filter tallies (sidebar: venues/free/favorites) and the top
+        # category pill bar — both refreshed via OOB swaps below.
         tallies_html = filter_tallies_section(date_filter, category, source, venue, free_only, specific_date, favorites_only)
+        category_bar_html = category_filter_bar(date_filter, category, source, venue, free_only, specific_date, favorites_only, oob=True)
 
         # Get date picker
         if date_filter == 'specific_date':
@@ -204,9 +210,10 @@ def setup_routes(rt, state):
                 hx_swap_oob='true'
             )
 
-        # Combine: main target + OOB swaps
+        # Combine: main target + OOB swaps (category bar + sidebar tallies + date picker)
         result = Div(
             events_html,
+            category_bar_html,
             Div(tallies_html, id='filter-tallies', hx_swap_oob='true'),
             date_picker_html
         )
@@ -276,6 +283,7 @@ def setup_routes(rt, state):
         free_only: str = '',
         specific_date: str = '',
         favorites_only: str = '',
+        time_of_day: List[str] = None,
         limit: int = config.MAP_MAX_EVENTS,
         session=None
     ):
@@ -287,7 +295,8 @@ def setup_routes(rt, state):
         from starlette.responses import JSONResponse
         limit = max(1, min(limit, config.MAP_MAX_EVENTS))
         events = _fetch_events(q, date_filter, category, source, venue,
-                               free_only, specific_date, favorites_only, session, limit=limit)
+                               free_only, specific_date, favorites_only, session,
+                               time_of_day=time_of_day, limit=limit)
         return JSONResponse([event.to_dict() for event in events])
 
     @rt('/api/events/{event_id}/calendar')

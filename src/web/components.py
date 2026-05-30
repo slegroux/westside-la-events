@@ -797,11 +797,123 @@ def filter_tallies_section(
             ),
             cls='filter-group checkbox-filter',
         ),
-        # Categories filter - collapsible (state managed by JavaScript/localStorage) with summary
-        filter_section_collapsible('categories', 'Categories', category_checkboxes, collapsed=True, total_count=total_categories, selected_count=selected_categories_event_count),
+        # Categories now live in the top filter bar (see category_filter_bar).
         # Venues filter - collapsible (state managed by JavaScript/localStorage) with summary
         filter_section_collapsible('venues', 'Venues', venue_checkboxes, collapsed=True, total_count=total_venues, selected_count=selected_venues_event_count) if venue_checkboxes else None,
         id='filter-tallies'
+    )
+
+
+def category_filter_bar(
+    date_filter: str = 'upcoming',
+    category: List[str] = None,
+    source: List[str] = None,
+    venue: List[str] = None,
+    free_only: str = '',
+    specific_date: str = '',
+    favorites_only: str = '',
+    oob: bool = False
+):
+    """Horizontal category pill row for the top filter bar.
+
+    Pass oob=True when returning it from /filters/update-all so HTMX swaps the
+    live #category-filter-bar in place (keeps the counts current).
+    """
+    from src.web.services import _get_filter_tallies
+    available_categories, _venues, _free = _get_filter_tallies(
+        date_filter, category, source, venue, free_only, specific_date
+    )
+    checked_categories = set(category) if category else set()
+    pills = [
+        Label(
+            Input(
+                type='checkbox', name='category', value=cat,
+                checked=True if cat in checked_categories else False,
+                hx_get='/filters/update-all', hx_target='#events-container',
+                hx_trigger='change', hx_include='closest form',
+                hx_indicator='#loading-indicator'
+            ),
+            f' {cat} ({available_categories.get(cat, 0)})',
+            cls='category-checkbox-label',
+            **{'data-category': cat}
+        )
+        for cat in config.CATEGORIES
+        if available_categories.get(cat, 0) > 0
+    ]
+    attrs = {'id': 'category-filter-bar', 'cls': 'category-filter-bar'}
+    if oob:
+        attrs['hx_swap_oob'] = 'true'
+    return Div(*pills, **attrs)
+
+
+def top_filter_bar():
+    """Primary filter bar above the results: search + date + category pills.
+
+    Lives inside the page-spanning filter <form> (see the home route) so every
+    control still shares one form for `hx_include='closest form'`.
+    """
+    return Div(
+        Div(
+            Div(
+                Input(
+                    type='search', id='search-input', name='q',
+                    placeholder='Search events...',
+                    hx_get='/filters/update-all', hx_target='#events-container',
+                    hx_trigger='input changed delay:500ms, search',
+                    hx_include='closest form', hx_indicator='#loading-indicator'
+                ),
+                Button('Search', type='submit',
+                       hx_get='/filters/update-all', hx_target='#events-container',
+                       hx_include='closest form', hx_indicator='#loading-indicator'),
+                cls='search-box'
+            ),
+            Div(
+                Label('When', for_='date-filter'),
+                Select(
+                    Option('Upcoming', value='upcoming', selected=True),
+                    Option('Today', value='today'),
+                    Option('Tomorrow', value='tomorrow'),
+                    Option('This Week', value='this_week'),
+                    Option('This Weekend', value='this_weekend'),
+                    Option('This Month', value='this_month'),
+                    Option('Specific Date', value='specific_date'),
+                    id='date-filter', name='date_filter',
+                    hx_get='/filters/update-all', hx_target='#events-container',
+                    hx_trigger='change', hx_include='closest form',
+                    hx_indicator='#loading-indicator'
+                ),
+                cls='filter-group when-filter'
+            ),
+            Div(id='date-picker-container', cls='filter-group calendar-filter'),
+            # Time-of-day pills (temporal cluster next to "When"). Not OOB-swapped,
+            # so their checked state persists in the DOM across filter updates.
+            Div(
+                *[
+                    Label(
+                        Input(
+                            type='checkbox', name='time_of_day', value=val,
+                            hx_get='/filters/update-all', hx_target='#events-container',
+                            hx_trigger='change', hx_include='closest form',
+                            hx_indicator='#loading-indicator'
+                        ),
+                        f' {label}',
+                        cls='category-checkbox-label tod-pill',
+                    )
+                    for val, label in (
+                        ('morning', 'Morning'),
+                        ('afternoon', 'Afternoon'),
+                        ('evening', 'Evening'),
+                        ('night', 'Night'),
+                    )
+                ],
+                cls='tod-group',
+                **{'aria-label': 'Time of day'},
+            ),
+            Button('Clear', type='button', cls='clear-filters-btn', onclick='clearAllFilters()'),
+            cls='top-filter-controls'
+        ),
+        category_filter_bar(),
+        cls='top-filter-bar'
     )
 
 

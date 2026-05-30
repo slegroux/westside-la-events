@@ -479,6 +479,7 @@ class Database:
         min_lng: Optional[float] = None,
         max_lng: Optional[float] = None,
         is_free: Optional[bool] = None,
+        times_of_day: Optional[List[str]] = None,
         limit: int = 100,
         offset: int = 0
     ) -> List[Event]:
@@ -551,6 +552,21 @@ class Database:
             if is_free is not None:
                 conditions.append("is_free = ?")
                 params.append(1 if is_free else 0)
+
+            # Time-of-day filter (by the event's local hour). Timeless 00:00
+            # events (all-day / TBD) deliberately never match a time bucket.
+            if times_of_day:
+                _TOD_BUCKETS = {
+                    'morning':   ['05', '06', '07', '08', '09', '10', '11'],
+                    'afternoon': ['12', '13', '14', '15', '16'],
+                    'evening':   ['17', '18', '19', '20'],
+                    'night':     ['21', '22', '23'],
+                }
+                hours = [h for b in times_of_day for h in _TOD_BUCKETS.get(b, [])]
+                if hours:
+                    placeholders = ','.join('?' * len(hours))
+                    conditions.append(f"substr(event_date, 12, 2) IN ({placeholders})")
+                    params.extend(hours)
 
             # Geographic bounds
             # Note: Allow events with NULL coordinates to pass through (they can't be geographically filtered)

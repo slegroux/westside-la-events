@@ -6,7 +6,7 @@ from fasthtml.common import *
 from src.web.state import track_page_view
 from src.web.components import (
     page_head, page_header, page_footer,
-    htmx_loading_indicator, search_section, events_list
+    htmx_loading_indicator, top_filter_bar, filter_tallies_section, events_list
 )
 
 
@@ -52,64 +52,76 @@ def setup_routes(rt, state):
                     type='button',
                     id='filter-fab'
                 ),
-                # Two-column layout wrapper
+                # Page-spanning filter form: keeps every control (top bar AND
+                # sidebar) in one <form> so hx_include='closest form' still
+                # captures all active filters wherever a control is placed.
                 Div(
-                    Div(
-                        # Left Sidebar - Search and Filters (becomes bottom sheet on mobile)
+                    Form(
+                        # Primary filters across the top: search + date + categories
+                        top_filter_bar(),
+                        # Two-column area below the top bar
                         Div(
-                            # Bottom sheet handle & header (hidden on desktop, shown on mobile)
-                            Div(cls='bottom-sheet-handle'),
+                            # Left Sidebar - venues + free/favorites (bottom sheet on mobile)
                             Div(
-                                Span('Filters', cls='bottom-sheet-title'),
-                                Button('\u00d7', cls='bottom-sheet-close', onclick='closeFilterSheet()', type='button'),
-                                cls='bottom-sheet-header'
-                            ),
-                            search_section(),
-                            cls='sidebar'
-                        ),
-
-                        # Right Main Content Area
-                        Main(
-                            # View Toggle
-                            Div(
-                                Button(Span('\u2630', style='margin-right: 0.4rem; font-size: 1.1em;'), 'List', type='button', id='list-view-btn', cls='view-btn active',
-                                       hx_get='/view/list',
-                                       hx_target='#view-container',
-                                       hx_swap='innerHTML',
-                                       hx_include='.search-section'),
-                                Button(Span('\U0001F5FA', style='margin-right: 0.4rem; font-size: 1.1em;'), 'Map', type='button', id='map-view-btn', cls='view-btn',
-                                       hx_get='/view/map',
-                                       hx_target='#view-container',
-                                       hx_swap='innerHTML',
-                                       hx_include='.search-section'),
-                                cls='view-toggle',
-                                id='view-toggle',
-                                role='tablist',
-                                **{'aria-label': 'View mode'}
-                            ),
-
-                            # View Container (holds either list or map)
-                            Div(
-                                # Map Container (hidden by default)
-                                Div(id='map', style='display: none;'),
-                                # Events Grid - server-rendered + live-updated by HTMX
+                                Div(cls='bottom-sheet-handle'),
                                 Div(
-                                    events_list(initial_events, session),
-                                    id='events-container',
-                                    **{
-                                        'data-loading': 'skeleton',
-                                        'aria-live': 'polite',
-                                        'aria-busy': 'false',
-                                    },
+                                    Span('Filters', cls='bottom-sheet-title'),
+                                    Button('\u00d7', cls='bottom-sheet-close', onclick='closeFilterSheet()', type='button'),
+                                    cls='bottom-sheet-header'
                                 ),
-                                id='view-container'
+                                filter_tallies_section(),
+                                cls='sidebar'
                             ),
 
-                            cls='main-content',
-                            id='main-content'
-                        ),
+                            # Right Main Content Area
+                            Main(
+                                # View Toggle
+                                Div(
+                                    Button(Span('\u2630', style='margin-right: 0.4rem; font-size: 1.1em;'), 'List', type='button', id='list-view-btn', cls='view-btn active',
+                                           hx_get='/view/list',
+                                           hx_target='#view-container',
+                                           hx_swap='innerHTML',
+                                           hx_include='closest form'),
+                                    Button(Span('\U0001F5FA', style='margin-right: 0.4rem; font-size: 1.1em;'), 'Map', type='button', id='map-view-btn', cls='view-btn',
+                                           hx_get='/view/map',
+                                           hx_target='#view-container',
+                                           hx_swap='innerHTML',
+                                           hx_include='closest form'),
+                                    cls='view-toggle',
+                                    id='view-toggle',
+                                    role='tablist',
+                                    **{'aria-label': 'View mode'}
+                                ),
 
-                        cls='layout-grid'
+                                # View Container (holds either list or map)
+                                Div(
+                                    # Map Container (hidden by default)
+                                    Div(id='map', style='display: none;'),
+                                    # Events Grid - server-rendered + live-updated by HTMX
+                                    Div(
+                                        events_list(initial_events, session),
+                                        id='events-container',
+                                        **{
+                                            'data-loading': 'skeleton',
+                                            'aria-live': 'polite',
+                                            'aria-busy': 'false',
+                                        },
+                                    ),
+                                    id='view-container'
+                                ),
+
+                                cls='main-content',
+                                id='main-content'
+                            ),
+
+                            cls='layout-grid'
+                        ),
+                        cls='filter-form',
+                        hx_get='/filters/update-all',
+                        hx_target='#events-container',
+                        hx_trigger='submit',
+                        hx_indicator='#loading-indicator',
+                        onsubmit='return false;'
                     ),
                     cls='container'
                 ),

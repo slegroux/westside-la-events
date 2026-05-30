@@ -84,6 +84,7 @@ def _fetch_events(
     specific_date: str = '',
     favorites_only: str = '',
     session=None,
+    time_of_day: List[str] = None,
     limit: int = 100
 ) -> List[Event]:
     """
@@ -116,6 +117,9 @@ def _fetch_events(
     # Convert free_only to boolean
     is_free = True if free_only == 'true' else None
 
+    # Time-of-day buckets (morning/afternoon/evening/night); None = all times
+    times_of_day = time_of_day if time_of_day and len(time_of_day) > 0 else None
+
     # Fetch events based on filters
     events = []
     if date_filter == 'specific_date' and specific_date:
@@ -133,6 +137,7 @@ def _fetch_events(
                 sources=sources,
                 venues=venues,
                 is_free=is_free,
+                times_of_day=times_of_day,
                 limit=limit
             )
         except ValueError:
@@ -144,6 +149,7 @@ def _fetch_events(
                 sources=sources,
                 venues=venues,
                 is_free=is_free,
+                times_of_day=times_of_day,
                 limit=limit
             )
     else:
@@ -154,6 +160,7 @@ def _fetch_events(
             sources=sources,
             venues=venues,
             is_free=is_free,
+            times_of_day=times_of_day,
             limit=limit
         )
 
