@@ -5,6 +5,29 @@ let currentMapContainerId = null;
 let loadMapEventsRetryCount = 0;
 const MAX_RETRY_COUNT = 5;
 
+const LEAFLET_IMAGE_BASE = 'https://unpkg.com/leaflet@1.9.4/dist/images';
+let defaultIconsConfigured = false;
+
+// Pin Leaflet's default marker icon URLs explicitly. By default Leaflet derives
+// them from the leaflet.css `.leaflet-default-icon-path` background-image, but
+// that stylesheet is loaded asynchronously (<link rel="preload"> swapped to
+// stylesheet on load). If a marker is created before the CSS applies, detection
+// produces a broken path (e.g. ".../distmarker-icon.png") and every pin renders
+// as a missing image, making the map look empty. Setting the URLs directly
+// removes that race entirely.
+function configureDefaultMarkerIcons() {
+    if (defaultIconsConfigured || typeof L === 'undefined' || !L.Icon || !L.Icon.Default) {
+        return;
+    }
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+        iconRetinaUrl: LEAFLET_IMAGE_BASE + '/marker-icon-2x.png',
+        iconUrl: LEAFLET_IMAGE_BASE + '/marker-icon.png',
+        shadowUrl: LEAFLET_IMAGE_BASE + '/marker-shadow.png',
+    });
+    defaultIconsConfigured = true;
+}
+
 function initMap() {
     // Check if map container exists
     const mapContainer = document.getElementById('map');
@@ -40,6 +63,9 @@ function initMap() {
             console.error('Leaflet (L) is not loaded yet');
             return false;
         }
+
+        // Ensure default marker icons resolve to valid URLs (see note above)
+        configureDefaultMarkerIcons();
 
         // Create map centered on Westside LA
         map = L.map('map').setView([34.0522, -118.4437], 11);
@@ -365,6 +391,10 @@ function openVenueMapPopup(venueName, latitude, longitude, address) {
 
     // Initialize map after a short delay to ensure container is visible
     setTimeout(() => {
+        // Ensure default marker icons resolve to valid URLs even if the main
+        // map view was never opened in this session.
+        configureDefaultMarkerIcons();
+
         // Clean up old map if it exists
         if (popupMap) {
             try {
