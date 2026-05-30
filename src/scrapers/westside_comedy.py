@@ -32,7 +32,7 @@ class WestsideComedyScraper(BaseScraper):
         Scrape events from both westsidecomedy.com and Eventbrite.
 
         Returns:
-            List of Event objects from both sources
+            List of Event objects from both sources, deduped by title+date.
         """
         events = []
 
@@ -44,8 +44,29 @@ class WestsideComedyScraper(BaseScraper):
         eventbrite_events = self._scrape_eventbrite()
         events.extend(eventbrite_events)
 
-        self.log(f"Total: {len(events)} events ({len(website_events)} from website, {len(eventbrite_events)} from Eventbrite)")
-        return events
+        # Each show is typically published on BOTH the venue site AND on
+        # Eventbrite under different URLs. Database-level dedup can't catch
+        # these because Phase 2 fuzzy matching deliberately excludes
+        # same-source matches. Dedup here on (normalized title, start time)
+        # so we don't ship two cards for the same show.
+        seen = set()
+        deduped: List[Event] = []
+        for e in events:
+            if not e.event_date or not e.title:
+                deduped.append(e)
+                continue
+            key = (e.title.strip().lower(), e.event_date.replace(second=0, microsecond=0))
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(e)
+
+        self.log(
+            f"Total: {len(deduped)} events "
+            f"({len(website_events)} from website, {len(eventbrite_events)} from Eventbrite, "
+            f"{len(events) - len(deduped)} cross-feed dups dropped)"
+        )
+        return deduped
 
     def _scrape_website(self) -> List[Event]:
         """
