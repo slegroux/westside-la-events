@@ -28,6 +28,7 @@ from src.utils.geocoding import (
     _CACHE_MISS,
     get_geocoding_service,
     normalize_address,
+    _norm_venue,
 )
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
@@ -578,3 +579,43 @@ class TestGeocodeWithFallback:
         assert svc.geocode_with_fallback(
             '123 Nowhere St, Santa Monica, CA', venue_name='Ghost Venue'
         ) is None
+
+    def test_venue_override_used_when_address_fails(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            geocoding, 'VENUE_ADDRESS_OVERRIDES',
+            {'william turner gallery': '2525 Michigan Ave, Santa Monica, CA 90404'},
+        )
+        # Raw (building-descriptor) address misses; the override resolves.
+        svc = self._svc(tmp_path, {'2525 Michigan Ave, Santa Monica, CA 90404': (34.03, -118.47)})
+        coords = svc.geocode_with_fallback(
+            '2525 Michigan Ave, Bergamot Station Arts Center B5, Santa Monica, CA 90404',
+            venue_name='William Turner Gallery',
+        )
+        assert coords == (34.03, -118.47)
+
+    def test_venue_override_matches_html_entity_name(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            geocoding, 'VENUE_ADDRESS_OVERRIDES',
+            {'thrive health & wellness collective': '2905 Stanford Ave, Venice, CA 90292'},
+        )
+        svc = self._svc(tmp_path, {'2905 Stanford Ave, Venice, CA 90292': (33.98, -118.44)})
+        # The DB stores this venue with an HTML entity; normalization must match.
+        coords = svc.geocode_with_fallback(
+            'unresolvable', venue_name='Thrive Health &amp; Wellness Collective'
+        )
+        assert coords == (33.98, -118.44)
+
+
+@pytest.mark.unit
+class TestNormVenue:
+    def test_html_entity_lowercase_strip(self):
+        assert _norm_venue('Thrive Health &amp; Wellness Collective') == \
+            'thrive health & wellness collective'
+        assert _norm_venue('  Getty CENTER ') == 'getty center'
+
+    def test_double_encoded_entity(self):
+        assert _norm_venue('A &amp;amp; B') == 'a & b'
+
+    def test_empty(self):
+        assert _norm_venue(None) == ''
+        assert _norm_venue('') == ''

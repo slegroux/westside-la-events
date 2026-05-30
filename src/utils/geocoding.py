@@ -2,6 +2,7 @@
 Geocoding utility for converting addresses to lat/lng coordinates.
 Uses Nominatim (OpenStreetMap) geocoding service - completely free, no API key required.
 """
+import html
 import json
 import re
 import threading
@@ -86,6 +87,46 @@ def _extract_city_hint(address: str) -> str:
             if city.lower() in low:
                 return f'{city}, CA'
     return 'Los Angeles, CA'
+
+
+# Known venues whose scraped addresses don't geocode (no street number, building
+# descriptors, vague intersections). Keyed by NORMALIZED venue name (see
+# _norm_venue) -> a real, Nominatim-resolvable street address. Consulted by
+# geocode_with_fallback, so both the live scrapers and the backfill benefit.
+VENUE_ADDRESS_OVERRIDES = {
+    'william turner gallery': '2525 Michigan Ave, Santa Monica, CA 90404',
+    'largo at the coronet': '366 N La Cienega Blvd, Los Angeles, CA 90048',
+    'getty center': '1200 Getty Center Dr, Los Angeles, CA 90049',
+    'loulou rooftop restaurant & lounge': '395 Santa Monica Place, Santa Monica, CA 90401',
+    'loulou santa monica': '395 Santa Monica Place, Santa Monica, CA 90401',
+    'theatre 40': '241 Moreno Drive, Beverly Hills, CA 90212',
+    'skirball cultural center': '2701 N Sepulveda Blvd, Los Angeles, CA 90049',
+    'lmu farmers market': 'Loyola Marymount University, Los Angeles, CA 90045',
+    'will rogers shp': '1501 Will Rogers State Park Rd, Pacific Palisades, CA 90272',
+    'palisades park rose garden': '1249 Ocean Avenue, Santa Monica, CA 90401',
+    'santa monica college theatre arts complex main stage': '1900 Pico Blvd, Santa Monica, CA 90405',
+    'the washington (mar vista)': '12400 Washington Blvd, Los Angeles, CA 90066',
+    'casa del mar hotel & resort': '1910 Ocean Way, Santa Monica, CA 90405',
+    'along main street': 'Main Street, Santa Monica, CA 90405',
+    'thrive health & wellness collective': '2905 Stanford Ave, Venice, CA 90292',
+    "will geer's theatricum botanicum": '1419 N Topanga Canyon Blvd, Topanga, CA 90290',
+    'the braid theatre': '3435 Ocean Park Blvd, Santa Monica, CA 90405',
+    'inman cultural center': '3376 Motor Ave, Los Angeles, CA 90034',
+    'poj studio pop-up': '8542 Washington Blvd, Culver City, CA 90232',
+    'the kinney venice beach hotel': '737 W Washington Blvd, Venice, CA 90292',
+    'hollywood park retail district': '1001 S Stadium Dr, Inglewood, CA 90301',
+    'l.a. louver': '45 N Venice Blvd, Venice, CA 90291',
+    'hotel bel-air': '701 Stone Canyon Rd, Los Angeles, CA 90077',
+    'ucla glorya kaufman hall': '120 Westwood Plaza, Los Angeles, CA 90095',
+    '7053 trolleyway s': '7053 Trolleyway, Los Angeles, CA 90293',
+    'topanga community club': '1440 N Topanga Canyon Blvd, Topanga, CA 90290',
+    'the troubdadour': '9081 Santa Monica Blvd, West Hollywood, CA 90069',
+}
+
+
+def _norm_venue(name: str) -> str:
+    """Normalize a venue name for override lookup (HTML-unescape, lowercase)."""
+    return html.unescape(html.unescape(name or '')).strip().lower()
 
 
 class GeocodingService:
@@ -269,6 +310,13 @@ class GeocodingService:
                     return coords
 
         if venue_name and venue_name.strip():
+            # A known-venue override (curated real address) beats a generic
+            # "<venue>, <city>" guess for venues whose scraped address is unusable.
+            override = VENUE_ADDRESS_OVERRIDES.get(_norm_venue(venue_name))
+            if override:
+                coords = self.geocode(override)
+                if coords:
+                    return coords
             coords = self.geocode(f'{venue_name.strip()}, {_extract_city_hint(address)}')
             if coords:
                 return coords
