@@ -196,13 +196,24 @@ body {
     min-width: 0;
 }
 
-/* Header - Compact gradient bar */
+/* Header - hero bar. Richer teal gradient + a soft colored glow and a thin
+   gradient accent strip (replaces the hard orange border) to match the
+   glass/modern card language. */
 header {
-    background: var(--primary-color);
-    box-shadow: var(--shadow-md);
-    border-bottom: 2px solid var(--secondary-color);
+    background: linear-gradient(135deg, #0e7490 0%, #0891b2 55%, #0e7490 100%);
+    box-shadow: 0 6px 28px -10px rgba(8, 145, 178, 0.5);
     padding: 1rem 0 1.25rem;
     position: relative;
+}
+
+header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-light), var(--secondary-color), var(--accent-light));
 }
 
 .header-content {
@@ -264,20 +275,23 @@ h1 {
 
 /* Search Section - Sidebar Design */
 .search-section {
-    background: var(--gradient-card);
+    /* True frosted glass: translucent enough that the blur actually reads as
+       it floats in the sticky sidebar over the page gradient. */
+    background: rgba(255, 255, 255, 0.72);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    backdrop-filter: blur(16px) saturate(150%);
     padding: 1.75rem;
     margin: 0;
     border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-light);
+    box-shadow: 0 8px 30px -16px rgba(15, 23, 42, 0.20);
+    border: 1px solid rgba(255, 255, 255, 0.6);
     position: relative;
     z-index: 10;
-    backdrop-filter: blur(10px);
     transition: var(--transition);
 }
 
 .search-section:hover {
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 12px 36px -16px rgba(8, 145, 178, 0.28);
 }
 
 .search-section h2 {
@@ -299,11 +313,11 @@ h1 {
     flex: 1;
     min-width: 0;
     padding: 0.875rem 1rem;
-    border: 2px solid var(--border-color);
+    border: 1px solid var(--border-light);
     border-radius: var(--radius);
     font-size: var(--text-base);
     transition: var(--transition);
-    background-color: var(--bg-color);
+    background-color: rgba(255, 255, 255, 0.7);
 }
 
 .search-box input:focus {
@@ -319,22 +333,24 @@ h1 {
 
 .search-box button {
     width: auto;
-    padding: 0.875rem 1.25rem;
-    background: var(--bg-color);
-    color: var(--text-color);
-    border: 2px solid var(--border-color);
+    padding: 0.875rem 1.5rem;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
+    border: 1px solid transparent;
     border-radius: var(--radius-lg);
     font-size: var(--text-base);
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 4px 14px -6px rgba(8, 145, 178, 0.6);
     white-space: nowrap;
     flex-shrink: 0;
 }
 
 .search-box button:hover {
-    background: var(--border-color);
+    background: linear-gradient(135deg, var(--primary-light), var(--primary-color));
+    box-shadow: 0 6px 18px -6px rgba(8, 145, 178, 0.7);
+    transform: translateY(-1px);
 }
 
 .search-box button:active {
@@ -385,10 +401,10 @@ h1 {
 
 .filter-group select {
     padding: 0.75rem 1rem;
-    border: 2px solid var(--border-color);
+    border: 1px solid var(--border-light);
     border-radius: var(--radius);
     font-size: var(--text-base);
-    background-color: white;
+    background-color: rgba(255, 255, 255, 0.7);
     transition: var(--transition);
     cursor: pointer;
 }
@@ -645,20 +661,21 @@ h1 {
     position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     cursor: pointer;
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--text-color);
-    padding: 0.625rem 1rem;
-    background: white;
-    border: 2px solid var(--border-light);
+    padding: 0.5rem 0.9rem;
+    /* Hairline tinted-glass pill, matching the card category badge. */
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid var(--border-light);
     border-radius: var(--radius-full);
     transition: var(--transition-spring);
     text-transform: none;
     letter-spacing: normal;
     user-select: none;
-    box-shadow: var(--shadow-xs);
+    box-shadow: none;
 }
 
 /* Different styling for source labels */
@@ -669,8 +686,8 @@ h1 {
 .category-checkbox-label:hover,
 .source-checkbox-label:hover {
     border-color: var(--primary-light);
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px -8px rgba(15, 23, 42, 0.18);
 }
 
 /* Keyboard focus ring — the real <input> is visually hidden, so the
@@ -689,31 +706,17 @@ h1 {
     height: 0;
 }
 
-/* Custom checkbox indicator */
+/* Leading checkmark — collapsed until selected (no empty box on unselected
+   chips). The solid fill below is the primary selection signal. */
 .category-checkbox-label::before,
 .source-checkbox-label::before {
-    content: '';
-    display: inline-block;
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid var(--border-color);
-    border-radius: 0.25rem;
-    background: white;
-    transition: var(--transition);
-    flex-shrink: 0;
-}
-
-/* Checkmark icon */
-.category-checkbox-label::after,
-.source-checkbox-label::after {
-    content: '✓';
-    position: absolute;
-    left: 1.25rem;
-    font-size: 0.75rem;
+    content: '\2713';
+    font-size: 0.7rem;
     font-weight: 900;
-    color: white;
+    width: 0;
+    margin-right: -0.4rem;
     opacity: 0;
-    transform: scale(0.5);
+    overflow: hidden;
     transition: var(--transition);
 }
 
@@ -722,20 +725,15 @@ h1 {
     background: var(--gradient-primary);
     color: white;
     border-color: transparent;
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 4px 14px -6px rgba(8, 145, 178, 0.5);
     font-weight: 700;
 }
 
 .category-checkbox-label:has(input[type="checkbox"]:checked)::before,
 .source-checkbox-label:has(input[type="checkbox"]:checked)::before {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.5);
-}
-
-.category-checkbox-label:has(input[type="checkbox"]:checked)::after,
-.source-checkbox-label:has(input[type="checkbox"]:checked)::after {
+    width: 0.8rem;
+    margin-right: 0;
     opacity: 1;
-    transform: scale(1);
 }
 
 /* Category-specific colors for filter checkboxes - Consolidated */
@@ -1335,24 +1333,19 @@ a.event-date-chip:focus-visible {
     margin-bottom: 0;
 }
 
-/* Price Badge */
+/* Price chip — inline metadata weight (FREE and $25 look identical;
+   the chip is one consistent 'how much' signal, not a feature badge). */
 .event-price {
-    padding: 0.5rem 1rem;
-    border-radius: 2rem;
-    font-size: var(--text-sm);
-    font-weight: 700;
+    padding: 0.1rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.78rem;
+    font-weight: 600;
     white-space: nowrap;
     flex-shrink: 0;
-    background-color: var(--bg-color);
+    background-color: var(--bg-secondary);
     color: var(--text-color);
-    border: 2px solid var(--border-color);
-}
-
-.free-badge {
-    background: var(--success-color);
-    color: white;
-    border-color: var(--success-color);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-light);
+    line-height: 1.4;
 }
 
 .price-note {
@@ -1710,7 +1703,9 @@ a.event-date-chip:focus-visible {
 /* Footer */
 footer {
     background: linear-gradient(180deg, var(--bg-color) 0%, var(--bg-secondary) 100%);
-    border-top: 3px solid var(--primary-color);
+    /* Gradient accent strip mirrors the header — bookends the page. */
+    border-top: 3px solid transparent;
+    border-image: linear-gradient(90deg, var(--primary-light), var(--secondary-color), var(--accent-light)) 1;
     padding: 3rem 0 2rem;
     margin-top: 4rem;
     text-align: center;
