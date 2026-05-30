@@ -179,31 +179,7 @@ async function loadMapEvents() {
         events.forEach(event => {
             if (event.latitude && event.longitude) {
                 const marker = L.marker([event.latitude, event.longitude]);
-
-                // Create popup content
-                const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}`;
-                const popupContent = `
-                    <div style="min-width: 200px;">
-                        <h3 style="margin: 0 0 0.5rem; font-size: 1.1rem; font-weight: 700;">${event.title}</h3>
-                        <div style="font-size: 0.9rem; color: #64748b; margin-bottom: 0.5rem;">
-                            📅 ${formatDate(event.event_date)}
-                        </div>
-                        ${event.venue_name ? `<div style="font-size: 0.9rem; color: #64748b; margin-bottom: 0.75rem;">📍 ${event.venue_name}</div>` : ''}
-                        ${event.description ? `<p style="font-size: 0.85rem; margin: 0.75rem 0; color: #475569;">${event.description.substring(0, 100)}${event.description.length > 100 ? '...' : ''}</p>` : ''}
-                        <div style="margin-top: 0.75rem;">
-                            <span style="display: inline-block; padding: 0.25rem 0.75rem; background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); color: white; border-radius: 1rem; font-size: 0.75rem; font-weight: 700;">${event.category}</span>
-                        </div>
-                        <div style="margin-top: 0.75rem; display: flex; gap: 1rem;">
-                            ${event.url ? `<a href="${event.url}" target="_blank" rel="noopener noreferrer" style="color: #0891b2; font-weight: 600; text-decoration: none;">View Event →</a>` : ''}
-                            <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer" style="color: #10b981; font-weight: 600; text-decoration: none;">🗺️ Directions</a>
-                        </div>
-                    </div>
-                `;
-
-                marker.bindPopup(popupContent, {
-                    maxWidth: 300
-                });
-
+                marker.bindPopup(buildEventPopup(event), { maxWidth: 300 });
                 markerCluster.addLayer(marker);
                 markerCount++;
             }
@@ -253,6 +229,91 @@ async function loadMapEvents() {
 
 // View toggle functions removed - now handled by HTMX
 // See /view/list and /view/map endpoints in app.py
+
+/**
+ * Build a popup DOM node for an event marker.
+ *
+ * Uses document.createElement + textContent for every field so scraper-stored
+ * markup (e.g. raw HTML in event.title or event.description) can't escape
+ * into a script context. URLs are validated against http(s) only.
+ */
+function buildEventPopup(event) {
+    const safeUrl = (u) => {
+        if (typeof u !== 'string') return null;
+        try {
+            const parsed = new URL(u, window.location.origin);
+            return /^https?:$/.test(parsed.protocol) ? parsed.href : null;
+        } catch (_) {
+            return null;
+        }
+    };
+
+    const root = document.createElement('div');
+    root.style.minWidth = '200px';
+
+    const title = document.createElement('h3');
+    title.style.cssText = 'margin: 0 0 0.5rem; font-size: 1.1rem; font-weight: 700;';
+    title.textContent = event.title || '';
+    root.appendChild(title);
+
+    const dateLine = document.createElement('div');
+    dateLine.style.cssText = 'font-size: 0.9rem; color: #64748b; margin-bottom: 0.5rem;';
+    dateLine.textContent = '📅 ' + formatDate(event.event_date);
+    root.appendChild(dateLine);
+
+    if (event.venue_name) {
+        const venue = document.createElement('div');
+        venue.style.cssText = 'font-size: 0.9rem; color: #64748b; margin-bottom: 0.75rem;';
+        venue.textContent = '📍 ' + event.venue_name;
+        root.appendChild(venue);
+    }
+
+    if (event.description) {
+        const desc = document.createElement('p');
+        desc.style.cssText = 'font-size: 0.85rem; margin: 0.75rem 0; color: #475569;';
+        const trimmed = event.description.length > 100
+            ? event.description.substring(0, 100) + '...'
+            : event.description;
+        desc.textContent = trimmed;
+        root.appendChild(desc);
+    }
+
+    if (event.category) {
+        const catWrap = document.createElement('div');
+        catWrap.style.marginTop = '0.75rem';
+        const cat = document.createElement('span');
+        cat.style.cssText = 'display: inline-block; padding: 0.25rem 0.75rem; background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); color: white; border-radius: 1rem; font-size: 0.75rem; font-weight: 700;';
+        cat.textContent = event.category;
+        catWrap.appendChild(cat);
+        root.appendChild(catWrap);
+    }
+
+    const linksWrap = document.createElement('div');
+    linksWrap.style.cssText = 'margin-top: 0.75rem; display: flex; gap: 1rem;';
+
+    const eventUrl = safeUrl(event.url);
+    if (eventUrl) {
+        const a = document.createElement('a');
+        a.href = eventUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.style.cssText = 'color: #0891b2; font-weight: 600; text-decoration: none;';
+        a.textContent = 'View Event →';
+        linksWrap.appendChild(a);
+    }
+
+    const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(event.latitude + ',' + event.longitude)}`;
+    const directions = document.createElement('a');
+    directions.href = directionsUrl;
+    directions.target = '_blank';
+    directions.rel = 'noopener noreferrer';
+    directions.style.cssText = 'color: #10b981; font-weight: 600; text-decoration: none;';
+    directions.textContent = '🗺️ Directions';
+    linksWrap.appendChild(directions);
+
+    root.appendChild(linksWrap);
+    return root;
+}
 
 function formatDate(dateStr) {
     if (!dateStr) return 'Date TBA';
