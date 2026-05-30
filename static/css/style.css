@@ -1840,22 +1840,36 @@ footer .footer-photo-credit a:hover {
         border-radius: var(--radius-lg);
     }
 
+    /* Bottom-anchored segmented control: one-handed reach on iPhones.
+       Centered so it doesn't collide with the bottom-right Filter FAB. */
     .view-toggle {
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        background: var(--bg-color);
-        width: 100%;
+        position: fixed;
+        bottom: calc(1.25rem + env(safe-area-inset-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        background: var(--surface-overlay);
+        -webkit-backdrop-filter: saturate(180%) blur(12px);
+        backdrop-filter: saturate(180%) blur(12px);
+        width: auto;
+        max-width: 70vw;
+        padding: 0.25rem;
+        border-radius: var(--radius-full);
+        box-shadow: var(--shadow-lg);
+        border: 1px solid var(--border-light);
         justify-content: stretch;
-        margin: 0 0 1rem;
-        padding: 0.5rem 0;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        border-radius: 0;
+        margin: 0;
     }
 
     .view-toggle button {
         flex: 1;
-        padding: 0.875rem 1rem;
+        padding: 0.625rem 1.125rem;
+        min-height: 40px;
+    }
+
+    /* Leave room under the last card for the floating view toggle + FAB. */
+    .main-content {
+        padding-bottom: calc(5rem + env(safe-area-inset-bottom));
     }
 
     .event-detail-image {
