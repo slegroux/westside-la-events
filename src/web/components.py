@@ -239,6 +239,33 @@ def _format_event_date(event: Event) -> str:
     return start.strftime("%a, %b %d, %Y at %I:%M %p")
 
 
+def _source_badge(event: Event):
+    """Small source-logo badge that sits in the top-right of the card image.
+
+    Logo-only on the image; the full text label still appears in the card
+    footer below for users who want the explicit source name.
+    """
+    if not event.source_logo_url:
+        return None
+    badge = Img(
+        src=event.source_logo_url,
+        alt=f'{event.source}',
+        loading='lazy',
+        cls='event-source-badge-img',
+    )
+    if event.url:
+        return A(
+            badge,
+            href=event.url,
+            target='_blank',
+            rel='noopener noreferrer',
+            cls='event-source-badge',
+            title=f'View on {event.source}',
+            **{'aria-label': f'View on {event.source}'},
+        )
+    return Div(badge, cls='event-source-badge', title=event.source)
+
+
 def _date_chip(event: Event):
     """Compact date pill that sits over the event card image."""
     if not event.event_date:
@@ -348,6 +375,7 @@ def event_card(event: Event, session=None):
         Div(
             A(img_element, **link_attrs),
             _date_chip(event),
+            _source_badge(event),
             cls='event-card-media',
         ),
         Div(
