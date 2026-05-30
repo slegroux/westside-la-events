@@ -268,24 +268,40 @@ def _source_badge(event: Event):
 
 
 def _date_chip(event: Event):
-    """Compact date pill that sits over the event card image."""
+    """Date pill that sits over the event card image.
+
+    Doubles as the 'add to calendar' affordance — clicking the chip
+    downloads the .ics file from /api/events/{id}/calendar.
+    """
     if not event.event_date:
         return Div(Span('TBA', cls='event-date-chip-day'), cls='event-date-chip')
+
     start = event.event_date
     end = event.end_date
     if end and end.date() > start.date():
-        return Div(
+        chip_inner = (
             Span(start.strftime('%b %-d').upper(), cls='event-date-chip-day'),
             Span('→', cls='event-date-chip-sep'),
             Span(end.strftime('%b %-d').upper(), cls='event-date-chip-day'),
-            cls='event-date-chip event-date-chip-range',
         )
-    return Div(
-        Span(start.strftime('%a').upper(), cls='event-date-chip-dow'),
-        Span(start.strftime('%-d'), cls='event-date-chip-day'),
-        Span(start.strftime('%b').upper(), cls='event-date-chip-mon'),
-        cls='event-date-chip',
-    )
+        chip_cls = 'event-date-chip event-date-chip-range'
+    else:
+        chip_inner = (
+            Span(start.strftime('%a').upper(), cls='event-date-chip-dow'),
+            Span(start.strftime('%-d'), cls='event-date-chip-day'),
+            Span(start.strftime('%b').upper(), cls='event-date-chip-mon'),
+        )
+        chip_cls = 'event-date-chip'
+
+    if event.id is not None:
+        return A(
+            *chip_inner,
+            href=f'/api/events/{event.id}/calendar',
+            cls=chip_cls,
+            title='Add to calendar',
+            **{'aria-label': f'Add {event.title or "event"} to calendar'},
+        )
+    return Div(*chip_inner, cls=chip_cls)
 
 
 # price_note text patterns that should promote to a FREE badge even when
@@ -396,16 +412,7 @@ def event_card(event: Event, session=None):
                 H2(event.title, cls='event-title'),
                 **link_attrs
             ),
-            A(
-                Div(
-                    Span('\U0001f4c5', cls='calendar-download-icon', style='margin-right: 0.25rem;'),
-                    Span(event_date_str),
-                    cls='event-date'
-                ),
-                href=f'/api/events/{event.id}/calendar',
-                title='Download calendar event',
-                style='text-decoration: none; cursor: pointer; color: inherit;'
-            ),
+            Div(Span(event_date_str), cls='event-date'),
             # Make venue name clickable to open map popup (hide if source logo present)
             (Div(
                 A(
