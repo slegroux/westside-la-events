@@ -122,15 +122,16 @@ def page_head(title: str, description: Optional[str] = None):
         # HTMX Extensions
         Script(src='https://unpkg.com/htmx.org@2.0.3/dist/ext/loading-states.js'),
         Script(src='https://unpkg.com/htmx.org@2.0.3/dist/ext/debug.js') if config.DEBUG else None,
-        # Leaflet CSS - preload (non-blocking), swap to stylesheet on load
-        Link(rel='preload', href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-             as_='style', onload="this.rel='stylesheet'",
+        # Leaflet CSS - must be a real stylesheet. A previous rel="preload"
+        # optimization rendered as the invalid attribute `as-="style"` (FastHTML
+        # turns the `as_` kwarg into `as-`), so the onload swap never fired and
+        # the stylesheet never applied — leaving tiles position:static (broken
+        # tile grid) and unstyled cluster markers. Load it render-blocking.
+        Link(rel='stylesheet', href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
              integrity='sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=', crossorigin='anonymous'),
         # Leaflet MarkerCluster CSS
-        Link(rel='preload', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css',
-             as_='style', onload="this.rel='stylesheet'"),
-        Link(rel='preload', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css',
-             as_='style', onload="this.rel='stylesheet'"),
+        Link(rel='stylesheet', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'),
+        Link(rel='stylesheet', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'),
         # Application CSS
         Link(rel='stylesheet', href=f'/static/css/style.css?v={ASSET_VERSION}'),
         # Leaflet JS - load with defer to ensure proper order
