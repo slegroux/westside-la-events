@@ -1080,8 +1080,7 @@ h1 {
     display: block;
 }
 
-/* Date chip — top-left pill on the image. Doubles as the 'add to calendar'
-   download trigger (anchor element wrapped over /api/events/{id}/calendar). */
+/* Date chip — top-left pill on the image with day/month at a glance. */
 .event-date-chip {
     position: absolute;
     top: 0.75rem;
@@ -1099,19 +1098,7 @@ h1 {
     box-shadow: var(--shadow-md);
     font-family: inherit;
     line-height: 1.1;
-    text-decoration: none;
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-a.event-date-chip:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-lg);
-}
-
-a.event-date-chip:focus-visible {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
+    pointer-events: none;  /* don't intercept the image's click-through link */
 }
 
 .event-date-chip-dow {
