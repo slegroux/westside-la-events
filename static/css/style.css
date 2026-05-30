@@ -1376,6 +1376,32 @@ a.event-date-chip:focus-visible {
 .event-meta-pin {
     margin-right: 0.25rem;
     font-size: 0.9em;
+    align-self: flex-start;
+    line-height: 1.4;
+}
+
+/* Venue (primary) + address (secondary) stacked inside a single link. */
+.event-meta-place {
+    display: inline-flex;
+    flex-direction: column;
+    line-height: 1.25;
+    min-width: 0;
+}
+
+.event-meta-venue {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.event-meta-address {
+    color: var(--text-light);
+    font-weight: 400;
+    font-size: 0.78rem;
+    margin-top: 0.1rem;
+}
+
+.event-meta-row {
+    align-items: flex-start;
 }
 
 .event-description {

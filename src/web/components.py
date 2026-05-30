@@ -249,22 +249,31 @@ def _event_meta_row(event: Event):
     if time_str:
         parts.append(Span(time_str, cls='event-meta-time'))
     if event.venue_name or event.address:
-        # Prefer the address — the venue name is usually already in the title,
-        # so repeating it here just adds noise. Fall back to venue when the
-        # event has no address on file.
-        link_text = event.address or event.venue_name
+        # Show the venue name as the primary label and the address as a
+        # smaller secondary line. Skip the address line when it just echoes
+        # the venue (some scrapers store "Venue Name, City, State" as the
+        # address verbatim).
+        venue = event.venue_name or ''
+        address = event.address or ''
+        show_address = bool(address) and (
+            not venue or not address.lower().startswith(venue.lower())
+        )
+        primary = venue or address
+        place_children = [Span(primary, cls='event-meta-venue')]
+        if show_address and venue:
+            place_children.append(Span(address, cls='event-meta-address'))
         venue_link = A(
             Span('\U0001f4cd', cls='event-meta-pin', **{'aria-hidden': 'true'}),
-            link_text,
+            Span(*place_children, cls='event-meta-place'),
             href='#',
             cls='venue-location-link',
             **{
-                'data-venue-name': event.venue_name or '',
+                'data-venue-name': venue,
                 'data-latitude': str(event.latitude) if event.latitude else '',
                 'data-longitude': str(event.longitude) if event.longitude else '',
-                'data-address': event.address or '',
+                'data-address': address,
             },
-            title=f'View {event.venue_name or link_text} on map',
+            title=f'View {venue or primary} on map',
         )
         if parts:
             parts.append(Span('·', cls='event-meta-sep', **{'aria-hidden': 'true'}))
