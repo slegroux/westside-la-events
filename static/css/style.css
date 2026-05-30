@@ -1330,51 +1330,39 @@ a.event-date-chip:focus-visible {
     font-weight: 600;
 }
 
-.event-date {
+/* Single metadata row: time + venue. Replaces the older .event-date and
+   .event-location stacks. The chip on the image owns the date display;
+   this row earns its space by adding time-of-day and a clickable venue. */
+.event-meta-row {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
     color: var(--text-light);
     font-size: 0.85rem;
-    transition: all 0.2s ease;
-}
-
-/* Calendar download icon styling */
-.calendar-download-icon {
-    font-size: 1.1rem;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-    display: inline-block;
-}
-
-/* Hover effect for entire date line (when it's a link) */
-a:hover .event-date {
-    color: var(--primary-color);
-}
-
-a:hover .calendar-download-icon {
-    transform: scale(1.2);
-}
-
-.event-location {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-light);
-    font-size: 0.85rem;
-    margin-bottom: 0.75rem;
     font-weight: 500;
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
 }
 
-.event-location a {
+.event-meta-time {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.event-meta-sep {
+    color: var(--text-lighter);
+    user-select: none;
+}
+
+.event-meta-row .venue-location-link {
     color: var(--text-light);
     text-decoration: none;
-    transition: color 0.2s ease, transform 0.2s ease;
-    display: inline-flex;
-    align-items: center;
     cursor: pointer;
+    transition: color 0.15s ease;
 }
 
-.event-location a:hover {
+.event-meta-row .venue-location-link:hover {
     color: var(--primary-color);
     text-decoration: underline;
 }

@@ -224,6 +224,51 @@ def favorite_button(event_id: int, is_fav: bool = False):
         )
 
 
+def _format_event_time(event: Event) -> str:
+    """Return time-of-day for the metadata row (e.g. '7:30 PM').
+
+    Empty string when the event has no event_date or when the stored time
+    is exactly midnight — many scrapers use 00:00 as a placeholder for
+    date-only events, so showing '12:00 AM' would be misleading.
+    """
+    dt = event.event_date
+    if not dt or (dt.hour == 0 and dt.minute == 0):
+        return ""
+    return dt.strftime('%-I:%M %p')
+
+
+def _event_meta_row(event: Event):
+    """Single-line metadata row: '7:30 PM · Venue Name'.
+
+    Replaces the previous stacked date row + venue-with-📍 row. The chip on
+    the image already conveys the date, so this row earns its space by
+    adding time-of-day and a clickable venue (which opens the map modal).
+    """
+    time_str = _format_event_time(event)
+    parts = []
+    if time_str:
+        parts.append(Span(time_str, cls='event-meta-time'))
+    if event.venue_name:
+        venue_link = A(
+            event.venue_name,
+            href='#',
+            cls='venue-location-link',
+            **{
+                'data-venue-name': event.venue_name,
+                'data-latitude': str(event.latitude) if event.latitude else '',
+                'data-longitude': str(event.longitude) if event.longitude else '',
+                'data-address': event.address or '',
+            },
+            title=f'View {event.venue_name} on map',
+        )
+        if parts:
+            parts.append(Span('·', cls='event-meta-sep', **{'aria-hidden': 'true'}))
+        parts.append(venue_link)
+    if not parts:
+        return None
+    return Div(*parts, cls='event-meta-row')
+
+
 def _format_event_date(event: Event) -> str:
     """Render an event's date for display, collapsing multi-day spans into a range."""
     if not event.event_date:
@@ -310,7 +355,6 @@ def _price_badge(event: Event):
 
 def event_card(event: Event, session=None):
     """Component to render a single event card."""
-    event_date_str = _format_event_date(event)
 
     # Check if event is favorited
     is_fav = is_favorited(session, event.id) if session else False
@@ -385,25 +429,7 @@ def event_card(event: Event, session=None):
                 H2(event.title, cls='event-title'),
                 **link_attrs
             ),
-            Div(Span(event_date_str), cls='event-date'),
-            # Make venue name clickable to open map popup (hide if source logo present)
-            (Div(
-                A(
-                    '\U0001f4cd ',
-                    event.venue_name,
-                    href='#',
-                    cls='venue-location-link',
-                    **{
-                        'data-venue-name': event.venue_name,
-                        'data-latitude': str(event.latitude) if event.latitude else '',
-                        'data-longitude': str(event.longitude) if event.longitude else '',
-                        'data-address': event.address or ''
-                    },
-                    title=f'View {event.venue_name} on map',
-                    style='text-decoration: none; color: inherit; cursor: pointer;'
-                ),
-                cls='event-location'
-            ) if event.venue_name else None),
+            _event_meta_row(event),
             (A(
                 P(event.description, cls='event-description'),
                 **link_attrs,
