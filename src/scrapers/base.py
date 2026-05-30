@@ -141,7 +141,7 @@ class BaseScraper(ABC):
                 return response.text
 
             except requests.RequestException as e:
-                print(f"Error fetching {url} (attempt {attempt + 1}/{retry}): {e}")
+                self.log(f"Error fetching {url} (attempt {attempt + 1}/{retry}): {e}")
                 error_text = str(e)
                 # DNS resolution failures are not transient here; fail fast.
                 if 'NameResolutionError' in error_text or 'Failed to resolve' in error_text:

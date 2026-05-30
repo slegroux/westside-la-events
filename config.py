@@ -518,3 +518,43 @@ MAX_SEARCH_RESULTS = 500
 # Map Settings
 MAP_ZOOM_DEFAULT = 11
 MAP_MARKER_CLUSTER_THRESHOLD = 50
+
+
+# ---------------------------------------------------------------------------
+# Startup configuration validation
+# ---------------------------------------------------------------------------
+def validate_config():
+    """Emit warnings for risky or incomplete configuration at startup.
+
+    Non-fatal by design: the app still boots, but operators get a clear signal
+    when a security-relevant setting is misconfigured. Called from the web app
+    lifespan startup.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    is_production = os.getenv('ENVIRONMENT') == 'production'
+
+    # Admin auth enabled but credentials missing -> every admin request 401s.
+    if ENABLE_ADMIN_AUTH and (not ADMIN_USERNAME or not ADMIN_PASSWORD):
+        logger.warning(
+            'ENABLE_ADMIN_AUTH is true but ADMIN_USERNAME/ADMIN_PASSWORD are '
+            'unset; the admin analytics dashboard will reject ALL requests. '
+            'Set both env vars or disable ENABLE_ADMIN_AUTH.'
+        )
+
+    # Admin auth disabled in production -> analytics dashboard is public.
+    if is_production and not ENABLE_ADMIN_AUTH:
+        logger.warning(
+            'Running in production with ENABLE_ADMIN_AUTH disabled; '
+            '/admin/analytics is publicly accessible. Set ENABLE_ADMIN_AUTH=true '
+            'plus ADMIN_USERNAME/ADMIN_PASSWORD to protect it.'
+        )
+
+    # Default session secret in production -> session cookies are forgeable.
+    if is_production and SESSION_SECRET_KEY == 'dev-secret-key-change-in-production':
+        logger.warning(
+            'SESSION_SECRET_KEY is using the insecure development default in '
+            'production; set a strong random SESSION_SECRET_KEY env var.'
+        )
+
+    return True

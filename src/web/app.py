@@ -7,6 +7,7 @@ all route modules. Business logic, components, and state live in separate module
 from fasthtml.common import *
 from typing import Optional
 import logging
+import os
 
 import config
 from src.utils.logging import setup_logging
@@ -60,6 +61,9 @@ async def lifespan(app):
     if config.ENABLE_ANALYTICS and state.analytics is None:
         state.analytics = Analytics(config.ANALYTICS_DB_PATH)
 
+    # Surface risky/incomplete configuration as warnings (non-fatal)
+    config.validate_config()
+
     yield
 
     # Shutdown: Clean up resources (Database uses context managers, no explicit close needed)
@@ -92,6 +96,29 @@ class StaticCacheMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(StaticCacheMiddleware)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add baseline security response headers to every response.
+
+    A Content-Security-Policy is intentionally omitted: the UI relies on inline
+    handlers and CDN scripts (HTMX/Leaflet from unpkg) that a strict policy
+    would break. These headers are safe defaults without that trade-off. HSTS
+    is only emitted in production, where traffic is HTTPS.
+    """
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+        response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+        if os.getenv('ENVIRONMENT') == 'production':
+            response.headers.setdefault(
+                'Strict-Transport-Security', 'max-age=31536000; includeSubDomains'
+            )
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 # Setup analytics routes

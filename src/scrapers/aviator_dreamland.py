@@ -170,7 +170,7 @@ class AviatorDreamlandScraper(BaseScraper):
         # Strip common suffixes like "- Support from ..." or "w/ ..."
         artist = re.split(r'\s*[-–]\s*(support|w/|with|feat|ft)\.?\s', title, flags=re.I)[0].strip()
         try:
-            r = requests.get(
+            r = self.session.get(
                 'https://itunes.apple.com/search',
                 params={'term': artist, 'media': 'music', 'entity': 'album', 'limit': 1},
                 timeout=8,

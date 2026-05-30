@@ -208,6 +208,11 @@ def _format_event_date(event: Event) -> str:
     start = event.event_date
     end = event.end_date
     if end and end.date() > start.date():
+        # Include the start year only when the span crosses a year boundary,
+        # so same-year ranges stay compact ("May 29 – May 30, 2026") while
+        # cross-year ranges stay unambiguous ("Dec 29, 2025 – Jan 02, 2026").
+        if start.year != end.year:
+            return f'{start.strftime("%b %d, %Y")} – {end.strftime("%b %d, %Y")}'
         return f'{start.strftime("%b %d")} – {end.strftime("%b %d, %Y")}'
     return start.strftime("%a, %b %d, %Y at %I:%M %p")
 

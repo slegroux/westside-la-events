@@ -183,6 +183,10 @@ def setup_analytics_routes(app, rt, state):
     @rt('/admin/analytics')
     def analytics_dashboard(request, session, days: int = 7):
         """Main analytics dashboard."""
+        # Clamp to a sane range: an unbounded `days` makes get_date_range_metrics
+        # iterate once per day with several queries each, so a large value
+        # (e.g. days=999999) is a cheap DoS vector even behind auth.
+        days = max(1, min(days, 365))
         # Require authentication
         if not check_admin_auth(request):
             content = str(Html(
@@ -403,6 +407,7 @@ def setup_analytics_routes(app, rt, state):
     @rt('/admin/analytics/api')
     def analytics_api(request, days: int = 7):
         """API endpoint for analytics data."""
+        days = max(1, min(days, 365))  # bound the date scan (see analytics_dashboard)
         from starlette.responses import JSONResponse
 
         # Require authentication
