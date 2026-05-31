@@ -38,6 +38,19 @@ def normalize_event_datetime(dt: Optional[datetime]) -> Optional[datetime]:
     return dt.astimezone(LA_TZ).replace(tzinfo=None)
 
 
+def clean_scraped_text(text: Optional[str]) -> str:
+    """Strip whitespace and undo source over-escaping in scraped text.
+
+    Some sources emit JS/JSON-escaped strings (e.g. ``Farmers\\' Market``),
+    leaving a literal backslash before apostrophes/quotes in the stored value.
+    Unescape those so titles/venues render cleanly everywhere (cards, JSON-LD,
+    map popups, page title).
+    """
+    if not text:
+        return ""
+    return text.replace("\\'", "'").replace('\\"', '"').strip()
+
+
 class BaseScraper(ABC):
     """Abstract base class for event scrapers."""
 
@@ -361,9 +374,9 @@ class BaseScraper(ABC):
             category = classify_event(title, description, venue_name)
 
         return Event(
-            title=title.strip() if title else "",
-            description=description.strip() if description else "",
-            venue_name=venue_name.strip() if venue_name else "",
+            title=clean_scraped_text(title),
+            description=clean_scraped_text(description),
+            venue_name=clean_scraped_text(venue_name),
             address=address.strip() if address else "",
             latitude=latitude,
             longitude=longitude,

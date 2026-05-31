@@ -1,9 +1,11 @@
 """
 Reusable UI component functions for LA Events Aggregator.
 """
+import glob
 import json
 import os
 import re
+import zlib
 from datetime import datetime
 from fasthtml.common import *
 from typing import List, Optional
@@ -513,6 +515,88 @@ def _price_badge(event: Event):
     return None
 
 
+def _is_hero_image(event: Event) -> bool:
+    """True if the event's image_url is a real event photo (not a source logo).
+
+    Source logos belong in the attribution slot; using one as the card's hero
+    image tiles the same graphic across every card from that source.
+    """
+    img = (event.image_url or '').strip()
+    if not img:
+        return False
+    if img == (event.source_logo_url or '').strip():
+        return False
+    if img.startswith('/static/logos/'):
+        return False
+    return True
+
+
+# ---- Themed stock photos for events without a real image -------------------
+# Self-hosted CC0 / Public-Domain photos (Wikimedia Commons; commercial use OK,
+# no attribution required — provenance recorded in static/stock/CREDITS.json).
+# Picked deterministically per event so same-category cards still vary.
+_STOCK_ROOT = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), '..', '..', 'static', 'stock')
+)
+
+# Canonical category (lowercased) -> stock theme folder.
+_CATEGORY_THEME = {
+    'music': 'music', 'entertainment': 'music',
+    'nightlife': 'nightlife', 'date night': 'nightlife',
+    'art': 'art', 'arts': 'art', 'art & museums': 'art',
+    'art shows & galleries': 'art', 'museums': 'art',
+    'culture': 'art', 'cultural': 'art',
+    'theater': 'theater', 'theatre': 'theater', 'performing arts': 'theater',
+    'arts & theatre': 'theater', 'dance': 'theater',
+    'food & drink': 'food', 'food': 'food',
+    'comedy': 'comedy',
+    'sports': 'sports', 'world cup matches': 'sports',
+    'wellness': 'wellness',
+    'family': 'family',
+    'community': 'learning', 'education': 'learning', 'educational': 'learning',
+    'education & learning': 'learning', 'bookstore events': 'learning',
+    'black history month': 'learning',
+    'film': 'film', 'film & screenings': 'film',
+    'tech': 'tech',
+    'other': 'other', 'miscellaneous': 'other', 'tours': 'other',
+    'festival': 'other', 'festivals': 'other',
+}
+
+
+def _load_stock_themes():
+    """Map theme -> sorted list of web paths, built once from the stock dir."""
+    themes = {}
+    for theme_dir in sorted(glob.glob(os.path.join(_STOCK_ROOT, '*'))):
+        if not os.path.isdir(theme_dir):
+            continue
+        theme = os.path.basename(theme_dir)
+        files = sorted(glob.glob(os.path.join(theme_dir, '*.jpg')))
+        if files:
+            themes[theme] = [f'/static/stock/{theme}/{os.path.basename(f)}' for f in files]
+    return themes
+
+
+_STOCK_THEMES = _load_stock_themes()
+
+
+def _placeholder_image(event: Event):
+    """A themed stock photo for an image-less event, or None if none available.
+
+    Chosen by category theme + a stable per-event index so a run of same-category
+    cards shows different photos instead of one repeated graphic.
+    """
+    if not _STOCK_THEMES:
+        return None
+    theme = _CATEGORY_THEME.get((event.category or '').strip().lower(), 'other')
+    images = _STOCK_THEMES.get(theme) or _STOCK_THEMES.get('other')
+    if not images:
+        return None
+    # Stable (restart-safe) hash over id+title: deterministic per event, and
+    # varying by title so adjacent same-category cards land on different photos.
+    key = zlib.crc32(f'{event.id}|{event.title or ""}'.encode('utf-8'))
+    return images[key % len(images)]
+
+
 def event_card(event: Event, session=None):
     """Component to render a single event card."""
 
@@ -545,14 +629,27 @@ def event_card(event: Event, session=None):
         'style': 'text-decoration: none; color: inherit; cursor: default;'
     }
 
-    # Always render image slot — real image or category-colored placeholder
-    img_element = (
-        Img(src=event.image_url, alt=event.title, cls='event-image', loading='lazy')
-        if event.image_url else
-        Div(Span(event.category or 'Event', cls='placeholder-label'),
-            cls='event-image-placeholder',
-            **{'data-category': event.category or ''})
-    )
+    # Always render image slot. Priority: (1) the event's real photo; (2) a
+    # themed stock photo when none exists; (3) the per-category gradient tile.
+    # A source *logo* is not a hero image: aggregator sources (e.g. Shore Hotel)
+    # store their logo in image_url, which would tile the same graphic across
+    # dozens of cards — those route to the stock photo, and the logo still shows
+    # in the source-attribution slot below.
+    if _is_hero_image(event):
+        img_element = Img(src=event.image_url, alt=event.title,
+                          cls='event-image', loading='lazy')
+    else:
+        stock = _placeholder_image(event)
+        if stock:
+            img_element = Img(
+                src=stock,
+                alt=f'{event.category or "Event"} — representative image',
+                cls='event-image', loading='lazy',
+            )
+        else:
+            img_element = Div(Span(event.category or 'Event', cls='placeholder-label'),
+                              cls='event-image-placeholder',
+                              **{'data-category': event.category or ''})
 
     json_ld = _event_json_ld(event)
     json_ld_script = (
