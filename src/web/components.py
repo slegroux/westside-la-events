@@ -50,8 +50,13 @@ def _compute_asset_version() -> str:
     rev = os.getenv('K_REVISION')
     if rev:
         return rev
+    # Local: newest mtime across ALL static CSS/JS so editing any asset busts
+    # its cache (previously this tracked only map.js, hiding style.css/JS edits).
     try:
-        return str(int(os.path.getmtime(config.BASE_DIR / 'static' / 'js' / 'map.js')))
+        static = config.BASE_DIR / 'static'
+        mtimes = [p.stat().st_mtime for p in static.rglob('*.css')]
+        mtimes += [p.stat().st_mtime for p in static.rglob('*.js')]
+        return str(int(max(mtimes))) if mtimes else 'dev'
     except OSError:
         return 'dev'
 
@@ -188,20 +193,20 @@ def page_head(title: str, description: Optional[str] = None):
         Link(rel='stylesheet', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css'),
         Link(rel='stylesheet', href='https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css'),
         # Application CSS
-        Link(rel='stylesheet', href=f'/static/css/style.css?v={ASSET_VERSION}'),
+        Link(rel='stylesheet', href=f'/static/css/style.css?v={_compute_asset_version()}'),
         # Leaflet JS - load with defer to ensure proper order
         Script(src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
                integrity='sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=', crossorigin='anonymous', defer=True),
         # Leaflet MarkerCluster JS
         Script(src='https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js', defer=True),
         # Application JavaScript - defer to load after Leaflet
-        Script(src=f'/static/js/map.js?v={ASSET_VERSION}', defer=True),
+        Script(src=f'/static/js/map.js?v={_compute_asset_version()}', defer=True),
         # Toast notification system
-        Script(src=f'/static/js/toast.js?v={ASSET_VERSION}', defer=True),
+        Script(src=f'/static/js/toast.js?v={_compute_asset_version()}', defer=True),
         # Analytics tracking (if enabled)
-        Script(src=f'/static/js/analytics.js?v={ASSET_VERSION}', defer=True) if config.ENABLE_ANALYTICS else None,
+        Script(src=f'/static/js/analytics.js?v={_compute_asset_version()}', defer=True) if config.ENABLE_ANALYTICS else None,
         # Filter collapse/expand functionality with state persistence
-        Script(src=f'/static/js/filters.js?v={ASSET_VERSION}', defer=True),
+        Script(src=f'/static/js/filters.js?v={_compute_asset_version()}', defer=True),
     )
 
 
@@ -504,9 +509,6 @@ def _price_badge(event: Event):
 def event_card(event: Event, session=None):
     """Component to render a single event card."""
 
-    # Check if event is favorited
-    is_fav = is_favorited(session, event.id) if session else False
-
     # Source logo element - clickable, pointing to original event URL
     # Wrap logo and label in a container
     if event.url:
@@ -559,19 +561,9 @@ def event_card(event: Event, session=None):
             cls='event-card-media',
         ),
         Div(
-            # Title clickable to event URL; favorite button on the right when
-            # there's a session. Price has moved to the metadata row.
-            Div(
-                Div(
-                    A(
-                        H2(event.title, cls='event-title'),
-                        **link_attrs
-                    ),
-                    cls='event-title-wrapper'
-                ),
-                favorite_button(event.id, is_fav),
-                cls='event-header'
-            ) if session else A(
+            # Title links to the event URL. (Favorites removed — no account to
+            # persist them; price lives in the metadata row.)
+            A(
                 H2(event.title, cls='event-title'),
                 **link_attrs
             ),
@@ -814,52 +806,12 @@ def filter_tallies_section(
     selected_venues_event_count = sum(count for venue_name, count in available_venues if venue_name in checked_venues) if checked_venues else 0
 
     return Div(
-        # Free events checkbox with tally - moved to top
-        Div(
-            Label(
-                Input(
-                    type='checkbox',
-                    id='free-only-checkbox',
-                    name='free_only',
-                    value='true',
-                    checked=True if free_only == 'true' else False,
-                    hx_get='/filters/update-all',
-                    hx_target='#events-container',
-                    hx_trigger='change',
-                    hx_include='closest form, #header-search',
-                    hx_indicator='#loading-indicator'
-                ),
-                f' Free Events Only ({free_events_count})',
-                for_='free-only-checkbox',
-                cls='checkbox-label free-events-checkbox'
-            ),
-            cls='filter-group checkbox-filter',
-        ),
-        # Favorites only checkbox
-        Div(
-            Label(
-                Input(
-                    type='checkbox',
-                    id='favorites-only-checkbox',
-                    name='favorites_only',
-                    value='true',
-                    checked=True if favorites_only == 'true' else False,
-                    hx_get='/filters/update-all',
-                    hx_target='#events-container',
-                    hx_trigger='change',
-                    hx_include='closest form, #header-search',
-                    hx_indicator='#loading-indicator'
-                ),
-                ' My Favorites Only',
-                for_='favorites-only-checkbox',
-                cls='checkbox-label favorites-checkbox'
-            ),
-            cls='filter-group checkbox-filter',
-        ),
-        # Categories now live in the top filter bar (see category_filter_bar).
-        # Venues filter - collapsible (state managed by JavaScript/localStorage) with summary
-        filter_section_collapsible('venues', 'Venues', venue_checkboxes, collapsed=True, total_count=total_venues, selected_count=selected_venues_event_count) if venue_checkboxes else None,
-        id='filter-tallies'
+        # Venue checkboxes — rendered inside the "Venues" popover in the top bar.
+        # Free moved to a pill; favorites removed (no account to persist them).
+        *venue_checkboxes,
+        (Span('No venues for these filters', cls='venues-empty') if not venue_checkboxes else None),
+        id='filter-tallies',
+        cls='venues-list',
     )
 
 
@@ -899,10 +851,24 @@ def category_filter_bar(
         for cat in config.CATEGORIES
         if available_categories.get(cat, 0) > 0
     ]
+    # Free toggle leads the pill row (a price filter, but it reads as one of the
+    # "what" pills). Lives in the OOB-swapped bar, so its checked state is
+    # rendered from free_only rather than relying on DOM persistence.
+    free_pill = Label(
+        Input(
+            type='checkbox', name='free_only', value='true',
+            checked=(free_only == 'true'),
+            hx_get='/filters/update-all', hx_target='#events-container',
+            hx_trigger='change', hx_include='closest form, #header-search',
+            hx_indicator='#loading-indicator'
+        ),
+        ' Free',
+        cls='category-checkbox-label free-pill',
+    )
     attrs = {'id': 'category-filter-bar', 'cls': 'category-filter-bar'}
     if oob:
         attrs['hx_swap_oob'] = 'true'
-    return Div(*pills, **attrs)
+    return Div(free_pill, *pills, **attrs)
 
 
 def top_filter_bar():
@@ -954,6 +920,18 @@ def top_filter_bar():
                 ],
                 cls='tod-group',
                 **{'aria-label': 'Time of day'},
+            ),
+            # (Free moved into the category pill row — see category_filter_bar.)
+            # Venues as a "Venues ▾" button that opens a checkbox popover. The
+            # venue list (#filter-tallies) is still OOB-refreshed on filter change.
+            Div(
+                Button(
+                    'Venues', Span('▾', cls='venues-caret', **{'aria-hidden': 'true'}),
+                    type='button', cls='venues-toggle', onclick='toggleVenues(event)',
+                    **{'aria-haspopup': 'true', 'aria-expanded': 'false', 'aria-label': 'Filter by venue'}
+                ),
+                Div(filter_tallies_section(), cls='venues-popover', id='venues-popover'),
+                cls='venues-filter',
             ),
             Button('Clear', type='button', cls='clear-filters-btn', onclick='clearAllFilters()'),
             cls='top-filter-controls'

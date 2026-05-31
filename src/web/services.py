@@ -185,9 +185,4 @@ def _fetch_events(
             return d.replace(tzinfo=None) if hasattr(d, 'tzinfo') and d.tzinfo else d
         events.sort(key=_sort_key)
 
-    # Filter by favorites if requested
-    if favorites_only == 'true' and session:
-        favorite_ids = get_favorites(session)
-        events = [e for e in events if e.id in favorite_ids]
-
     return events

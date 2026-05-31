@@ -41,40 +41,13 @@ def setup_routes(rt, state):
             page_head('Westside LA Events'),
             Body(
                 page_header(total_count=total_count, today_count=today_count, show_search=True),
-                # Mobile filter bottom sheet overlay
-                Div(cls='bottom-sheet-overlay', id='bottom-sheet-overlay', onclick='closeFilterSheet()'),
-                # Mobile filter FAB button
-                Button(
-                    Span(NotStr('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/></svg>'), cls='filter-fab-icon'),
-                    ' Filters',
-                    cls='filter-fab',
-                    onclick='openFilterSheet()',
-                    type='button',
-                    id='filter-fab'
-                ),
-                # Page-spanning filter form: keeps every control (top bar AND
-                # sidebar) in one <form> so hx_include='closest form' still
-                # captures all active filters wherever a control is placed.
+                # Single filter form (no sidebar): search lives in the header;
+                # date, time-of-day, categories, free, and venues sit in the top bar.
                 Div(
                     Form(
                         # Primary filters across the top: search + date + categories
                         top_filter_bar(),
-                        # Two-column area below the top bar
-                        Div(
-                            # Left Sidebar - venues + free/favorites (bottom sheet on mobile)
-                            Div(
-                                Div(cls='bottom-sheet-handle'),
-                                Div(
-                                    Span('Filters', cls='bottom-sheet-title'),
-                                    Button('\u00d7', cls='bottom-sheet-close', onclick='closeFilterSheet()', type='button'),
-                                    cls='bottom-sheet-header'
-                                ),
-                                filter_tallies_section(),
-                                cls='sidebar'
-                            ),
-
-                            # Right Main Content Area
-                            Main(
+                        Main(
                                 # View Toggle
                                 Div(
                                     Button(Span('\u2630', style='margin-right: 0.4rem; font-size: 1.1em;'), 'List', type='button', id='list-view-btn', cls='view-btn active',
@@ -113,9 +86,6 @@ def setup_routes(rt, state):
                                 cls='main-content',
                                 id='main-content'
                             ),
-
-                            cls='layout-grid'
-                        ),
                         id='filter-form',
                         cls='filter-form',
                         hx_get='/filters/update-all',

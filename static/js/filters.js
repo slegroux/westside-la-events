@@ -227,6 +227,35 @@ function clearAllFilters() {
 }
 window.clearAllFilters = clearAllFilters;
 
+// Venues popover: toggle open/close; close on outside click or Escape.
+function toggleVenues(e) {
+    if (e) e.stopPropagation();
+    const wrap = document.querySelector('.venues-filter');
+    if (!wrap) return;
+    const open = wrap.classList.toggle('open');
+    const btn = wrap.querySelector('.venues-toggle');
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+window.toggleVenues = toggleVenues;
+
+document.addEventListener('click', (e) => {
+    const wrap = document.querySelector('.venues-filter.open');
+    if (wrap && !wrap.contains(e.target)) {
+        wrap.classList.remove('open');
+        const btn = wrap.querySelector('.venues-toggle');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+    }
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.venues-filter.open').forEach(w => {
+            w.classList.remove('open');
+            const btn = w.querySelector('.venues-toggle');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+        });
+    }
+});
+
 // Mobile Bottom Sheet Filter Drawer
 function openFilterSheet() {
     const sidebar = document.querySelector('.sidebar');
