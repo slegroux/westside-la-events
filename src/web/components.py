@@ -205,8 +205,9 @@ def page_head(title: str, description: Optional[str] = None):
     )
 
 
-def page_header(total_count: Optional[int] = None, today_count: Optional[int] = None):
-    """Slim sticky nav-style header: wordmark · live counter · Tonight shortcut.
+def page_header(total_count: Optional[int] = None, today_count: Optional[int] = None,
+                show_search: bool = False):
+    """Slim sticky nav-style header: wordmark · search · live counter · Tonight.
 
     Counts are optional — when omitted the counter section is hidden,
     keeping the header usable on routes that don't compute stats.
@@ -239,9 +240,27 @@ def page_header(total_count: Optional[int] = None, today_count: Optional[int] = 
         title='Show events happening today',
     )
 
+    # Global search lives in the nav bar (find-a-specific-event), keeping the
+    # filter bar below as a pure browse zone. It sits outside the filter <form>,
+    # so it pulls the active filters in via hx_include='#filter-form'; the in-form
+    # controls reciprocate by including '#header-search'.
+    search = Div(
+        Span(NotStr(_SEARCH_SVG), cls='header-search-icon', **{'aria-hidden': 'true'}),
+        Input(
+            type='search', id='header-search', name='q',
+            placeholder='Search events…',
+            hx_get='/filters/update-all', hx_target='#events-container',
+            hx_trigger='input changed delay:500ms, search',
+            hx_include='#filter-form', hx_indicator='#loading-indicator',
+            **{'aria-label': 'Search events'},
+        ),
+        cls='header-search',
+    ) if show_search else None
+
     return Header(
         Div(
             H1(A('Westside LA Events', href='/'), cls='header-wordmark'),
+            search,
             counter,
             tonight,
             cls='header-content container'
@@ -333,6 +352,13 @@ _PIN_SVG = (
     'stroke-linejoin="round" aria-hidden="true" focusable="false">'
     '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>'
     '<circle cx="12" cy="10" r="3"/></svg>'
+)
+
+_SEARCH_SVG = (
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" '
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+    'stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>'
 )
 
 
@@ -747,10 +773,10 @@ def filter_tallies_section(
                 hx_get='/filters/update-all',
                 hx_target='#events-container',
                 hx_trigger='change',
-                hx_include='closest form',
+                hx_include='closest form, #header-search',
                 hx_indicator='#loading-indicator'
             ),
-            f' {cat} ({available_categories.get(cat, 0)})',
+            f' {cat}',
             cls='category-checkbox-label',
             **{'data-category': cat}
         )
@@ -769,7 +795,7 @@ def filter_tallies_section(
                 hx_get='/filters/update-all',
                 hx_target='#events-container',
                 hx_trigger='change',
-                hx_include='closest form',
+                hx_include='closest form, #header-search',
                 hx_indicator='#loading-indicator'
             ),
             f' {venue_name} ({count})',
@@ -800,7 +826,7 @@ def filter_tallies_section(
                     hx_get='/filters/update-all',
                     hx_target='#events-container',
                     hx_trigger='change',
-                    hx_include='closest form',
+                    hx_include='closest form, #header-search',
                     hx_indicator='#loading-indicator'
                 ),
                 f' Free Events Only ({free_events_count})',
@@ -821,7 +847,7 @@ def filter_tallies_section(
                     hx_get='/filters/update-all',
                     hx_target='#events-container',
                     hx_trigger='change',
-                    hx_include='closest form',
+                    hx_include='closest form, #header-search',
                     hx_indicator='#loading-indicator'
                 ),
                 ' My Favorites Only',
@@ -863,10 +889,10 @@ def category_filter_bar(
                 type='checkbox', name='category', value=cat,
                 checked=True if cat in checked_categories else False,
                 hx_get='/filters/update-all', hx_target='#events-container',
-                hx_trigger='change', hx_include='closest form',
+                hx_trigger='change', hx_include='closest form, #header-search',
                 hx_indicator='#loading-indicator'
             ),
-            f' {cat} ({available_categories.get(cat, 0)})',
+            f' {cat}',
             cls='category-checkbox-label',
             **{'data-category': cat}
         )
@@ -883,23 +909,10 @@ def top_filter_bar():
     """Primary filter bar above the results: search + date + category pills.
 
     Lives inside the page-spanning filter <form> (see the home route) so every
-    control still shares one form for `hx_include='closest form'`.
+    control still shares one form for `hx_include='closest form, #header-search'`.
     """
     return Div(
         Div(
-            Div(
-                Input(
-                    type='search', id='search-input', name='q',
-                    placeholder='Search events...',
-                    hx_get='/filters/update-all', hx_target='#events-container',
-                    hx_trigger='input changed delay:500ms, search',
-                    hx_include='closest form', hx_indicator='#loading-indicator'
-                ),
-                Button('Search', type='submit',
-                       hx_get='/filters/update-all', hx_target='#events-container',
-                       hx_include='closest form', hx_indicator='#loading-indicator'),
-                cls='search-box'
-            ),
             Div(
                 Label('When', for_='date-filter'),
                 Select(
@@ -912,7 +925,7 @@ def top_filter_bar():
                     Option('Specific Date', value='specific_date'),
                     id='date-filter', name='date_filter',
                     hx_get='/filters/update-all', hx_target='#events-container',
-                    hx_trigger='change', hx_include='closest form',
+                    hx_trigger='change', hx_include='closest form, #header-search',
                     hx_indicator='#loading-indicator'
                 ),
                 cls='filter-group when-filter'
@@ -926,7 +939,7 @@ def top_filter_bar():
                         Input(
                             type='checkbox', name='time_of_day', value=val,
                             hx_get='/filters/update-all', hx_target='#events-container',
-                            hx_trigger='change', hx_include='closest form',
+                            hx_trigger='change', hx_include='closest form, #header-search',
                             hx_indicator='#loading-indicator'
                         ),
                         f' {label}',
@@ -962,13 +975,13 @@ def search_section():
                 hx_get='/filters/update-all',
                 hx_target='#events-container',
                 hx_trigger='input changed delay:500ms, search',
-                hx_include='closest form',
+                hx_include='closest form, #header-search',
                 hx_indicator='#loading-indicator'
             ),
             Button('Search', type='submit',
                    hx_get='/filters/update-all',
                    hx_target='#events-container',
-                   hx_include='closest form',
+                   hx_include='closest form, #header-search',
                    hx_indicator='#loading-indicator'),
             cls='search-box'
         ),
@@ -991,7 +1004,7 @@ def search_section():
                         hx_get='/filters/update-all',
                         hx_target='#events-container',
                         hx_trigger='change',
-                        hx_include='closest form',
+                        hx_include='closest form, #header-search',
                         hx_indicator='#loading-indicator'
                     ),
                     cls='filter-group'

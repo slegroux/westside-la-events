@@ -213,10 +213,11 @@ document.body.addEventListener('htmx:afterRequest', function(event) {
 
 // Clear all filters and trigger HTMX refresh
 function clearAllFilters() {
-    const form = document.querySelector('.search-section');
+    const form = document.getElementById('filter-form');
     if (!form) return;
-    const searchInput = form.querySelector('#search-input');
-    if (searchInput) searchInput.value = '';
+    // The global search field lives in the header, outside the filter form.
+    const headerSearch = document.getElementById('header-search');
+    if (headerSearch) headerSearch.value = '';
     const dateFilter = form.querySelector('#date-filter');
     if (dateFilter) dateFilter.value = 'upcoming';
     form.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });

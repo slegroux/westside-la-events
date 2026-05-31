@@ -40,7 +40,7 @@ def setup_routes(rt, state):
         return Html(
             page_head('Westside LA Events'),
             Body(
-                page_header(total_count=total_count, today_count=today_count),
+                page_header(total_count=total_count, today_count=today_count, show_search=True),
                 # Mobile filter bottom sheet overlay
                 Div(cls='bottom-sheet-overlay', id='bottom-sheet-overlay', onclick='closeFilterSheet()'),
                 # Mobile filter FAB button
@@ -116,6 +116,7 @@ def setup_routes(rt, state):
 
                             cls='layout-grid'
                         ),
+                        id='filter-form',
                         cls='filter-form',
                         hx_get='/filters/update-all',
                         hx_target='#events-container',
