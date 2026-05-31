@@ -246,8 +246,9 @@ class TestWebEndpoints:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/filters/tallies")
             assert response.status_code == 200
-            # Should return filter tallies HTML fragment
-            assert 'filter-group' in response.text or 'category' in response.text.lower()
+            # Returns the venue-tallies fragment (categories now live in the top
+            # bar; this endpoint OOB-refreshes the #filter-tallies venue list).
+            assert 'filter-tallies' in response.text
 
     async def test_date_picker_endpoint_specific_date(self, populated_db):
         """Test /filters/date-picker endpoint with specific_date filter."""
