@@ -236,13 +236,20 @@ def page_header(total_count: Optional[int] = None, today_count: Optional[int] = 
         href='#',
         cls='header-tonight',
         onclick=(
+            # "Tonight" = today + evening/night only, so morning/afternoon events
+            # are filtered out. Set the time-of-day checkboxes first (silently, no
+            # per-box change event), then fire ONE change on the date select — its
+            # hx_include pulls in the whole form, so the checkbox state rides along
+            # in a single request.
+            "for(const cb of document.getElementsByName('time_of_day'))"
+            "{cb.checked=(cb.value==='evening'||cb.value==='night');}"
             "const sel=document.getElementById('date-filter');"
             "if(sel){sel.value='today';"
             "sel.dispatchEvent(new Event('change',{bubbles:true}));"
             "window.scrollTo({top:0,behavior:'smooth'});}"
             "return false;"
         ),
-        title='Show events happening today',
+        title='Show events happening tonight (evening & night)',
     )
 
     # Global search lives in the nav bar (find-a-specific-event), keeping the
