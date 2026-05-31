@@ -48,24 +48,8 @@ def setup_routes(rt, state):
                         # Primary filters across the top: search + date + categories
                         top_filter_bar(),
                         Main(
-                                # View Toggle
-                                Div(
-                                    Button(Span('\u2630', style='margin-right: 0.4rem; font-size: 1.1em;'), 'List', type='button', id='list-view-btn', cls='view-btn active',
-                                           hx_get='/view/list',
-                                           hx_target='#view-container',
-                                           hx_swap='innerHTML',
-                                           hx_include='closest form'),
-                                    Button(Span('\U0001F5FA', style='margin-right: 0.4rem; font-size: 1.1em;'), 'Map', type='button', id='map-view-btn', cls='view-btn',
-                                           hx_get='/view/map',
-                                           hx_target='#view-container',
-                                           hx_swap='innerHTML',
-                                           hx_include='closest form'),
-                                    cls='view-toggle',
-                                    id='view-toggle',
-                                    role='tablist',
-                                    **{'aria-label': 'View mode'}
-                                ),
-
+                                # The List/Map view toggle now lives top-right in
+                                # top_filter_bar(); it targets #view-container below.
                                 # View Container (holds either list or map)
                                 Div(
                                     # Map Container (hidden by default)

@@ -320,11 +320,10 @@ body {
     border-top: 1px solid var(--border-light);
 }
 
-/* Crisper chips against the frosted bar: a solid white base + subtle lift so
-   they read as distinct pills, with the per-category tinted border showing the
-   color. Higher specificity ([data-category]) to beat the per-category bg. */
+/* Subtle lift on the frosted bar; the per-category color tints (further down)
+   supply each chip's fill so the row reads as a colorful, inviting palette
+   rather than a wall of white capsules. */
 .top-filter-bar .category-checkbox-label[data-category] {
-    background: #fff;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
@@ -383,10 +382,12 @@ body {
 /* Header - hero bar. Richer teal gradient + a soft colored glow and a thin
    gradient accent strip (replaces the hard orange border) to match the
    glass/modern card language. */
-/* Slim sticky nav-style header. Deep ink so it pairs with the warm sandy
-   page background; no rainbow strip, no gradient, no text-shadow. */
+/* Slim sticky nav-style header. Deep-teal→ink gradient so the bar reads as
+   part of the "California Coast" palette (the wordmark side is coastal teal)
+   rather than a neutral admin slate, then settles to ink under the controls
+   on the right. Pairs with the warm sandy page below. */
 header {
-    background: #0f172a;
+    background: linear-gradient(105deg, var(--primary-dark) 0%, #0c4a5e 42%, #0f172a 100%);
     padding: 0;
     position: sticky;
     top: 0;
@@ -1051,7 +1052,10 @@ header::after {
     box-shadow: 0 4px 14px -6px rgba(16, 185, 129, 0.55);
 }
 
-/* Category-specific colors for filter checkboxes - Consolidated */
+/* Category-specific colors for filter checkboxes - Consolidated.
+   Each chip rests on a ~14% tint of its category color (dark label text stays
+   fully legible on the pastel) so the filter row reads as a colorful, inviting
+   palette; hover deepens to ~24%; checked fills solid with white text. */
 /* Purple group: Music, Nightlife */
 .category-checkbox-label[data-category="Music"]:has(input[type="checkbox"]:checked),
 .category-checkbox-label[data-category="Nightlife"]:has(input[type="checkbox"]:checked) {
@@ -1061,13 +1065,13 @@ header::after {
 .category-checkbox-label[data-category="Music"],
 .category-checkbox-label[data-category="Nightlife"] {
     border-color: var(--category-purple);
-    background-color: rgba(124, 58, 237, 0.05);
+    background-color: rgba(124, 58, 237, 0.14);
 }
 
 .category-checkbox-label[data-category="Music"]:hover,
 .category-checkbox-label[data-category="Nightlife"]:hover {
     border-color: var(--category-purple);
-    background-color: rgba(124, 58, 237, 0.1);
+    background-color: rgba(124, 58, 237, 0.24);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
@@ -1083,14 +1087,14 @@ header::after {
 .category-checkbox-label[data-category="Theater"],
 .category-checkbox-label[data-category="Date Night"] {
     border-color: var(--category-pink);
-    background-color: rgba(225, 29, 72, 0.05);
+    background-color: rgba(225, 29, 72, 0.14);
 }
 
 .category-checkbox-label[data-category="Art"]:hover,
 .category-checkbox-label[data-category="Theater"]:hover,
 .category-checkbox-label[data-category="Date Night"]:hover {
     border-color: var(--category-pink);
-    background-color: rgba(225, 29, 72, 0.1);
+    background-color: rgba(225, 29, 72, 0.24);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
@@ -1104,13 +1108,13 @@ header::after {
 .category-checkbox-label[data-category="Food & Drink"],
 .category-checkbox-label[data-category="Comedy"] {
     border-color: var(--category-orange);
-    background-color: rgba(234, 88, 12, 0.05);
+    background-color: rgba(234, 88, 12, 0.14);
 }
 
 .category-checkbox-label[data-category="Food & Drink"]:hover,
 .category-checkbox-label[data-category="Comedy"]:hover {
     border-color: var(--category-orange);
-    background-color: rgba(234, 88, 12, 0.1);
+    background-color: rgba(234, 88, 12, 0.24);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
@@ -1128,7 +1132,7 @@ header::after {
 .category-checkbox-label[data-category="Outdoors"],
 .category-checkbox-label[data-category="Family"] {
     border-color: var(--category-green);
-    background-color: rgba(5, 150, 105, 0.05);
+    background-color: rgba(5, 150, 105, 0.14);
 }
 
 .category-checkbox-label[data-category="Sports"]:hover,
@@ -1136,7 +1140,7 @@ header::after {
 .category-checkbox-label[data-category="Outdoors"]:hover,
 .category-checkbox-label[data-category="Family"]:hover {
     border-color: var(--category-green);
-    background-color: rgba(5, 150, 105, 0.1);
+    background-color: rgba(5, 150, 105, 0.24);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
@@ -1150,30 +1154,33 @@ header::after {
 .category-checkbox-label[data-category="Community"],
 .category-checkbox-label[data-category="Education"] {
     border-color: var(--category-blue);
-    background-color: rgba(37, 99, 235, 0.05);
+    background-color: rgba(37, 99, 235, 0.14);
 }
 
 .category-checkbox-label[data-category="Community"]:hover,
 .category-checkbox-label[data-category="Education"]:hover {
     border-color: var(--category-blue);
-    background-color: rgba(37, 99, 235, 0.1);
+    background-color: rgba(37, 99, 235, 0.24);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
 
 /* Indigo group: Film, Tech */
-.category-checkbox-label[data-category="Film"]:has(input[type="checkbox"]:checked) {
+.category-checkbox-label[data-category="Film"]:has(input[type="checkbox"]:checked),
+.category-checkbox-label[data-category="Tech"]:has(input[type="checkbox"]:checked) {
     background: var(--category-indigo);
 }
 
-.category-checkbox-label[data-category="Film"] {
+.category-checkbox-label[data-category="Film"],
+.category-checkbox-label[data-category="Tech"] {
     border-color: var(--category-indigo);
-    background-color: rgba(79, 70, 229, 0.05);
+    background-color: rgba(79, 70, 229, 0.14);
 }
 
-.category-checkbox-label[data-category="Film"]:hover {
+.category-checkbox-label[data-category="Film"]:hover,
+.category-checkbox-label[data-category="Tech"]:hover {
     border-color: var(--category-indigo);
-    background-color: rgba(8, 145, 178, 0.15);
+    background-color: rgba(79, 70, 229, 0.24);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
@@ -1185,12 +1192,12 @@ header::after {
 
 .category-checkbox-label[data-category="Other"] {
     border-color: var(--category-default);
-    background-color: rgba(120, 113, 108, 0.05);
+    background-color: rgba(120, 113, 108, 0.14);
 }
 
 .category-checkbox-label[data-category="Other"]:hover {
     border-color: var(--category-default);
-    background-color: rgba(120, 113, 108, 0.1);
+    background-color: rgba(120, 113, 108, 0.24);
     transform: translateY(-2px);
     box-shadow: var(--shadow);
 }
@@ -1274,6 +1281,28 @@ header::after {
     height: 2px;
     background: var(--gradient-primary);
     border-radius: var(--radius-full);
+}
+
+/* Icon glyph inside each view-toggle button (was an inline style). */
+.view-btn-icon {
+    margin-right: 0.4rem;
+    font-size: 1.1em;
+}
+
+/* Desktop: the toggle lives in the top filter bar's controls row, so make it
+   compact enough to sit on a line with the When dropdown and pills. Scoped to
+   min-width:769px so the mobile fixed-bottom segmented control (max-width:768px)
+   is untouched — a bare .view-toggle override would out-specificity it. */
+@media (min-width: 769px) {
+    .top-filter-controls .view-toggle {
+        margin: 0;
+        padding: 0.2rem;
+        border-radius: var(--radius-lg);
+    }
+    .top-filter-controls .view-toggle button {
+        padding: 0.4rem 0.85rem;
+        font-size: var(--text-sm);
+    }
 }
 
 /* Map Container */

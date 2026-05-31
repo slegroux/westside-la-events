@@ -1038,6 +1038,25 @@ def top_filter_bar():
                 cls='venues-filter',
             ),
             Button('Clear', type='button', cls='clear-filters-btn', onclick='clearAllFilters()'),
+            # List/Map view toggle, top-right of the controls row (sits right of
+            # Clear, which carries margin-left:auto). It targets #view-container
+            # below and stays outside the filter HTMX swaps, so its state persists.
+            Div(
+                Button(
+                    Span('☰', cls='view-btn-icon', **{'aria-hidden': 'true'}), 'List',
+                    type='button', id='list-view-btn', cls='view-btn active',
+                    hx_get='/view/list', hx_target='#view-container', hx_swap='innerHTML',
+                    hx_include='closest form'
+                ),
+                Button(
+                    Span('\U0001F5FA', cls='view-btn-icon', **{'aria-hidden': 'true'}), 'Map',
+                    type='button', id='map-view-btn', cls='view-btn',
+                    hx_get='/view/map', hx_target='#view-container', hx_swap='innerHTML',
+                    hx_include='closest form'
+                ),
+                cls='view-toggle', id='view-toggle', role='tablist',
+                **{'aria-label': 'View mode'},
+            ),
             cls='top-filter-controls'
         ),
         category_filter_bar(),
