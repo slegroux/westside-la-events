@@ -12,6 +12,17 @@ from typing import List, Optional, Tuple
 from src.data.models import Event
 
 
+# Minimum title overlap for the proximity rules (venue/geo) to treat two
+# cross-source events as duplicates. Unrelated events that merely share a busy
+# location + time score up to ~0.36 (e.g. a salon vs. a speed-dating night 80m
+# away); genuinely-same events titled differently score higher (~0.57 for
+# "Book Launch: Jane Doe" vs "Jane Doe Book Launch Party"). 0.45 sits between,
+# with margin to absorb SequenceMatcher's mild order-dependence. The very-
+# different-length "EVENT at VENUE" case is handled separately by rule 3.
+# See rules 4 and 5 in events_are_duplicates().
+_DIFF_TITLE_FLOOR = 0.45
+
+
 def _geo_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Haversine distance in km between two lat/lon points."""
     R = 6371.0
@@ -225,13 +236,22 @@ def events_are_duplicates(
             scores['match_method'] = 'venue_prefix_title'
             return True, scores
 
-    # 4. Same venue + tight date window — catches different-title cross-source events
-    if date_diff <= same_venue_date_hours and scores['venue_similarity'] >= 0.85:
+    # Rules 4 and 5 match on venue/location proximity instead of title, to catch
+    # the same event listed by two sources under different titles. In dense areas
+    # (e.g. the Third Street Promenade) that proximity is shared by *unrelated*
+    # events too, so gate both on _DIFF_TITLE_FLOOR — otherwise a 7pm salon gets
+    # merged with a 7pm speed-dating night 80m away (see the constant for the
+    # threshold rationale). The "EVENT at VENUE" case is handled by rule 3 above.
+
+    # 4. Same venue + tight date window — different-title cross-source events
+    if (date_diff <= same_venue_date_hours
+            and scores['venue_similarity'] >= 0.85
+            and scores['title_similarity'] >= _DIFF_TITLE_FLOOR):
         scores['match_method'] = 'venue_date'
         return True, scores
 
-    # 5. Same GPS location + tight date window — catches events where venue names differ
-    if date_diff <= same_venue_date_hours:
+    # 5. Same GPS location + tight date window — venue names differ, location matches
+    if date_diff <= same_venue_date_hours and scores['title_similarity'] >= _DIFF_TITLE_FLOOR:
         lat1, lon1 = getattr(event1, 'latitude', None), getattr(event1, 'longitude', None)
         lat2, lon2 = getattr(event2, 'latitude', None), getattr(event2, 'longitude', None)
         if lat1 and lon1 and lat2 and lon2:

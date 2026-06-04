@@ -114,6 +114,53 @@ class TestEventsAreDuplicates:
         assert is_dup is True
         assert scores['title_similarity'] >= 0.85
 
+    def test_nearby_unrelated_events_not_geo_merged(self):
+        """Different-title events sharing a busy location + hour must NOT merge.
+
+        Regression: a 7pm salon at 1520 2nd St was wrongly merged with a 7pm
+        speed-dating night ~85m away because the geo rule ignored the title.
+        """
+        salon = Event(
+            title="Dreams, Darkness, and the Nature of Reality — Dr. Andrew Holecek",
+            venue_name="Unlikely Collaborators",
+            event_date=datetime(2026, 6, 4, 19, 0),
+            source="Unlikely Collaborators",
+            latitude=34.0129862, longitude=-118.4952006,
+        )
+        other = Event(
+            title="Speed Dating Santa Monica @ SoCal Vibes Surf Club",
+            venue_name="SoCal Vibes Surf Club",
+            event_date=datetime(2026, 6, 4, 19, 0),
+            source="Visit Santa Monica",
+            latitude=34.01331, longitude=-118.49604,
+        )
+        is_dup, _ = events_are_duplicates(salon, other)
+        assert is_dup is False
+
+    def test_nearby_same_event_differently_titled_still_geo_merges(self):
+        """Same event at one spot, titled differently across sources, still merges.
+
+        Guards against the title floor being set so high it defeats the geo rule's
+        purpose; a clear same-event title overlap (~0.57 here) still merges.
+        """
+        a = Event(
+            title="Book Launch: Jane Doe",
+            venue_name="The Annex",
+            event_date=datetime(2026, 6, 4, 19, 0),
+            source="KCRW",
+            latitude=34.0129862, longitude=-118.4952006,
+        )
+        b = Event(
+            title="Jane Doe Book Launch Party",
+            venue_name="1520 2nd St",
+            event_date=datetime(2026, 6, 4, 19, 30),
+            source="Eventbrite",
+            latitude=34.01299, longitude=-118.49520,
+        )
+        is_dup, scores = events_are_duplicates(a, b)
+        assert is_dup is True
+        assert scores['match_method'] == 'geo_date'
+
     def test_similar_title_with_quotes(self):
         """Should detect duplicates despite quote differences."""
         event1 = Event(
