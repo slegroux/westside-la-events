@@ -87,6 +87,7 @@ class LogoScraper:
         'Geffen Playhouse': 'https://geffenplayhouse.org',
         'La Puglia': 'https://www.lapugliasm.com',
         'Santa Monica Farmers Markets': 'https://www.smgov.net/portals/farmersmarket/',
+        'Unlikely Collaborators': 'https://www.salons.unlikelycollaborators.com',
     }
 
     # Known logo URLs (fallback if scraping fails)

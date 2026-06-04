@@ -512,6 +512,13 @@ EVENT_SOURCES = {
         'enabled': True,
         'uses_api': True,
         'note': 'Landmark oceanfront hotel in Santa Monica offering live music, jazz nights, afternoon tea, holiday events, and seasonal experiences'
+    },
+    'unlikely_collaborators': {
+        'name': 'Unlikely Collaborators',
+        'url': 'https://www.salons.unlikelycollaborators.com/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Free Spark Salons (consciousness/neuroscience/psychology/arts talks) held in person in Santa Monica (1520 2nd St) and streamed online; venue hardcoded since the site reveals it only on Eventbrite'
     }
 }
 

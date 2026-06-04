@@ -70,6 +70,7 @@ from .shore_hotel import ShoreHotelScraper
 from .smdp import SMDPScraper
 from .winston_house import WinstonHouseScraper
 from .bungalow_sm import BungalowSMScraper
+from .unlikely_collaborators import UnlikelyCollaboratorsScraper
 
 
 SCRAPER_MAP: Dict[str, Type] = {
@@ -138,6 +139,7 @@ SCRAPER_MAP: Dict[str, Type] = {
     'smdp': SMDPScraper,
     'downtown_sm': DowntownSMScraper,
     'bungalow_sm': BungalowSMScraper,
+    'unlikely_collaborators': UnlikelyCollaboratorsScraper,
 }
 
 
