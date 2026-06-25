@@ -78,10 +78,28 @@ def setup_routes(rt, state):
                 'SCRAPER_INVOKER_SA',
                 'scheduler-invoker@westside-la-events.iam.gserviceaccount.com',
             )
-            expected_audience = os.getenv(
-                'SCRAPER_AUDIENCE',
-                'https://westside-events-406046958598.us-west1.run.app',
-            )
+
+            # Accept the token if its audience matches any configured value OR
+            # this request's own URL. Cloud Run services are reachable under
+            # multiple hostnames (legacy run.app + new *.a.run.app), and the
+            # serving URL can change; pinning a single hardcoded audience meant
+            # a URL change silently 401'd every scheduled scrape. SCRAPER_AUDIENCE
+            # may be a comma-separated list of explicit overrides.
+            accepted_audiences = {
+                a.strip()
+                for a in os.getenv('SCRAPER_AUDIENCE', '').split(',')
+                if a.strip()
+            }
+            # The scheduler's token audience is the URL it targeted, which is
+            # this request's URL (full path) or its base. Add both so we adapt
+            # to whatever hostname actually served the request. Behind Cloud
+            # Run the scheme may arrive as http (TLS terminated upstream) while
+            # the token audience is https, so accept both schemes.
+            netloc = request.url.netloc
+            path = request.url.path
+            for scheme in ('https', 'http'):
+                accepted_audiences.add(f"{scheme}://{netloc}")
+                accepted_audiences.add(f"{scheme}://{netloc}{path}")
 
             auth_header = request.headers.get('Authorization', '')
             bearer_prefix = 'Bearer '
@@ -90,11 +108,21 @@ def setup_routes(rt, state):
             token = auth_header[len(bearer_prefix):].strip()
 
             try:
+                # Verify signature/expiry now; check the audience ourselves
+                # against the accepted set below (verify_oauth2_token only takes
+                # a single audience string).
                 claims = id_token.verify_oauth2_token(
-                    token, google_requests.Request(), audience=expected_audience
+                    token, google_requests.Request()
                 )
             except ValueError as e:
                 logger.warning(f"OIDC token verification failed: {e}")
+                return JSONResponse({'error': 'Unauthorized'}, status_code=401)
+
+            if claims.get('aud') not in accepted_audiences:
+                logger.warning(
+                    f"OIDC token had wrong audience: aud={claims.get('aud')} "
+                    f"not in {sorted(accepted_audiences)}"
+                )
                 return JSONResponse({'error': 'Unauthorized'}, status_code=401)
 
             if claims.get('email') != expected_sa or not claims.get('email_verified'):

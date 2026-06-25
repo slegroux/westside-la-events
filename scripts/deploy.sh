@@ -221,7 +221,12 @@ fi
 
 # Prepare environment variables
 SCHEDULER_SA_FOR_ENV="scheduler-invoker@${PROJECT_ID}.iam.gserviceaccount.com"
-ENV_VARS="ENVIRONMENT=production,NTFY_TOPIC=westside-events-scraper,SCRAPER_INVOKER_SA=${SCHEDULER_SA_FOR_ENV}"
+# SCRAPER_AUDIENCE: the OIDC token audience Cloud Scheduler sends. Must match
+# the URL the service is invoked at (the *.a.run.app form). The app also accepts
+# the request's own URL as a fallback, but pin it here so deploys (which use
+# --set-env-vars and would otherwise wipe it) keep the scheduler authenticated.
+SCRAPER_AUDIENCE_FOR_ENV="https://westside-events-b4x4r2zv7a-uw.a.run.app"
+ENV_VARS="ENVIRONMENT=production,NTFY_TOPIC=westside-events-scraper,SCRAPER_INVOKER_SA=${SCHEDULER_SA_FOR_ENV},SCRAPER_AUDIENCE=${SCRAPER_AUDIENCE_FOR_ENV}"
 
 # Add environment variables from file if provided
 if [ -n "$ENV_FILE" ]; then
