@@ -22,7 +22,6 @@ class AsyncHTTPClient:
         """
         self.max_concurrent = max_concurrent
         self.delay = delay
-        self.semaphore = asyncio.Semaphore(max_concurrent)
         self.headers = {
             'User-Agent': config.SCRAPER_CONFIG['user_agent']
         }
@@ -30,6 +29,7 @@ class AsyncHTTPClient:
     async def fetch(self,
                    session: aiohttp.ClientSession,
                    url: str,
+                   semaphore: asyncio.Semaphore,
                    timeout: int = 30) -> Optional[str]:
         """
         Fetch a single URL asynchronously.
@@ -37,12 +37,13 @@ class AsyncHTTPClient:
         Args:
             session: aiohttp session
             url: URL to fetch
+            semaphore: Concurrency limiter bound to the running loop
             timeout: Request timeout in seconds
 
         Returns:
             HTML content or None if failed
         """
-        async with self.semaphore:
+        async with semaphore:
             try:
                 # Small delay between requests for politeness
                 if self.delay > 0:
@@ -66,14 +67,26 @@ class AsyncHTTPClient:
         Returns:
             List of HTML contents (None for failed requests)
         """
+        # Create the semaphore inside the coroutine so it binds to the loop
+        # that actually runs fetch_multiple (which may be a fresh loop spun up
+        # by fetch_all_sync's thread fallback), not whatever loop happened to
+        # exist at construction time.
+        semaphore = asyncio.Semaphore(self.max_concurrent)
         connector = aiohttp.TCPConnector(limit_per_host=self.max_concurrent)
         async with aiohttp.ClientSession(connector=connector, cookies=cookies) as session:
-            tasks = [self.fetch(session, url) for url in urls]
+            tasks = [self.fetch(session, url, semaphore) for url in urls]
             return await asyncio.gather(*tasks)
 
     def fetch_all_sync(self, urls: List[str], cookies: Optional[Dict[str, str]] = None) -> List[Optional[str]]:
         """
         Synchronous wrapper for async fetch_multiple.
+
+        Safe to call from a synchronous context with no event loop (uses
+        asyncio.run) AND from inside an already-running event loop (e.g. when a
+        scraper's scrape() is awaited directly rather than run in a thread): in
+        that case asyncio.run() would raise "cannot be called from a running
+        event loop", so we run the coroutine in a dedicated worker thread with
+        its own loop.
 
         Args:
             urls: List of URLs to fetch
@@ -82,7 +95,20 @@ class AsyncHTTPClient:
         Returns:
             List of HTML contents
         """
-        return asyncio.run(self.fetch_multiple(urls, cookies=cookies))
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # No loop running on this thread — safe to drive one directly.
+            return asyncio.run(self.fetch_multiple(urls, cookies=cookies))
+
+        # A loop is already running on this thread; offload to a separate
+        # thread so we don't try to nest asyncio.run inside it.
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(
+                lambda: asyncio.run(self.fetch_multiple(urls, cookies=cookies))
+            )
+            return future.result()
 
 
 class BatchScraper:
