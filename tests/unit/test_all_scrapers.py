@@ -335,6 +335,55 @@ class TestSpecificScrapers:
 
 @pytest.mark.unit
 @pytest.mark.scraper
+class TestWestsideComedyEventbriteParsing:
+    """Regression coverage for Eventbrite single-event-page parsing.
+
+    Eventbrite renders its JSON-LD ``<script>`` tags with extra attributes
+    (e.g. ``data-next-head=""``). The extractor regex must tolerate those
+    attributes; a strict ``...ld+json">`` match silently returned 0 events.
+    """
+
+    # Minimal Eventbrite event page: a JSON-LD Event block carrying the
+    # ``data-next-head`` attribute that broke the original strict regex.
+    SAMPLE_HTML = '''<!DOCTYPE html><html><head>
+<meta property="og:description" content="A night of comedy mashups." />
+<script type="application/ld+json" data-next-head="">{"@type":"WebSite","name":"Eventbrite"}</script>
+<script type="application/ld+json" data-next-head="">{"@type":"Event","name":"Maggie's Mashup","startDate":"2026-06-24T20:00:00-07:00","endDate":"2026-06-24T21:30:00-07:00","url":"https://www.eventbrite.com/e/maggies-mashup-tickets-1260545949869","location":{"@type":"Place","name":"Westside Comedy Theater","address":{"@type":"PostalAddress","addressLocality":"Santa Monica","addressRegion":"CA","streetAddress":"1323-A 3rd Street, Santa Monica, CA 90401"}},"image":"https://img.evbuc.com/sample.jpg"}</script>
+</head><body></body></html>'''
+
+    def test_extract_handles_data_next_head_attribute(self):
+        """The JSON-LD extractor must match script tags with extra attributes."""
+        scraper = WestsideComedyScraper()
+        data = scraper._extract_eventbrite_event_data(self.SAMPLE_HTML)
+        assert data is not None
+        assert data['name'] == "Maggie's Mashup"
+        assert data['start']['local'].startswith('2026-06-24T20:00:00')
+        assert data['venue']['name'] == 'Westside Comedy Theater'
+
+    def test_fetch_by_id_returns_event(self, mock_geocoding_service):
+        """End-to-end: a 200-OK event page yields a westsidecomedy.com Event."""
+        scraper = WestsideComedyScraper()
+        with patch('src.scrapers.base.BaseScraper.fetch_page', return_value=self.SAMPLE_HTML):
+            event = scraper._fetch_eventbrite_event_by_id('1984841499355')
+
+        assert event is not None
+        assert event.title == "Maggie's Mashup"
+        assert event.event_date == datetime(2026, 6, 24, 20, 0)
+        assert event.venue_name == 'Westside Comedy Theater'
+        # URL is rewritten to the westsidecomedy.com single-event path.
+        assert event.url == 'https://westsidecomedy.com/single-event/e/1984841499355/'
+
+    def test_strict_tag_without_attributes_still_parses(self):
+        """The legacy attribute-less tag form must keep working too."""
+        scraper = WestsideComedyScraper()
+        html = self.SAMPLE_HTML.replace(' data-next-head=""', '')
+        data = scraper._extract_eventbrite_event_data(html)
+        assert data is not None
+        assert data['name'] == "Maggie's Mashup"
+
+
+@pytest.mark.unit
+@pytest.mark.scraper
 class TestScraperUtilityMethods:
     """Test utility methods inherited from BaseScraper."""
 

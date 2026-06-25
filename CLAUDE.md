@@ -39,7 +39,7 @@ Each scraper implements:
 - `scrape()` method returning standardized event data
 - Error handling and rate limiting
 - Geocoding for addresses without coordinates
-- **Pricing convention**: When price information is not available, set `price_note` to `"TBD"` (not "Visit website for pricing" or similar). This provides a consistent user experience across all scrapers.
+- **Pricing convention**: When price information is not available, leave `price_note` empty (don't set it to `"TBD"`, "Visit website for pricing", or similar). The card UI renders no price badge for an empty note, so an empty value is the clean "unknown price" signal across all scrapers. (Note: `_price_badge` still strips a literal `"TBD"` to no-badge for backward compatibility, but new scrapers should not emit it.)
 
 #### 3. Search & Filter Layer (`src/search/`)
 - Date range filtering (today, this week, this month, custom)

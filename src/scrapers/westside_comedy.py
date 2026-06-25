@@ -180,9 +180,11 @@ class WestsideComedyScraper(BaseScraper):
             Dictionary containing event data or None if not found
         """
         try:
-            # Primary: schema.org Event embedded as JSON-LD.
+            # Primary: schema.org Event embedded as JSON-LD. Eventbrite now
+            # renders these tags with extra attributes (e.g.
+            # ``data-next-head=""``), so match any attributes after the type.
             for m in re.finditer(
-                r'<script type="application/ld\+json">(.*?)</script>',
+                r'<script type="application/ld\+json"[^>]*>(.*?)</script>',
                 html, re.DOTALL,
             ):
                 try:
