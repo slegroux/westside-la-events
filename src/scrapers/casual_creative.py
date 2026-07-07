@@ -281,7 +281,9 @@ class CasualCreativeScraper(BaseScraper):
                 category=category,
                 price=price,
                 is_free=is_free,
-                price_note=price_note
+                price_note=price_note,
+                latitude=latitude,
+                longitude=longitude
             )
 
         except Exception as e:

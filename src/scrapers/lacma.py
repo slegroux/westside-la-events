@@ -152,11 +152,13 @@ class LACMAScraper(BaseScraper):
                 except Exception:
                     pass
 
-        # Extract location/venue
+        # Extract location/venue. The location label is usually an internal
+        # gallery ("BCAM, Level 2", "Resnick Pavilion | LACMA") at LACMA's own
+        # address — keep the canonical street address so it geocodes and passes
+        # the Westside geo-fence, and only branch for genuinely online events.
         venue_name = "LACMA"
         address = "5905 Wilshire Blvd, Los Angeles, CA 90036"
 
-        # Check if it's an online or off-site event
         location_elem = item.find(class_=lambda x: x and 'location' in x.lower())
         if location_elem:
             location_text = self.clean_text(location_elem.get_text())
@@ -164,8 +166,10 @@ class LACMAScraper(BaseScraper):
                 venue_name = "LACMA (Online)"
                 address = "Online"
             elif location_text and location_text.lower() not in ['lacma', 'los angeles county museum of art']:
-                venue_name = location_text
-                address = f"{location_text}, Los Angeles, CA"
+                # Show the specific gallery, but keep LACMA's real address.
+                # The source sometimes appends a redundant "| LACMA" suffix.
+                gallery = _re.sub(r'\s*\|\s*LACMA\s*$', '', location_text).strip()
+                venue_name = f"LACMA — {gallery}"
 
         # Extract URL
         link_elem = item if item.name == 'a' else item.find('a', href=True)

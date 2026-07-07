@@ -149,6 +149,13 @@ class GeocodingService:
         # cache mutations and the _dirty flag need locking. RLock so that
         # flush/clear can be called from inside a locked region if needed.
         self._lock = threading.RLock()
+        # Circuit breaker: Nominatim rate-limits with HTTP 429. Because geocode()
+        # sleeps 1s before every request and each event triggers up to 3 fallback
+        # lookups, an outage otherwise stacks into minutes and hangs scrapers past
+        # their timeout. After several consecutive service errors we trip the
+        # breaker and return None instantly (no sleep) for the rest of the run.
+        self._consecutive_errors = 0
+        self._breaker_tripped = False
 
     def _load_cache(self) -> dict:
         """Load geocoding cache from file."""
@@ -244,6 +251,12 @@ class GeocodingService:
         if cached is not _CACHE_MISS:
             return cached  # coords tuple or None for cached-negative
 
+        # Breaker tripped earlier this run (e.g. Nominatim returning 429): don't
+        # sleep or hit the network, just fail fast so scrapers stay within budget.
+        with self._lock:
+            if self._breaker_tripped:
+                return None
+
         # Cache miss — geocode. Do the network call outside the lock so
         # other threads can read/write the cache concurrently.
         for attempt in range(retry):
@@ -255,6 +268,10 @@ class GeocodingService:
                     address,
                     timeout=config.SCRAPER_CONFIG['timeout_seconds']
                 )
+
+                # A successful call (hit or miss) means the service is healthy.
+                with self._lock:
+                    self._consecutive_errors = 0
 
                 if location:
                     coords = (location.latitude, location.longitude)
@@ -279,6 +296,10 @@ class GeocodingService:
                 return None
 
             except GeocoderServiceError as e:
+                # Service errors (notably HTTP 429 rate-limiting) are not
+                # address-specific and won't clear on retry. Count them and trip
+                # the breaker once they pile up so the rest of the run fails fast.
+                self._record_service_error()
                 print(f"Geocoding service error for address '{address}': {e}")
                 return None
 
@@ -287,6 +308,22 @@ class GeocodingService:
                 return None
 
         return None
+
+    # Consecutive service errors before the breaker trips for the rest of the run.
+    _BREAKER_THRESHOLD = 5
+
+    def _record_service_error(self) -> None:
+        """Track a service-level geocoding failure and trip the breaker if the
+        service looks persistently unavailable (e.g. sustained 429s)."""
+        with self._lock:
+            self._consecutive_errors += 1
+            if self._consecutive_errors >= self._BREAKER_THRESHOLD and not self._breaker_tripped:
+                self._breaker_tripped = True
+                print(
+                    "Geocoding circuit breaker tripped after "
+                    f"{self._consecutive_errors} consecutive service errors; "
+                    "skipping further geocoding this run."
+                )
 
     def geocode_with_fallback(
         self, address: str, venue_name: Optional[str] = None

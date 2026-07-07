@@ -162,10 +162,11 @@ class FowlerMuseumScraper(BaseScraper):
             if image_url:
                 image_url = self.normalize_url(image_url, self.base_url)
 
-        # Price info - typically free or check website
+        # Price info - typically free or check website. Leave the note empty
+        # when unknown so the card renders no price badge (pricing convention).
         is_free = 'free' in item.get_text().lower()
         price = None
-        price_note = "Free admission" if is_free else "TBD"
+        price_note = "Free admission" if is_free else ""
 
         return self.create_event(
             title=title,

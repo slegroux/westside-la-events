@@ -37,10 +37,14 @@ class UnlikelyCollaboratorsScraper(BaseScraper):
     VENUE_LAT = 34.0129862
     VENUE_LNG = -118.4952006
 
-    # "Thursday, June 4, 2026 | 7:00pm PT"
+    # Legacy format: "Thursday, June 4, 2026 | 7:00pm PT"
+    # Current format: "Saturday, July 18, 2026 5:00 PM 6:00 PM"
+    # (Squarespace now separates the date and start time with whitespace
+    # instead of "|", uses a narrow no-break space before AM/PM, and appends
+    # the end time immediately after with no separator.)
     _DATE_RE = re.compile(
         r'([A-Za-z]+day),\s*([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})'
-        r'\s*\|\s*(\d{1,2}):(\d{2})\s*([APap][Mm])',
+        r'[\s|]*(\d{1,2}):(\d{2})\s*([APap][Mm])',
     )
 
     def __init__(self):
@@ -55,10 +59,11 @@ class UnlikelyCollaboratorsScraper(BaseScraper):
             self.log("Failed to fetch the salons homepage")
             return events
 
-        # Upcoming salons are linked from the homepage as /spark-salon-<slug>.
-        # Exclude section/landing links that aren't individual salons (these 404).
-        skip_slugs = {'/spark-salon-speaker-series'}
-        slugs = sorted(set(re.findall(r'/spark-salon-[a-z0-9-]+', home)) - skip_slugs)
+        # Upcoming salons are linked from the homepage as /home/<speaker-slug>
+        # (the site previously used /spark-salon-<slug>, which it has since
+        # dropped in favor of this shorter path). Exclude the "?format=ical"
+        # calendar-download variants of the same links.
+        slugs = sorted(set(re.findall(r'/home/[a-z0-9-]+', home)))
         urls = [self.BASE_URL + s for s in slugs]
         self.log(f"Found {len(urls)} candidate salon page(s)")
         if not urls:

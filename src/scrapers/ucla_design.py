@@ -124,7 +124,7 @@ class UCLADesignScraper(BaseScraper):
             category=self._categorize(item.get('type')),
             price=None,
             is_free=False,
-            price_note="TBD",
+            price_note="",
         )
 
     @staticmethod

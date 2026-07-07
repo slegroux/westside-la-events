@@ -17,7 +17,10 @@ class BroadStageScraper(BaseScraper):
     def __init__(self):
         super().__init__('The Broad Stage')
         self.base_url = 'https://broadstage.org'
-        self.events_url = f'{self.base_url}/2526-season/'
+        # The season landing page rolls over each year (e.g. /2526-season/ ->
+        # /2627-season/). Default to the current cycle but resolve the live
+        # link at scrape time so we don't go stale when the site advances.
+        self.events_url = f'{self.base_url}/2627-season/'
 
     def scrape(self) -> List[Event]:
         """
@@ -30,11 +33,13 @@ class BroadStageScraper(BaseScraper):
         events = []
 
         try:
-            # Fetch the events page (may require JavaScript)
-            html = self.fetch_page_js(self.events_url, wait_selector='.event-card, .event-item, article')
+            events_url = self._resolve_season_url()
+
+            # Fetch the events page (requires JavaScript to render the cards)
+            html = self.fetch_page_js(events_url, wait_selector='.inner h3')
             if not html:
                 # Try without JS
-                html = self.fetch_page(self.events_url)
+                html = self.fetch_page(events_url)
             if not html:
                 self.log("Failed to fetch events page")
                 return events
@@ -75,6 +80,23 @@ class BroadStageScraper(BaseScraper):
 
         return events
 
+    def _resolve_season_url(self) -> str:
+        """Find the current ``/NNNN-season/`` landing page.
+
+        Broad Stage advances the season slug every year (2526 -> 2627 -> ...),
+        which silently breaks a hardcoded URL. Read the site's nav and pick the
+        highest season slug present; fall back to the configured default.
+        """
+        try:
+            home = self.fetch_page(self.base_url) or ""
+            slugs = re.findall(r'/(\d{4})-season/', home)
+            if slugs:
+                best = max(slugs, key=int)
+                return f"{self.base_url}/{best}-season/"
+        except Exception as e:
+            self.log(f"Season URL resolution failed, using default: {e}")
+        return self.events_url
+
     def _parse_event(self, item, url: str) -> Event:
         """
         Parse a single event item.
@@ -109,10 +131,13 @@ class BroadStageScraper(BaseScraper):
         date_elem = item.find('p', class_='heading')
         if date_elem:
             date_str = self.clean_text(date_elem.get_text())
-            # Handle date ranges like "April 18-19, 2026" — use start date
-            date_str = re.sub(r'(\d+)-\d+,', r'\1,', date_str)
+            # Handle date ranges — use the start date. Covers same-month
+            # ("April 18-19, 2026") and cross-month ("September 22-November 1,
+            # 2026") forms by dropping everything from the range dash to the
+            # trailing year.
+            start = re.sub(r'\s*-\s*.*?(\d{4})\s*$', r', \1', date_str)
             try:
-                event_date = date_parser.parse(date_str, fuzzy=True)
+                event_date = date_parser.parse(start, fuzzy=True)
             except Exception as e:
                 self.log(f"Error parsing date '{date_str}': {e}")
 
@@ -131,10 +156,11 @@ class BroadStageScraper(BaseScraper):
         # Category - performing arts venue
         category = "Theater"
 
-        # Price info
+        # Price info — unknown at the listing level; leave the note empty so the
+        # card renders no price badge (project pricing convention).
         is_free = False
         price = None
-        price_note = "TBD"
+        price_note = ""
 
         return self.create_event(
             title=title,
