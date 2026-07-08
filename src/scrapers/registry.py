@@ -16,6 +16,7 @@ from .beyond_baroque import BeyondBaroqueScraper
 from .broad_stage import BroadStageScraper
 from .brightside import BrightsideScraper
 from .casual_creative import CasualCreativeScraper
+from .corner_door import CornerDoorScraper
 from .culver_city import CulverCityScraper
 from .discover_la import DiscoverLAScraper
 from .eventbrite import EventbriteScraper
@@ -34,6 +35,7 @@ from .lacma import LACMAScraper
 from .laemmle_monica import LaemmleMonicaScraper
 from .laist import LAistScraper
 from .la_puglia import LaPugliaScraper
+from .losangelesfunevents import LosAngelesFunEventsScraper
 from .latechevents import LATechEventsScraper
 from .mccabes import McCabesScraper
 from .meetup import MeetupScraper
@@ -140,6 +142,8 @@ SCRAPER_MAP: Dict[str, Type] = {
     'downtown_sm': DowntownSMScraper,
     'bungalow_sm': BungalowSMScraper,
     'unlikely_collaborators': UnlikelyCollaboratorsScraper,
+    'losangelesfunevents': LosAngelesFunEventsScraper,
+    'corner_door': CornerDoorScraper,
 }
 
 

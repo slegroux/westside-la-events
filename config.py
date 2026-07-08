@@ -519,6 +519,20 @@ EVENT_SOURCES = {
         'enabled': True,
         'uses_api': False,
         'note': 'Free Spark Salons (consciousness/neuroscience/psychology/arts talks) held in person in Santa Monica (1520 2nd St) and streamed online; venue hardcoded since the site reveals it only on Eventbrite'
+    },
+    'losangelesfunevents': {
+        'name': 'Los Angeles Fun Events',
+        'url': 'https://www.losangelesfunevents.com/weary-livers',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Off the Couch Adventures LLC recurring events (musicians nights, karaoke, comedy, singles socials, watch parties) at Weary Livers, 2819 Pico Blvd, Santa Monica; events parsed from the Wix data blob embedded in the listing page'
+    },
+    'corner_door': {
+        'name': 'The Corner Door',
+        'url': 'https://www.the-corner-door.com/upcoming-events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Culver City bar (12477 Washington Blvd) with DJ/vinyl nights, comedy, and trivia; events are hand-authored Squarespace content blocks with weekday+month.day dates (year inferred from the weekday)'
     }
 }
 
