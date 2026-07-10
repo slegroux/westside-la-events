@@ -30,8 +30,10 @@ class FowlerMuseumScraper(BaseScraper):
         events = []
 
         try:
-            # Fetch the events page
-            html = self.fetch_page(self.events_url)
+            # fowler.ucla.edu returns 403 to plain requests (bot wall); a real
+            # browser renders fine, so use Playwright. The page lists no dated
+            # upcoming events at times — that's a legitimate 0, not a failure.
+            html = self.fetch_page_js(self.events_url, timeout=40000)
             if not html:
                 self.log("Failed to fetch events page")
                 return events

@@ -82,6 +82,13 @@ NON_WESTSIDE_VENUE_DENYLIST = (
     'wellington square certified farmers',
 )
 
+# Specific venues outside the Westside box that are explicitly included anyway,
+# by the site owner's choice (mirrors the Inglewood inclusion). Events whose
+# venue/title matches one of these bypass the coverage-area filter entirely.
+WESTSIDE_VENUE_ALLOWLIST = (
+    'io music academy',     # Hollywood DJ/production academy (ra.co/clubs/282834)
+)
+
 # Reference point: Santa Monica Pier
 SANTA_MONICA_PIER = (34.0095, -118.4977)
 MAX_DISTANCE_MILES = 12  # Radius to consider "Westside" (covers Malibu, excludes Hollywood/DTLA)
@@ -244,6 +251,18 @@ def is_denylisted_venue(venue_name: Optional[str] = None,
     if not haystack:
         return False
     return any(term in haystack for term in NON_WESTSIDE_VENUE_DENYLIST)
+
+
+def is_allowlisted_venue(venue_name: Optional[str] = None,
+                         title: Optional[str] = None) -> bool:
+    """Return True if the venue/title is an explicitly-included out-of-area venue.
+
+    These bypass the Westside coverage-area filter (see WESTSIDE_VENUE_ALLOWLIST).
+    """
+    haystack = ' '.join(filter(None, [venue_name or '', title or ''])).lower()
+    if not haystack:
+        return False
+    return any(term in haystack for term in WESTSIDE_VENUE_ALLOWLIST)
 
 
 def validate_event_location(latitude: Optional[float] = None,

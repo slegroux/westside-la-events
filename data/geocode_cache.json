@@ -234,7 +234,8 @@
     "result": {
       "lat": 34.0536909,
       "lng": -118.242766
-    }
+    },
+    "cached_at": 1780608057.202073
   },
   "1310 11th st, santa monica, 90401": {
     "result": {
@@ -742,7 +743,8 @@
     "result": {
       "lat": 34.0834094,
       "lng": -118.3674075
-    }
+    },
+    "cached_at": 1782146817.008724
   },
   "320 15th street, manhattan beach, california, 90266": {
     "result": {
@@ -816,6 +818,13 @@
       "lng": -118.451441
     },
     "cached_at": 1780087119.0315778
+  },
+  "630 w. 5th st., downtown l.a., california, 90071": {
+    "result": {
+      "lat": 34.0546934,
+      "lng": -118.2556021
+    },
+    "cached_at": 1783549764.572267
   },
   "the soraya, northridge, los angeles, ca": {
     "result": {
@@ -1010,7 +1019,7 @@
     },
     "cached_at": 1780087121.6769688
   },
-  "johnie\u2019s coffee shop, los angeles, ca": {
+  "johnie’s coffee shop, los angeles, ca": {
     "result": {
       "lat": 34.0633135,
       "lng": -118.3616337
@@ -1038,7 +1047,7 @@
     },
     "cached_at": 1780087119.0355635
   },
-  "cinema paradisoricardo montalb\u00e1n theatre, los angeles, ca": {
+  "cinema paradisoricardo montalbán theatre, los angeles, ca": {
     "result": null,
     "cached_at": 1779447622.5072947
   },
@@ -1181,15 +1190,11 @@
       "lng": -118.4972894
     }
   },
-  "pirates of the caribbean: dead man\u2019s chestthe autry museum of the american west, los angeles, ca": {
+  "pirates of the caribbean: dead man’s chestthe autry museum of the american west, los angeles, ca": {
     "result": null,
     "cached_at": 1779534025.0073698
   },
-  "1551 ocean ave, ste 105, santa monica, ca, 90401": {
-    "result": null,
-    "cached_at": 1779534026.9843478
-  },
-  "barbiericardo montalb\u00e1n theatre, los angeles, ca": {
+  "barbiericardo montalbán theatre, los angeles, ca": {
     "result": null,
     "cached_at": 1779534026.986608
   },
@@ -1259,6 +1264,10 @@
       "lng": -118.3847153
     }
   },
+  "will rogers state historic park, 1501 will rogers state park rd, pacific palisades, ca 90272": {
+    "result": null,
+    "cached_at": 1779534040.691171
+  },
   "2600 ocean park blvd., santa monica, ca, 90405": {
     "result": {
       "lat": 34.0175882,
@@ -1300,10 +1309,6 @@
       "lng": -118.495171
     },
     "cached_at": 1780087148.2955701
-  },
-  "8440 sunset boulevard west hollywood, ca 90069 , los angeles-county, california, 90069": {
-    "result": null,
-    "cached_at": 1779534052.5871007
   },
   "8675 washington blvd, culver city, ca 90232": {
     "result": {
@@ -1376,10 +1381,6 @@
       "lng": -118.5124037
     },
     "cached_at": 1780087121.287987
-  },
-  "395 santa monica place suite 323, santa monica, 90401": {
-    "result": null,
-    "cached_at": 1779562838.535366
   },
   "1615 ocean ave., santa monica, ca, 90401": {
     "result": {
@@ -1508,10 +1509,6 @@
     "result": null,
     "cached_at": 1779620417.5971117
   },
-  "various locations in l.a., los angeles, ca": {
-    "result": null,
-    "cached_at": 1779620420.4100966
-  },
   "row dtla, los angeles, ca": {
     "result": {
       "lat": 34.0342948,
@@ -1567,10 +1564,6 @@
       "lng": -118.1141059
     }
   },
-  "los angeles equestrian center, burbank, los angeles, ca": {
-    "result": null,
-    "cached_at": 1779620451.1212585
-  },
   "3113 lincoln blvd, santa monica, ca, 90450": {
     "result": {
       "lat": 34.0025873,
@@ -1583,10 +1576,6 @@
       "lat": 34.0897221,
       "lng": -118.3463269
     }
-  },
-  "4067 west pico boulevard los angeles, ca 90019 , los angeles-county, california, 90028": {
-    "result": null,
-    "cached_at": 1779620457.312506
   },
   "8555 beverly boulevard, los angeles, california, 90048": {
     "result": {
@@ -1615,10 +1604,6 @@
       "lat": 33.8836596,
       "lng": -118.1240378
     }
-  },
-  "los angeles, ca 90028 , los angeles-county, california, 90036": {
-    "result": null,
-    "cached_at": 1779620469.4556797
   },
   "brand park (mission hills), mission hills, los angeles, ca": {
     "result": {
@@ -1657,10 +1642,6 @@
     },
     "cached_at": 1780087167.014841
   },
-  "pershing square, arts district, los angeles, ca": {
-    "result": null,
-    "cached_at": 1779620472.4659538
-  },
   "3333 cahuenga boulevard west, los angeles, california, 90068": {
     "result": {
       "lat": 34.130893,
@@ -1681,10 +1662,6 @@
       "lng": -118.3884588
     },
     "cached_at": 1780087149.991132
-  },
-  "5515 wilshire boulevard los angeles, ca 90036 , los angeles-county, california, 90036": {
-    "result": null,
-    "cached_at": 1779620475.907022
   },
   "1551 ocean ave ste 105": {
     "result": {
@@ -1741,10 +1718,6 @@
     },
     "cached_at": 1780087165.8676808
   },
-  "santa monica playhouse, 1211 4th street, santa monica, ca 90401 - between wilshire and arizona, one block east of the third street promenade in beautiful downtown santa monica": {
-    "result": null,
-    "cached_at": 1779649261.724834
-  },
   "1227 4th st, santa monica, ca 90401": {
     "result": {
       "lat": 34.0187617,
@@ -1763,20 +1736,12 @@
     },
     "cached_at": 1780087169.0814667
   },
-  "the original farmers market, la brea, los angeles, ca": {
-    "result": null,
-    "cached_at": 1779649267.250757
-  },
   "stonewood center, downey, los angeles, ca": {
     "result": {
       "lat": 33.9357412,
       "lng": -118.1199604
     },
     "cached_at": 1780087170.2741334
-  },
-  "los angeles union station, downtown, los angeles, ca": {
-    "result": null,
-    "cached_at": 1779649271.7697163
   },
   "hansen dam, outside los angeles/other, los angeles, ca": {
     "result": null,
@@ -1786,7 +1751,8 @@
     "result": {
       "lat": 33.9198328,
       "lng": -118.2606171
-    }
+    },
+    "cached_at": 1780608073.3902972
   },
   "downtown torrance, torrance, los angeles, ca": {
     "result": null,
@@ -1805,15 +1771,12 @@
       "lng": -118.167002
     }
   },
-  "los angeles county museum of art  (lacma), mid-wilshire, los angeles, ca": {
-    "result": null,
-    "cached_at": 1779649283.5337353
-  },
   "1060 pacific coast highway, santa monica, ca": {
     "result": {
       "lat": 34.0181114,
       "lng": -118.5041728
-    }
+    },
+    "cached_at": 1780608052.977839
   },
   "topanga community club, los angeles, ca": {
     "result": null,
@@ -1824,10 +1787,6 @@
       "lat": 33.9999961,
       "lng": -118.4849878
     }
-  },
-  "the original farmers market, los angeles, ca": {
-    "result": null,
-    "cached_at": 1779706818.6349947
   },
   "150 horizon ave, los angeles, california": {
     "result": {
@@ -2153,6 +2112,10 @@
     },
     "cached_at": 1780087154.8751554
   },
+  "1000 vin scully ave., elysian park, california, 90012": {
+    "result": null,
+    "cached_at": 1783549766.4163132
+  },
   "395 santa monica pi #300, santa monica, ca 90401, santa monica, ca": {
     "result": null,
     "cached_at": 1779879618.0474882
@@ -2314,6 +2277,10 @@
     "result": null,
     "cached_at": 1780052431.3074982
   },
+  "395 santa monica pl #374, santa monica, ca, 90401": {
+    "result": null,
+    "cached_at": 1780052441.1751132
+  },
   "9081 north santa monica boulevard, west hollywood, california, 90069": {
     "result": null,
     "cached_at": 1780052458.0837348
@@ -2328,17 +2295,13 @@
       "lng": -118.2492959
     }
   },
-  "resnick pavilion | lacma, los angeles, ca": {
+  "1920 colorado ave suite c, santa monica, ca": {
     "result": null,
-    "cached_at": 1780081221.6701095
+    "cached_at": 1783549767.887323
   },
   "smidt welcome plaza | lacma, los angeles, ca": {
     "result": null,
     "cached_at": 1780081223.035687
-  },
-  "asu fidm museum, los angeles, ca": {
-    "result": null,
-    "cached_at": 1780081230.0103106
   },
   "811 wilshire boulevard, #21st floor, los angeles, ca 90017, los angeles, ca": {
     "result": {
@@ -2377,6 +2340,14 @@
       "lng": -118.5024274
     },
     "cached_at": 1780087122.4677398
+  },
+  "2800-3200 airport ave, santa monica, ca, 90405": {
+    "result": null,
+    "cached_at": 1780087123.1816359
+  },
+  "395 santa monica place #222, santa monica, ca, 90401": {
+    "result": null,
+    "cached_at": 1780087126.1662996
   },
   "along main street, santa monica, ca, 90405": {
     "result": null,
@@ -2501,12 +2472,20 @@
     },
     "cached_at": 1780158337.549291
   },
+  "palisades park rose garden, santa monica, ca": {
+    "result": null,
+    "cached_at": 1780158338.584804
+  },
   "395 santa monica pl": {
     "result": {
       "lat": 27.7400278,
       "lng": -97.375509
     },
     "cached_at": 1780158340.274935
+  },
+  "cayton children’s museum, santa monica, ca": {
+    "result": null,
+    "cached_at": 1780158341.538286
   },
   "santa monica playhouse, santa monica, ca": {
     "result": {
@@ -2572,10 +2551,6 @@
     },
     "cached_at": 1780160136.188425
   },
-  "blue note los angeles, los angeles, ca": {
-    "result": null,
-    "cached_at": 1780160137.5260549
-  },
   "9009 sunset boulevard west hollywood, ca 90069": {
     "result": {
       "lat": 34.0908951,
@@ -2626,12 +2601,334 @@
     },
     "cached_at": 1780172042.401216
   },
-  "the airliner, los angeles, ca": {
+  "arizona avenue, santa monica, 90401": {
     "result": {
-      "lat": 34.0738885,
-      "lng": -118.2162323
+      "lat": 34.0215974,
+      "lng": -118.4919994
     },
-    "cached_at": 1783549763.73821
+    "cached_at": 1780550536.180607
+  },
+  "395 santa monica place, santa monica, ca 90401": {
+    "result": {
+      "lat": 34.0340544,
+      "lng": -118.4742651
+    },
+    "cached_at": 1780550539.9352372
+  },
+  "1249 ocean avenue, santa monica, ca 90401": {
+    "result": {
+      "lat": 34.0161691,
+      "lng": -118.5003325
+    },
+    "cached_at": 1780550541.114135
+  },
+  "1301 ocean ave, santa monica, ca, 90401": {
+    "result": {
+      "lat": 34.0154709,
+      "lng": -118.4992163
+    },
+    "cached_at": 1780550542.688569
+  },
+  "200 santa monica pier, santa monica, ca, 90401": {
+    "result": {
+      "lat": 34.0108279,
+      "lng": -118.4956397
+    },
+    "cached_at": 1780550544.376568
+  },
+  "395 santa monica place suite 323, santa monica, 90401": {
+    "result": null,
+    "cached_at": 1779562838.535366
+  },
+  "1351 3rd street promenade (between wilshire blvd and arizona ave), santa monica, ca, 90401": {
+    "result": null,
+    "cached_at": 1780550553.813167
+  },
+  "1351 3rd street promenade, santa monica, ca, 90401": {
+    "result": {
+      "lat": 34.0163708,
+      "lng": -118.4967936
+    },
+    "cached_at": 1780550555.426838
+  },
+  "1001 stadium dr, inglewood, ca 90301": {
+    "result": {
+      "lat": 33.9562251,
+      "lng": -118.3376455
+    },
+    "cached_at": 1780550558.761815
+  },
+  "1551 ocean ave,, santa monica, ca, 90401": {
+    "result": {
+      "lat": 34.0118853,
+      "lng": -118.4945908
+    },
+    "cached_at": 1780550567.168061
+  },
+  "395 santa monica place, santa monica, ca, 90401": {
+    "result": {
+      "lat": 34.0340544,
+      "lng": -118.4742651
+    },
+    "cached_at": 1780550569.017927
+  },
+  "2018 19th street, santa monica, ca, 90404": {
+    "result": {
+      "lat": 34.0196672,
+      "lng": -118.471449
+    },
+    "cached_at": 1780550570.3891041
+  },
+  "395 santa monica pl, santa monica, ca, 90401": {
+    "result": {
+      "lat": 34.0340544,
+      "lng": -118.4742651
+    },
+    "cached_at": 1780550578.3577542
+  },
+  "main street, santa monica, ca 90405": {
+    "result": {
+      "lat": 34.0011134,
+      "lng": -118.4826894
+    },
+    "cached_at": 1780550580.134389
+  },
+  "2525 michigan avenue, unit f4, santa monica, ca, 90404": {
+    "result": null,
+    "cached_at": 1780550581.806116
+  },
+  "2525 michigan avenue,, santa monica, ca, 90404": {
+    "result": {
+      "lat": 34.0283044,
+      "lng": -118.4676682
+    },
+    "cached_at": 1780550583.0108259
+  },
+  "1700 ocean ave, santa monica, 90401": {
+    "result": {
+      "lat": 34.0090965,
+      "lng": -118.4931486
+    },
+    "cached_at": 1780550589.988918
+  },
+  "828 pico blvd, santa monica, ca, 90405": {
+    "result": {
+      "lat": 34.0126977,
+      "lng": -118.4818904
+    },
+    "cached_at": 1780550591.7124338
+  },
+  "hollywood bowl, los angeles, ca": {
+    "result": {
+      "lat": 34.1121836,
+      "lng": -118.3392774
+    },
+    "cached_at": 1780608054.638649
+  },
+  "autry museum of the american west, los angeles, ca": {
+    "result": {
+      "lat": 34.1486033,
+      "lng": -118.2812686
+    },
+    "cached_at": 1780608055.3460748
+  },
+  "st. vincent medical center, los angeles, ca": {
+    "result": {
+      "lat": 34.0640601,
+      "lng": -118.2733442
+    },
+    "cached_at": 1780608056.047699
+  },
+  "west hollywood park , west hollywood , ca": {
+    "result": {
+      "lat": 34.0827725,
+      "lng": -118.3844358
+    },
+    "cached_at": 1780608056.2928371
+  },
+  "los angeles equestrian center, burbank, los angeles, ca": {
+    "result": null,
+    "cached_at": 1779620451.1212585
+  },
+  "the regent theater, los angeles, ca": {
+    "result": {
+      "lat": 34.0469856,
+      "lng": -118.2478111
+    },
+    "cached_at": 1780608056.870155
+  },
+  "to wong foo, thanks for everything! julie newmardesert 5 spot, los angeles, ca": {
+    "result": null,
+    "cached_at": 1780608057.3235369
+  },
+  "los angeles county museum of art, los angeles, ca": {
+    "result": {
+      "lat": 34.0637362,
+      "lng": -118.3589376
+    },
+    "cached_at": 1780608057.702176
+  },
+  "pershing square, arts district, los angeles, ca": {
+    "result": null,
+    "cached_at": 1779620472.4659538
+  },
+  "hollywood palladium, hollywood, ca": {
+    "result": {
+      "lat": 34.0984937,
+      "lng": -118.3242932
+    },
+    "cached_at": 1780608058.89584
+  },
+  "501 n. main st., chinatown, california, 90012": {
+    "result": {
+      "lat": 34.0585524,
+      "lng": -118.237577
+    },
+    "cached_at": 1780608059.6406221
+  },
+  "707 tiverton drive, los angeles, ca 90095": {
+    "result": {
+      "lat": 34.0667452,
+      "lng": -118.4415814
+    },
+    "cached_at": 1780608059.828199
+  },
+  "santa monica college planetarium, santa monica, ca": {
+    "result": {
+      "lat": 34.0174904,
+      "lng": -118.4717822
+    },
+    "cached_at": 1780608060.3005528
+  },
+  "395 santa monica place, #, santa monica, ca 90401": {
+    "result": {
+      "lat": 34.0340544,
+      "lng": -118.4742651
+    },
+    "cached_at": 1780608061.1224918
+  },
+  "leimert park plaza, los angeles, ca": {
+    "result": null,
+    "cached_at": 1780608061.659979
+  },
+  "ventura county fairgrounds, ventura, ca": {
+    "result": {
+      "lat": 34.2756169,
+      "lng": -119.3022499
+    },
+    "cached_at": 1780608063.5097768
+  },
+  "ticket required for location, los angeles, ca": {
+    "result": null,
+    "cached_at": 1780608064.2566059
+  },
+  "immanuel presbyterian church, los angeles, ca": {
+    "result": {
+      "lat": 34.0613204,
+      "lng": -118.2945455
+    },
+    "cached_at": 1780608064.6661482
+  },
+  "cabrillo marine aquarium , san pedro, ca": {
+    "result": {
+      "lat": 33.7112593,
+      "lng": -118.2853401
+    },
+    "cached_at": 1780608066.495441
+  },
+  "kenneth hahn state recreation area, 4100 s la cienega blvd, los angeles, ca 90056": {
+    "result": null,
+    "cached_at": 1780608066.7662551
+  },
+  "beyond baroque literary arts center, venice, ca": {
+    "result": {
+      "lat": 33.9913889,
+      "lng": -118.458888
+    },
+    "cached_at": 1780608066.8491352
+  },
+  "17080 west sunset boulevard, los angeles, ca 90272, los angeles, ca": {
+    "result": {
+      "lat": 34.0428006,
+      "lng": -118.5515924
+    },
+    "cached_at": 1780608066.8796139
+  },
+  "the original farmers market, la brea, los angeles, ca": {
+    "result": null,
+    "cached_at": 1779649267.250757
+  },
+  "bar lubitsch (west hollywood), los angeles, ca": {
+    "result": {
+      "lat": 34.090625,
+      "lng": -118.356872
+    },
+    "cached_at": 1780608067.952662
+  },
+  "kenneth hahn sra, los angeles, ca": {
+    "result": null,
+    "cached_at": 1780608068.123316
+  },
+  "santa monica college, santa monica, ca": {
+    "result": {
+      "lat": 34.0167113,
+      "lng": -118.4707609
+    },
+    "cached_at": 1780608068.329663
+  },
+  "88 fair drive, costa mesa, ca 92626, costa mesa, ca": {
+    "result": {
+      "lat": 33.6684521,
+      "lng": -117.9046211
+    },
+    "cached_at": 1780608068.330503
+  },
+  "the original farmers market, los angeles, ca": {
+    "result": null,
+    "cached_at": 1779706818.6349947
+  },
+  "665 heliotrope drive, los angeles, ca 90004, los angeles, ca": {
+    "result": {
+      "lat": 34.0833724,
+      "lng": -118.2954765
+    },
+    "cached_at": 1780608070.112459
+  },
+  "9081 santa monica blvd, west hollywood, ca 90069": {
+    "result": {
+      "lat": 34.0816145,
+      "lng": -118.3893521
+    },
+    "cached_at": 1780608070.7305868
+  },
+  "285 west huntington drive, arcadia, ca 91007, arcadia, ca": {
+    "result": {
+      "lat": 34.1389561,
+      "lng": -118.0458874
+    },
+    "cached_at": 1780608071.349828
+  },
+  "fountain community gardens (east hollywood), los angeles, ca": {
+    "result": null,
+    "cached_at": 1780608071.816044
+  },
+  "resnick pavilion | lacma, los angeles, ca": {
+    "result": null,
+    "cached_at": 1780081221.6701095
+  },
+  "academy la, los angeles, ca": {
+    "result": {
+      "lat": 34.0386464,
+      "lng": -118.4672257
+    },
+    "cached_at": 1782146794.5120902
+  },
+  "3400 watt way, los angeles, california, 90007": {
+    "result": {
+      "lat": 34.023364,
+      "lng": -118.28579
+    },
+    "cached_at": 1782146794.610345
   },
   "395 santa monica pl #300, santa monica, ca": {
     "result": {
@@ -2640,19 +2937,253 @@
     },
     "cached_at": 1783549763.877281
   },
+  "zebulon, los angeles, ca": {
+    "result": {
+      "lat": 34.1071951,
+      "lng": -118.2547392
+    },
+    "cached_at": 1782146795.726819
+  },
+  "264 s mission dr., san gabriel, california, 91776": {
+    "result": {
+      "lat": 34.0989201,
+      "lng": -118.1091255
+    },
+    "cached_at": 1782146795.8935208
+  },
+  "santa monica pier, los angeles, ca": {
+    "result": {
+      "lat": 34.0088961,
+      "lng": -118.4973998
+    },
+    "cached_at": 1782146796.008189
+  },
+  "10929 west pico boulevard, los angeles, ca": {
+    "result": {
+      "lat": 34.0391836,
+      "lng": -118.4306485
+    },
+    "cached_at": 1782146796.089172
+  },
+  "getty center, los angeles, ca": {
+    "result": {
+      "lat": 34.0770168,
+      "lng": -118.47401
+    },
+    "cached_at": 1782146797.247699
+  },
+  "blue note los angeles, los angeles, ca": {
+    "result": null,
+    "cached_at": 1780160137.5260549
+  },
+  "4330 crenshaw blvd, los angeles, california, 90008": {
+    "result": {
+      "lat": 34.0046294,
+      "lng": -118.332669
+    },
+    "cached_at": 1782146797.801601
+  },
+  "2920 overland avenue, los angeles, 90064, ca": {
+    "result": {
+      "lat": 34.0336542,
+      "lng": -118.4183884
+    },
+    "cached_at": 1782146797.985806
+  },
+  "jerry moss plaza at the music center, chinatown, los angeles, ca": {
+    "result": null,
+    "cached_at": 1783549766.448116
+  },
+  "laemmle noho 7, north hollywood, ca": {
+    "result": {
+      "lat": 34.1662175,
+      "lng": -118.3750709
+    },
+    "cached_at": 1782146799.018955
+  },
+  "lincoln park (long beach), los angeles, ca": {
+    "result": {
+      "lat": 33.7681904,
+      "lng": -118.1944736
+    },
+    "cached_at": 1782146799.0470889
+  },
+  "ocean park north beach volleyball courts, los angeles, ca": {
+    "result": null,
+    "cached_at": 1782146799.2201679
+  },
+  "1211 fourth street, santa monica, ca, 90401": {
+    "result": null,
+    "cached_at": 1782146799.2772381
+  },
+  "jerry moss plaza at the music center, los angeles, ca": {
+    "result": null,
+    "cached_at": 1783549767.753001
+  },
+  "707 tiverton drive, los angeles, ca 90095, los angeles ca 90095": {
+    "result": null,
+    "cached_at": 1782146800.110764
+  },
+  "1431 west knox street, torrance, ca 90501, torrance, ca": {
+    "result": null,
+    "cached_at": 1782146800.315789
+  },
+  "1551 ocean ave, ste 105, santa monica, ca, 90401": {
+    "result": null,
+    "cached_at": 1779534026.9843478
+  },
+  "harvard & stone (east hollywood), los angeles, ca": {
+    "result": null,
+    "cached_at": 1782146868.024425
+  },
+  "downtown santa monica, santa monica, ca": {
+    "result": {
+      "lat": 34.0136604,
+      "lng": -118.4916499
+    },
+    "cached_at": 1782146868.2149508
+  },
+  "pomona fairplex, outside los angeles/other, los angeles, ca": {
+    "result": null,
+    "cached_at": 1782146868.3406038
+  },
+  "asu fidm museum, los angeles, ca": {
+    "result": null,
+    "cached_at": 1780081230.0103106
+  },
+  "532 south olive street, los angeles, ca 90013": {
+    "result": {
+      "lat": 34.0489738,
+      "lng": -118.2531831
+    },
+    "cached_at": 1782146869.301059
+  },
+  "395 santa monica pl 300, santa monica, ca, 90401": {
+    "result": null,
+    "cached_at": 1782146869.573311
+  },
+  "1314 seventh street santa monica, ca 90401": {
+    "result": null,
+    "cached_at": 1782146869.777607
+  },
+  "the high low (atwater village), los angeles, ca": {
+    "result": null,
+    "cached_at": 1782146869.785204
+  },
+  "pomona fairplex, los angeles, ca": {
+    "result": {
+      "lat": 34.0894902,
+      "lng": -117.772518
+    },
+    "cached_at": 1782146869.876363
+  },
+  "226 south market street, inglewood, california, 90301": {
+    "result": {
+      "lat": 33.9612421,
+      "lng": -118.3517757
+    },
+    "cached_at": 1782146870.0488698
+  },
+  "teragram ballroom, los angeles, ca": {
+    "result": {
+      "lat": 34.0516899,
+      "lng": -118.2671329
+    },
+    "cached_at": 1782146870.1699252
+  },
+  "1 windward avenue, los angeles, ca 90291, los angeles, ca": {
+    "result": {
+      "lat": 33.987007,
+      "lng": -118.473531
+    },
+    "cached_at": 1782146870.7359
+  },
+  "2525 michigan ave bergamot station #b4, santa monica, ca, 90404": {
+    "result": null,
+    "cached_at": 1782146871.245811
+  },
+  "1314 7th street santa monica, ca 90401": {
+    "result": {
+      "lat": 34.0197308,
+      "lng": -118.4936551
+    },
+    "cached_at": 1782146871.2900102
+  },
+  "6215 sunset boulevard los angeles, ca 90028 , los angeles-county, california, 90028": {
+    "result": null,
+    "cached_at": 1782146871.463595
+  },
+  "the short stop (echo park), los angeles, ca": {
+    "result": {
+      "lat": 34.0753503,
+      "lng": -118.2535219
+    },
+    "cached_at": 1782146871.556316
+  },
+  "weho park, west hollywood, ca": {
+    "result": {
+      "lat": 34.0816244,
+      "lng": -118.3888579
+    },
+    "cached_at": 1782146871.7019498
+  },
+  "3680 wilshire boulevard, ##503, los angeles, ca 90010, los angeles, ca": {
+    "result": null,
+    "cached_at": 1782146872.8383381
+  },
+  "2525 michigan ave bergamot station, santa monica, ca, 90404": {
+    "result": null,
+    "cached_at": 1782146872.9086761
+  },
+  "155-199 arizona ave santa monica, ca 90401": {
+    "result": null,
+    "cached_at": 1782146873.0543392
+  },
+  "8440 sunset boulevard west hollywood, ca 90069 , los angeles-county, california, 90069": {
+    "result": null,
+    "cached_at": 1779534052.5871007
+  },
+  "various locations in l.a., los angeles, ca": {
+    "result": null,
+    "cached_at": 1779620420.4100966
+  },
+  "4067 west pico boulevard los angeles, ca 90019 , los angeles-county, california, 90028": {
+    "result": null,
+    "cached_at": 1779620457.312506
+  },
+  "los angeles, ca 90028 , los angeles-county, california, 90036": {
+    "result": null,
+    "cached_at": 1779620469.4556797
+  },
+  "5515 wilshire boulevard los angeles, ca 90036 , los angeles-county, california, 90036": {
+    "result": null,
+    "cached_at": 1779620475.907022
+  },
+  "santa monica playhouse, 1211 4th street, santa monica, ca 90401 - between wilshire and arizona, one block east of the third street promenade in beautiful downtown santa monica": {
+    "result": null,
+    "cached_at": 1779649261.724834
+  },
+  "los angeles union station, downtown, los angeles, ca": {
+    "result": null,
+    "cached_at": 1779649271.7697163
+  },
+  "los angeles county museum of art  (lacma), mid-wilshire, los angeles, ca": {
+    "result": null,
+    "cached_at": 1779649283.5337353
+  },
+  "the airliner, los angeles, ca": {
+    "result": {
+      "lat": 34.0738885,
+      "lng": -118.2162323
+    },
+    "cached_at": 1783549763.73821
+  },
   "sofi stadium, inglewood, los angeles, ca": {
     "result": {
       "lat": 33.9534074,
       "lng": -118.3390098
     },
     "cached_at": 1783549764.557177
-  },
-  "630 w. 5th st., downtown l.a., california, 90071": {
-    "result": {
-      "lat": 34.0546934,
-      "lng": -118.2556021
-    },
-    "cached_at": 1783549764.572267
   },
   "the music center, los angeles, ca": {
     "result": {
@@ -2678,14 +3209,6 @@
   "coriolanusold zoo, los angeles, ca": {
     "result": null,
     "cached_at": 1783549765.7857761
-  },
-  "1000 vin scully ave., elysian park, california, 90012": {
-    "result": null,
-    "cached_at": 1783549766.4163132
-  },
-  "jerry moss plaza at the music center, chinatown, los angeles, ca": {
-    "result": null,
-    "cached_at": 1783549766.448116
   },
   "214 wilshire boulevard, santa monica, ca": {
     "result": {
@@ -2716,20 +3239,12 @@
     },
     "cached_at": 1783549767.540981
   },
-  "jerry moss plaza at the music center, los angeles, ca": {
-    "result": null,
-    "cached_at": 1783549767.753001
-  },
-  "denmark \u2022": {
+  "denmark •": {
     "result": {
       "lat": 55.670249,
       "lng": 10.3333283
     },
     "cached_at": 1783549767.852757
-  },
-  "1920 colorado ave suite c, santa monica, ca": {
-    "result": null,
-    "cached_at": 1783549767.887323
   },
   "dodger stadium, los angeles, ca": {
     "result": {
@@ -2738,7 +3253,7 @@
     },
     "cached_at": 1783549767.959313
   },
-  "descanso gardens, la ca\u00f1ada flintridge, ca": {
+  "descanso gardens, la cañada flintridge, ca": {
     "result": {
       "lat": 34.2014521,
       "lng": -118.2120856

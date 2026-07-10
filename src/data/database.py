@@ -569,13 +569,28 @@ class Database:
                     params.extend(hours)
 
             # Geographic bounds
-            # Note: Allow events with NULL coordinates to pass through (they can't be geographically filtered)
+            # Note: Allow events with NULL coordinates to pass through (they can't be geographically filtered).
+            # Explicitly-allowlisted venues (e.g. IO Music Academy LA) are exempt from the
+            # bounding box so out-of-area venues included by the owner's choice still display.
+            geo_parts = []
+            geo_params = []
             if min_lat is not None and max_lat is not None:
-                conditions.append("(latitude IS NULL OR latitude BETWEEN ? AND ?)")
-                params.extend([min_lat, max_lat])
+                geo_parts.append("(latitude IS NULL OR latitude BETWEEN ? AND ?)")
+                geo_params.extend([min_lat, max_lat])
             if min_lng is not None and max_lng is not None:
-                conditions.append("(longitude IS NULL OR longitude BETWEEN ? AND ?)")
-                params.extend([min_lng, max_lng])
+                geo_parts.append("(longitude IS NULL OR longitude BETWEEN ? AND ?)")
+                geo_params.extend([min_lng, max_lng])
+            if geo_parts:
+                from src.utils.geo_filter import WESTSIDE_VENUE_ALLOWLIST
+                in_bounds = " AND ".join(geo_parts)
+                allow_parts = " OR ".join("LOWER(venue_name) LIKE ?" for _ in WESTSIDE_VENUE_ALLOWLIST)
+                if allow_parts:
+                    conditions.append(f"(({in_bounds}) OR ({allow_parts}))")
+                    params.extend(geo_params)
+                    params.extend(f"%{term}%" for term in WESTSIDE_VENUE_ALLOWLIST)
+                else:
+                    conditions.append(f"({in_bounds})")
+                    params.extend(geo_params)
 
             # Build query
             sql = "SELECT * FROM events"

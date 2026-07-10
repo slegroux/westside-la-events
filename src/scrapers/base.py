@@ -16,7 +16,7 @@ from src.data.models import Event
 from src.utils.geocoding import get_geocoding_service, resolve_known_venue_address
 from src.utils.categories import classify_event
 from src.utils.logo_scraper import LogoScraper
-from src.utils.geo_filter import validate_event_location, is_denylisted_venue
+from src.utils.geo_filter import validate_event_location, is_denylisted_venue, is_allowlisted_venue
 
 
 LA_TZ = ZoneInfo("America/Los_Angeles")
@@ -271,6 +271,30 @@ class BaseScraper(ABC):
             self.log(f"Error fetching {url} with JavaScript: {e}")
             return None
 
+    def fetch_json(self, url: str, json_body: Optional[dict] = None,
+                   headers: Optional[dict] = None, method: str = "POST",
+                   retry: int = 2) -> Optional[dict]:
+        """Call a JSON/GraphQL API and return the parsed response (or None).
+
+        For API-backed scrapers (e.g. the Resident Advisor GraphQL endpoint).
+        Uses the shared session; unit tests mock this method to stay offline.
+        """
+        last_err = None
+        for attempt in range(retry):
+            try:
+                resp = self.session.request(
+                    method, url, json=json_body, headers=headers,
+                    timeout=config.SCRAPER_CONFIG.get('timeout', 30),
+                )
+                if resp.status_code == 200:
+                    return resp.json()
+                last_err = f"HTTP {resp.status_code}"
+            except Exception as e:
+                last_err = str(e)
+            time.sleep(config.SCRAPER_CONFIG.get('delay_seconds', 1))
+        self.log(f"fetch_json failed for {url}: {last_err}")
+        return None
+
     def parse_html(self, html: str) -> BeautifulSoup:
         """
         Parse HTML content with BeautifulSoup.
@@ -344,30 +368,33 @@ class BaseScraper(ABC):
             self.log(f"Skipping denylisted venue: '{title}' at {venue_name or address}")
             return None
 
-        # Validate location - filter out events outside Westside/Malibu
-        if strict_geo:
-            # Stricter validation for aggregator scrapers (e.g. Shore Hotel).
-            # When coords are available, accept only by bounding-box — no
-            # text/radius fallback that would let distant events slip through.
-            # When coords are missing, fall back to address text match only.
-            from src.utils.geo_filter import is_in_coverage_area, is_westside_address
-            if latitude is not None and longitude is not None:
-                is_valid = is_in_coverage_area(latitude, longitude)
-                reason = "coordinates_in_bounds" if is_valid else "coordinates_outside_area"
+        # Explicitly-included out-of-area venues (e.g. IO Music Academy LA in
+        # Hollywood) bypass the coverage-area filter by the owner's choice.
+        if not is_allowlisted_venue(venue_name=venue_name, title=title):
+            # Validate location - filter out events outside Westside/Malibu
+            if strict_geo:
+                # Stricter validation for aggregator scrapers (e.g. Shore Hotel).
+                # When coords are available, accept only by bounding-box — no
+                # text/radius fallback that would let distant events slip through.
+                # When coords are missing, fall back to address text match only.
+                from src.utils.geo_filter import is_in_coverage_area, is_westside_address
+                if latitude is not None and longitude is not None:
+                    is_valid = is_in_coverage_area(latitude, longitude)
+                    reason = "coordinates_in_bounds" if is_valid else "coordinates_outside_area"
+                else:
+                    is_valid = is_westside_address(address, venue_name=venue_name)
+                    reason = "address_text_match" if is_valid else "address_not_recognized"
             else:
-                is_valid = is_westside_address(address, venue_name=venue_name)
-                reason = "address_text_match" if is_valid else "address_not_recognized"
-        else:
-            is_valid, reason = validate_event_location(
-                latitude=latitude,
-                longitude=longitude,
-                address=address,
-                venue_name=venue_name
-            )
+                is_valid, reason = validate_event_location(
+                    latitude=latitude,
+                    longitude=longitude,
+                    address=address,
+                    venue_name=venue_name
+                )
 
-        if not is_valid:
-            self.log(f"Skipping non-Westside event: '{title}' at {venue_name or address} ({reason})")
-            return None
+            if not is_valid:
+                self.log(f"Skipping non-Westside event: '{title}' at {venue_name or address} ({reason})")
+                return None
 
         # Auto-classify category if not provided
         if not category:

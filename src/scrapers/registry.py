@@ -49,6 +49,7 @@ from .penmar import PenmarScraper
 from .raymond_kabbaz import RaymondKabbazScraper
 from .recreation_cafe import RecreationCafeScraper
 from .resident_advisor import ResidentAdvisorScraper
+from .io_music_academy import IOMusicAcademyScraper
 from .santa_monica import SantaMonicaScraper
 from .santamonica_events import SantaMonicaEventsScraper
 from .skirball import SkirballScraper
@@ -101,6 +102,7 @@ SCRAPER_MAP: Dict[str, Type] = {
     'itk_la': ITKLAScraper,
     'nerd_nite': NerdNiteScraper,
     'resident_advisor': ResidentAdvisorScraper,
+    'io_music_academy': IOMusicAcademyScraper,
     'iic_la': IICLAScraper,
     'afdela': AFdelaScraper,
     'raymond_kabbaz': RaymondKabbazScraper,

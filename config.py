@@ -155,7 +155,11 @@ EVENT_SOURCES = {
     'ucla': {
         'name': 'UCLA',
         'url': 'https://events.ucla.edu',
-        'enabled': True
+        'enabled': False,  # Disabled 2026-06-04: events.ucla.edu is ~140 mostly-internal
+        # campus-admin items ("End-of-Term Grading", "Career Center Drop-Ins") that also
+        # misgeocode (bare "Los Angeles, CA 90095" -> downtown -> filtered out). Public UCLA
+        # culture is already covered by hammer / fowler_museum / ucla_botanical / ucla_design.
+        # Re-enable only with per-event geocoding + a public/cultural quality filter.
     },
     'ucla_design': {
         'name': 'UCLA Design Media Arts',
@@ -233,7 +237,7 @@ EVENT_SOURCES = {
         'url': 'https://www.eventbrite.com/o/world-of-sound-productions-34157573931',
         'enabled': True,
         'uses_api': False,  # Scrapes Eventbrite organizer page
-        'note': 'Penmar Golf Course venue in Venice hosting Sunset Vibes Silent Disco and Sunset Sessions'
+        'note': 'Penmar Golf Course venue in Venice hosting Sunset Vibes Silent Disco and Sunset Sessions. Audited 2026-06-04: returns 0 when its current Eventbrite events are in Hermosa Beach (outside the Westside fence) — working, not broken.'
     },
     'itk_la': {
         'name': 'ITK LA',
@@ -247,7 +251,7 @@ EVENT_SOURCES = {
         'url': 'https://la.nerdnite.com',
         'enabled': True,
         'uses_api': False,  # Scrapes homepage for next event
-        'note': 'Monthly educational entertainment event - 20-minute fun presentations across all disciplines'
+        'note': 'Monthly educational entertainment event - 20-minute fun presentations across all disciplines. Audited 2026-06-04: returns 0 when the monthly event is at a non-Westside venue (e.g. Brewyard/Glendale) — working, not broken.'
     },
     'resident_advisor': {
         'name': 'Resident Advisor',
@@ -255,6 +259,13 @@ EVENT_SOURCES = {
         'enabled': False,  # Blocked by Cloudflare CAPTCHA protection
         'uses_api': False,
         'note': 'Leading electronic music platform. Currently blocked by Cloudflare CAPTCHA - requires CAPTCHA bypass solutions to work.'
+    },
+    'io_music_academy': {
+        'name': 'IO Music Academy LA',
+        'url': 'https://ra.co/clubs/282834',
+        'enabled': True,
+        'uses_api': True,
+        'note': "Free DJ/music-production workshops at IO Music Academy's Hollywood campus, via the Resident Advisor GraphQL API. Hollywood is outside the Westside box; the venue is allowlisted in geo_filter.WESTSIDE_VENUE_ALLOWLIST by the owner's choice."
     },
     'iic_la': {
         'name': 'IIC Los Angeles',
@@ -303,7 +314,7 @@ EVENT_SOURCES = {
         'url': 'https://luma.com/thecasualcreative?k=c',
         'enabled': True,
         'uses_api': False,
-        'note': 'Pop-up experiences and creative workshops in Los Angeles, listed on Luma'
+        'note': 'Pop-up experiences and creative workshops in Los Angeles, listed on Luma. Audited 2026-06-04: returns 0 when its Luma events are outside the Westside fence — working, not broken.'
     },
     'latechevents': {
         'name': 'LA Tech Events',
@@ -437,7 +448,7 @@ EVENT_SOURCES = {
         'url': 'https://www.williamturnergallery.com/events',
         'enabled': True,
         'uses_api': False,
-        'note': 'Contemporary art gallery at Bergamot Station featuring exhibitions and art events'
+        'note': 'Contemporary art gallery at Bergamot Station featuring exhibitions and art events. Audited 2026-06-04: /events is a past-exhibition archive; returns 0 when no upcoming opening/talk is listed — working, not broken.'
     },
     'sounds_like_la': {
         'name': 'Sounds Like LA',

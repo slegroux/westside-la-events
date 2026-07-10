@@ -239,19 +239,24 @@ class TestGeocodingService:
         assert service.geolocator is not None
 
     def test_geocoding_cache(self, temp_geocode_cache):
-        """Test that geocoding results are cached."""
+        """A repeated lookup is served from cache and does not re-hit the API."""
+        from unittest.mock import MagicMock
         from src.utils.geocoding import GeocodingService
 
         service = GeocodingService(cache_file=temp_geocode_cache)
+        # Mock the underlying geocoder so this unit test never touches the
+        # network (the live Nominatim call was flaky under rate limiting).
+        service.geolocator.geocode = MagicMock(
+            return_value=MagicMock(latitude=34.0194, longitude=-118.4912)
+        )
 
-        # First call - will hit the API
-        result1 = service.geocode("Santa Monica, CA")
-
-        # Second call - should use cache
-        result2 = service.geocode("Santa Monica, CA")
+        result1 = service.geocode("Santa Monica, CA")  # cache miss -> calls API
+        result2 = service.geocode("Santa Monica, CA")  # cache hit -> no API call
 
         assert result1 == result2
-        assert result1 is not None
+        assert result1 == (34.0194, -118.4912)
+        # Proves the cache worked: the API was invoked only once.
+        assert service.geolocator.geocode.call_count == 1
 
     def test_geocoding_empty_address(self, temp_geocode_cache):
         """Test geocoding with empty address."""

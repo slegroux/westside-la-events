@@ -34,6 +34,7 @@ class LogoScraper:
         'Eventbrite': 'https://www.eventbrite.com',
         "M.I.'s Westside Comedy Theater": 'https://westsidecomedy.com',
         'Resident Advisor': 'https://ra.co',
+        'IO Music Academy LA': 'https://www.iomusic.academy',
         'The Venice West': 'https://thevenicewest.com',
         'LAist': 'https://laist.com',
         'Nerd Nite LA': 'https://losangeles.nerdnite.com',
