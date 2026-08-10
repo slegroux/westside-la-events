@@ -89,6 +89,11 @@ class LogoScraper:
         'La Puglia': 'https://www.lapugliasm.com',
         'Santa Monica Farmers Markets': 'https://www.smgov.net/portals/farmersmarket/',
         'Unlikely Collaborators': 'https://www.salons.unlikelycollaborators.com',
+        'Boulevard Music': 'https://www.boulevardmusic.com',
+        # The Culver Steps is deliberately absent: its header wordmark is white
+        # on transparent (it sits over a dark hero) and renders invisible on the
+        # cards, so it is pinned to its gold "C" mark in FALLBACK_LOGOS instead.
+        # Leaving it out of SOURCE_URLS is what stops scraping from winning.
     }
 
     # Known logo URLs (fallback if scraping fails)
@@ -155,6 +160,8 @@ class LogoScraper:
         # 404s and the site exposes no og:image/icon). Use the official market
         # header image from the city's Bynder CDN so the source has a picture.
         'Santa Monica Farmers Markets': 'https://cityofsantamonica.getbynder.com/m/3c685e9639708c15/Desktop_Header-Baskets-of-Multi-Colored-Cherry-Tomatoes.jpg',
+        'Boulevard Music': 'https://www.boulevardmusic.com/wp-content/uploads/2016/08/BlvdLogoCrossroads.png',
+        'The Culver Steps': 'https://theculversteps.com/wp-content/uploads/2022/04/cropped-TheCulverSteps-Favicon-270x270.png',
     }
 
     def __init__(self, cache_dir: str = "static/logos"):

@@ -13,11 +13,13 @@ from .aviator_dreamland import AviatorDreamlandScraper
 from .aviator_nation import AviatorNationScraper
 from .bergamot_station import BergamotStationScraper
 from .beyond_baroque import BeyondBaroqueScraper
+from .boulevard_music import BoulevardMusicScraper
 from .broad_stage import BroadStageScraper
 from .brightside import BrightsideScraper
 from .casual_creative import CasualCreativeScraper
 from .corner_door import CornerDoorScraper
 from .culver_city import CulverCityScraper
+from .culver_steps import CulverStepsScraper
 from .discover_la import DiscoverLAScraper
 from .eventbrite import EventbriteScraper
 from .fowler_museum import FowlerMuseumScraper
@@ -146,6 +148,8 @@ SCRAPER_MAP: Dict[str, Type] = {
     'unlikely_collaborators': UnlikelyCollaboratorsScraper,
     'losangelesfunevents': LosAngelesFunEventsScraper,
     'corner_door': CornerDoorScraper,
+    'boulevard_music': BoulevardMusicScraper,
+    'culver_steps': CulverStepsScraper,
 }
 
 

@@ -544,6 +544,20 @@ EVENT_SOURCES = {
         'enabled': True,
         'uses_api': False,
         'note': 'Culver City bar (12477 Washington Blvd) with DJ/vinyl nights, comedy, and trivia; events are hand-authored Squarespace content blocks with weekday+month.day dates (year inferred from the weekday)'
+    },
+    'boulevard_music': {
+        'name': 'Boulevard Music',
+        'url': 'https://www.boulevardmusic.com/events/',
+        'enabled': True,
+        'uses_api': True,
+        'note': 'Culver City guitar shop and listening room (4316 Sepulveda Blvd); concerts read from The Events Calendar REST API (/wp-json/tribe/events/v1/events). The API carries no venue record, so venue name/address/coordinates are constants in the scraper'
+    },
+    'culver_steps': {
+        'name': 'The Culver Steps',
+        'url': 'https://theculversteps.com/happenings/',
+        'enabled': True,
+        'uses_api': False,
+        'note': "Free public programming at the Culver Steps plaza (9300 Culver Blvd): sunset yoga, kids' play mornings, summer concerts. Hand-authored WPBakery cards with undated free-text schedules; years are inferred from the stated weekday and weekly series are expanded per occurrence. Open-ended series with no end date are skipped rather than projected forward"
     }
 }
 
