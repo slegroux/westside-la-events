@@ -1,256 +1,184 @@
 """
-Scraper for Tripp Santa Monica
-URL: https://www.tripsantamonica.com/calendar
+Scraper for TRiP Santa Monica.
+Source: https://www.tripsantamonica.com/trip-santa-monica-events
 
-IMPLEMENTATION STATUS: Disabled in current environment - HTTPS networking issue
+TRiP is a bar/music room at 2101 Lincoln Blvd running standing weekly nights
+rather than a dated calendar. The site has two event pages and only one of them
+is scrapable:
 
-The Tripp calendar uses a fully client-side rendered Wix site. This scraper uses
-Playwright to render the JavaScript and extract event data.
+  * /calendar -- looks like the obvious target and is what this scraper used to
+    read, but the calendar is not on the page at all. It is an
+    eventscalendar.co widget inside an iframe, and that widget only loads data
+    when handed a Wix-signed ``instance`` token. Neither the page HTML nor a
+    direct fetch of the widget URL contains a single event, which is why this
+    scraper returned 0 events for its whole life.
+  * /trip-santa-monica-events ("Weekly Shows") -- real content, rendered into
+    the DOM. Each show is an ``<h5>`` that begins with a weekday, followed by
+    prose and a time ("Every Friday night @ 7pm", "7:15pm signup, 8pm start").
 
-ENVIRONMENTAL ISSUE:
-- Playwright's Chromium cannot establish HTTPS connections in current environment
-- Returns ERR_SOCKET_NOT_CONNECTED for all HTTPS sites
-- Works fine with HTTP (tested successfully with http://example.com)
-- Will likely work in Docker/Cloud Run/standard Linux containers
+So we read the Weekly Shows page and expand each standing night into concrete
+occurrences. The page is Wix and client-rendered, hence fetch_page_js.
 
-TO ENABLE:
-1. Test in target deployment environment
-2. If successful, set enabled=True in config.py EVENT_SOURCES
-3. Add to run_scrapers.py if needed
+Horizon: unlike a seasonal series, a bar's weekly night is open-ended by
+definition -- there is no end date to find, and refusing to project one would
+mean never listing this venue at all. We therefore emit a bounded WEEKS_AHEAD
+window and let a later scrape extend it, rather than projecting indefinitely.
+If the venue drops a night, stale occurrences age out within that window.
 
-VENUE INFO:
-- Name: Tripp
-- Address: 1431 3rd Street Promenade, Santa Monica, CA 90401
-- Type: Nightclub/Bar
-- Website: https://www.tripsantamonica.com/
+Dedup: the ingestion pipeline (Database.insert_event) owns cross-run dedup;
+each occurrence carries a #YYYY-MM-DD URL fragment so same-titled nights on
+different dates stay distinct.
 """
-
-import asyncio
-from datetime import datetime
-import logging
 import re
-from typing import List, Optional
+from datetime import date, datetime, timedelta
+from typing import List, Optional, Tuple
 
 from .base import BaseScraper
 from src.data.models import Event
 
-logger = logging.getLogger(__name__)
 
-# Check if Playwright is available
-try:
-    from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
-    PLAYWRIGHT_AVAILABLE = True
-except ImportError:
-    PLAYWRIGHT_AVAILABLE = False
-    logger.warning(
-        "Playwright not installed. Install with: "
-        "pip install playwright && playwright install chromium"
-    )
+_WEEKDAYS = {
+    'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
+    'friday': 4, 'saturday': 5, 'sunday': 6,
+}
 
 
 class TrippScraper(BaseScraper):
-    """Scraper for Tripp Santa Monica events using Playwright."""
+    """Scraper for TRiP Santa Monica's standing weekly shows."""
+
+    BASE_URL = 'https://www.tripsantamonica.com'
+    EVENTS_URL = f'{BASE_URL}/trip-santa-monica-events'
+
+    # Single fixed venue. NB: this was previously recorded as "1431 3rd Street
+    # Promenade", which is not this venue -- the site's own footer says 2101
+    # Lincoln Blvd, so every event was being geocoded to the wrong place.
+    VENUE_NAME = 'TRiP Santa Monica'
+    VENUE_ADDRESS = '2101 Lincoln Blvd, Santa Monica, CA 90405'
+    VENUE_LAT = 34.0025873
+    VENUE_LNG = -118.4703697
+
+    # How far ahead to project standing weekly nights.
+    WEEKS_AHEAD = 8
+
+    # A show heading starts with the weekday it runs on: "Friday TRIVIA Night".
+    _HEADING_RE = re.compile(
+        r'^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b\s*(.*)$',
+        re.I,
+    )
+    # "@ 7pm", "8pm start", "7:15pm signup" -- prefer an explicit start.
+    _START_RE = re.compile(r'(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?\s*start', re.I)
+    _AT_RE = re.compile(r'@\s*(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?', re.I)
+    _ANY_TIME_RE = re.compile(r'\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?', re.I)
+
+    _CATEGORY_RULES = (
+        ('trivia', 'Community'),
+        ('quiz', 'Community'),
+        ('open mic', 'Music'),
+        ('music', 'Music'),
+        ('jam', 'Music'),
+        ('dj', 'Nightlife'),
+        ('comedy', 'Comedy'),
+        ('art', 'Art'),
+    )
 
     def __init__(self):
         super().__init__(source_name='Tripp')
-        self.source_url = 'https://www.tripsantamonica.com/calendar'
-        self.venue_name = 'Tripp'
-        self.venue_address = '1431 3rd Street Promenade, Santa Monica, CA 90401'
+        self.base_url = self.BASE_URL
 
     def scrape(self) -> List[Event]:
-        """
-        Scrape events from Tripp calendar.
+        self.log("Starting scrape of TRiP Santa Monica...")
+        events: List[Event] = []
 
-        Uses Playwright to render JavaScript and extract event data from Wix calendar.
-        Currently disabled due to HTTPS networking issues in this environment.
-
-        Returns:
-            List of Event objects (empty if Playwright unavailable or errors occur)
-        """
-        if not PLAYWRIGHT_AVAILABLE:
-            self.log("Playwright not available - scraper disabled")
-            return []
-
-        try:
-            # Run async scraping
-            events = asyncio.run(self._scrape_async())
-            self.log(f"Successfully scraped {len(events)} events")
+        html = self.fetch_page_js(self.EVENTS_URL, timeout=45000)
+        if not html:
+            self.log("Failed to render the Weekly Shows page")
             return events
 
-        except Exception as e:
-            self.log(f"Error during scraping: {e}")
-            return []
+        shows = self._parse_shows(self.parse_html(html))
+        self.log(f"Found {len(shows)} weekly show(s)")
 
-    async def _scrape_async(self) -> List[Event]:
-        """
-        Async method to scrape events using Playwright.
-
-        Returns:
-            List of Event objects
-        """
-        events = []
-
-        async with async_playwright() as p:
-            try:
-                self.log(f"Launching browser for {self.source_url}")
-
-                # Launch browser with settings optimized for scraping
-                browser = await p.chromium.launch(
-                    headless=True,
-                    args=[
-                        '--no-sandbox',
-                        '--disable-setuid-sandbox',
-                        '--disable-dev-shm-usage',
-                        '--disable-web-security',
-                    ]
+        for weekday, title, description, start in shows:
+            for occurrence in self._occurrences(weekday, start):
+                event = self.create_event(
+                    title=title,
+                    description=description,
+                    venue_name=self.VENUE_NAME,
+                    address=self.VENUE_ADDRESS,
+                    event_date=occurrence,
+                    url=f'{self.EVENTS_URL}#{occurrence:%Y-%m-%d}',
+                    category=self._classify(f'{title} {description}'),
+                    latitude=self.VENUE_LAT,
+                    longitude=self.VENUE_LNG,
                 )
+                if event:
+                    events.append(event)
 
-                # Create context with realistic settings
-                context = await browser.new_context(
-                    viewport={'width': 1920, 'height': 1080},
-                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    ignore_https_errors=True
-                )
-
-                page = await context.new_page()
-
-                # Navigate and wait for content
-                self.log("Loading calendar page...")
-                await page.goto(self.source_url, wait_until='domcontentloaded', timeout=30000)
-
-                # Wait for Wix site to render
-                await asyncio.sleep(5)
-
-                # Extract event data from rendered DOM
-                events = await self._extract_events_from_page(page)
-
-                await browser.close()
-
-            except Exception as e:
-                self.log(f"Browser automation error: {e}")
-                # Log but don't raise - return empty list
-
+        self.log(f"Scraped {len(events)} occurrence(s) from {len(shows)} weekly show(s)")
         return events
 
-    async def _extract_events_from_page(self, page) -> List[Event]:
+    def _parse_shows(self, soup) -> List[Tuple[int, str, str, Tuple[int, int]]]:
+        """Extract (weekday, title, description, start_time) per standing night.
+
+        Headings and body copy are siblings in a flat Wix DOM rather than nested
+        per-show containers, so a show owns every element after its heading up
+        to the next weekday heading.
         """
-        Extract event data from rendered Wix calendar page.
+        blocks = soup.find_all(['h2', 'h3', 'h4', 'h5', 'h6', 'p'])
 
-        Args:
-            page: Playwright page object
+        shows = []
+        current = None      # (weekday, title, [text parts])
+        for el in blocks:
+            text = self.clean_text(el.get_text(' ', strip=True))
+            if not text:
+                continue
 
-        Returns:
-            List of Event objects
+            match = self._HEADING_RE.match(text) if el.name.startswith('h') else None
+            if match:
+                if current:
+                    shows.append(current)
+                weekday = _WEEKDAYS[match.group(1).lower()]
+                current = (weekday, text, [])
+                continue
+
+            if current is not None:
+                current[2].append(text)
+
+        if current:
+            shows.append(current)
+
+        parsed = []
+        for weekday, title, parts in shows:
+            description = self.clean_text(' '.join(parts))
+            parsed.append((weekday, title, description, self._parse_start(description)))
+        return parsed
+
+    def _parse_start(self, text: str) -> Tuple[int, int]:
+        """Pick the show's start time.
+
+        "7:15pm signup, 8pm start" has two times and the later one is the show;
+        an explicit "start" wins, then an "@ 7pm", then the first time present.
         """
-        events = []
+        for pattern in (self._START_RE, self._AT_RE, self._ANY_TIME_RE):
+            match = pattern.search(text)
+            if match:
+                hour = int(match.group(1)) % 12
+                if match.group(3).lower() == 'p':
+                    hour += 12
+                return hour, int(match.group(2) or 0)
+        return 20, 0    # evening default for a night-time venue
 
-        try:
-            # Save HTML for debugging
-            content = await page.content()
-            with open('/tmp/tripp_rendered.html', 'w') as f:
-                f.write(content)
-            self.log("Saved rendered HTML to /tmp/tripp_rendered.html")
+    def _occurrences(self, weekday: int, start: Tuple[int, int]) -> List[datetime]:
+        """Next WEEKS_AHEAD occurrences of a weekday, starting today."""
+        today = date.today()
+        first = today + timedelta(days=(weekday - today.weekday()) % 7)
+        return [
+            datetime(day.year, day.month, day.day, start[0], start[1])
+            for day in (first + timedelta(weeks=w) for w in range(self.WEEKS_AHEAD))
+        ]
 
-            # Take screenshot for debugging
-            await page.screenshot(path='/tmp/tripp_calendar.png')
-            self.log("Saved screenshot to /tmp/tripp_calendar.png")
-
-            # Try to find event elements in Wix calendar
-            # Wix uses various dynamic class names, so we look for common patterns
-            event_selectors = [
-                'a[href*="/event/"]',  # Event detail links
-                '[data-testid*="event"]',  # Data test IDs
-                '[class*="event"]',  # Class names containing "event"
-                'article',  # Semantic HTML
-            ]
-
-            for selector in event_selectors:
-                elements = await page.locator(selector).all()
-                self.log(f"Found {len(elements)} elements for selector: {selector}")
-
-                for elem in elements:
-                    try:
-                        # Extract text and link
-                        text = await elem.text_content()
-                        href = await elem.get_attribute('href')
-
-                        if text and text.strip():
-                            self.log(f"Potential event: {text.strip()[:50]}...")
-
-                            # Create basic event object
-                            # TODO: Parse dates, times, descriptions when structure is known
-                            event = Event(
-                                title=text.strip(),
-                                venue_name=self.venue_name,
-                                address=self.venue_address,
-                                url=self._normalize_url(href),
-                                source=self.source_name,
-                                source_logo_url=self.source_logo_url,
-                            )
-
-                            # Geocode if needed
-                            if not event.latitude or not event.longitude:
-                                self.geocode_event(event)
-
-                            events.append(event)
-
-                    except Exception as e:
-                        self.log(f"Error parsing element: {e}")
-                        continue
-
-                # If we found events, stop searching with other selectors
-                if events:
-                    break
-
-        except Exception as e:
-            self.log(f"Error extracting events: {e}")
-
-        return events
-
-    def _normalize_url(self, url: Optional[str]) -> Optional[str]:
-        """
-        Normalize event URL.
-
-        Args:
-            url: Raw URL from page
-
-        Returns:
-            Full URL or None
-        """
-        if not url:
-            return None
-
-        # Make relative URLs absolute
-        if url.startswith('/'):
-            return f"https://www.tripsantamonica.com{url}"
-
-        # Return as-is if already absolute
-        if url.startswith('http'):
-            return url
-
-        return None
-
-
-def main():
-    """Test the scraper."""
-    scraper = TrippScraper()
-    events = scraper.scrape()
-
-    print(f"\nFound {len(events)} events from Tripp\n")
-
-    if events:
-        for event in events:
-            print(f"Title: {event.title}")
-            print(f"Venue: {event.venue_name}")
-            print(f"URL: {event.url}")
-            print(f"Location: {event.latitude}, {event.longitude}")
-            print("-" * 80)
-    else:
-        print("No events found.")
-        print("\nNote: This scraper requires Playwright and may not work in")
-        print("environments with HTTPS networking issues. Try deploying to")
-        print("Docker or Cloud Run for better compatibility.")
-
-
-if __name__ == '__main__':
-    main()
+    def _classify(self, text: str) -> str:
+        low = text.lower()
+        for keyword, category in self._CATEGORY_RULES:
+            if keyword in low:
+                return category
+        return 'Nightlife'
