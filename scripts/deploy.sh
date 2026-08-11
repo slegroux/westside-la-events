@@ -90,12 +90,27 @@ fi
 echo "🚀 Deploying Westside LA Events to Google Cloud Run..."
 echo ""
 
-# Check if gcloud is authenticated
-if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
+# Check if gcloud is authenticated.
+#
+# `gcloud auth list` only reports which account is *marked* ACTIVE; it never
+# contacts Google. A credential whose refresh token has been revoked -- or whose
+# account has since been deleted -- still lists as ACTIVE and sails through.
+# Minting an access token is what actually proves the credential still works,
+# and it fails here rather than midway through the build.
+ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null || true)
+if [ -z "${ACTIVE_ACCOUNT}" ]; then
     echo "❌ Error: Not authenticated with gcloud"
     echo "Run: gcloud auth login"
     exit 1
 fi
+if ! gcloud auth print-access-token >/dev/null 2>&1; then
+    echo "❌ Error: gcloud credentials for ${ACTIVE_ACCOUNT} are no longer valid"
+    echo "   The access token could not be refreshed (the account may have been"
+    echo "   deleted, or its access revoked)."
+    echo "Run: gcloud auth login"
+    exit 1
+fi
+echo "🔑 Authenticated as ${ACTIVE_ACCOUNT}"
 
 # Set the project
 echo "📋 Setting project to ${PROJECT_ID}..."

@@ -8,7 +8,16 @@ description: Use when the user wants to deploy to production. Also use when the 
 You are running the **ship** workflow. This deploys the current code and data to production. It does NOT run tests or commit/push — use `/test` and `/push` first.
 
 ## Important context
-- Use `conda run -n la` for all commands (NOT micromamba)
+- The `la` env is **micromamba**, not conda — `conda run -n la` fails with
+  `EnvironmentLocationNotFound`. Run the deploy scripts with plain `bash`; they
+  call `micromamba run -n la` internally where they need Python.
+- micromamba needs `MAMBA_ROOT_PREFIX=$HOME/micromamba` exported, or `-n la`
+  resolves against Homebrew's Cellar and fails with "The given prefix does not
+  exist". Export it before running the scripts.
+- `gcloud`/`gsutil` may not be on PATH: the Homebrew cask install aborts on its
+  final optional step and unlinks them, leaving a working SDK behind. If
+  `command -v gcloud` is empty, prepend
+  `/opt/homebrew/share/google-cloud-sdk/bin` to PATH.
 - Production is on Google Cloud Run
 - Database is synced to Cloud Storage
 
@@ -30,7 +39,8 @@ If there are uncommitted changes or unpushed commits, warn the user and suggest 
 Upload the latest local database to Cloud Storage:
 
 ```
-conda run -n la bash scripts/sync_db_to_cloud.sh --force
+export MAMBA_ROOT_PREFIX="$HOME/micromamba"
+bash scripts/sync_db_to_cloud.sh --force
 ```
 
 Report the result. If it fails, stop and show the error.
@@ -42,7 +52,8 @@ Report the result. If it fails, stop and show the error.
 Deploy the application to Cloud Run:
 
 ```
-conda run -n la bash scripts/deploy.sh
+export MAMBA_ROOT_PREFIX="$HOME/micromamba"
+bash scripts/deploy.sh
 ```
 
 Report the result. If it fails, stop and show the error.
