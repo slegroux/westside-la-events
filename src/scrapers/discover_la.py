@@ -206,6 +206,42 @@ class DiscoverLAScraper(BaseScraper):
         """Map a raw Discover LA category tag to a standard category name."""
         return self._CATEGORY_MAP.get(raw.lower(), 'Other')
 
+    @staticmethod
+    def _is_event_node(node) -> bool:
+        """Is this JSON-LD node an Event?
+
+        ``@type`` is not always a plain string: schema.org allows a list, and
+        Discover LA uses it for pages that are several things at once (an
+        Event that is also a Festival). Treat a list as a match if Event is
+        anywhere in it.
+        """
+        if not isinstance(node, dict):
+            return False
+        node_type = node.get('@type')
+        if isinstance(node_type, list):
+            return 'Event' in node_type
+        return node_type == 'Event'
+
+    @classmethod
+    def _find_event_node(cls, nodes):
+        """Pick the Event out of a JSON-LD graph or array.
+
+        Entries are not guaranteed to be dicts -- /dinela nests a *list* inside
+        its @graph, and calling .get() on it used to raise
+        "'list' object has no attribute 'get'", which aborted the whole detail
+        fetch. Recurse into nested lists and skip anything that is not a dict.
+        """
+        if not isinstance(nodes, list):
+            return None
+        for item in nodes:
+            if cls._is_event_node(item):
+                return item
+            if isinstance(item, list):
+                found = cls._find_event_node(item)
+                if found:
+                    return found
+        return None
+
     def _fetch_event_details(self, url: str) -> dict:
         """
         Fetch additional details from individual event page.
@@ -242,12 +278,12 @@ class DiscoverLAScraper(BaseScraper):
                     # Handle @graph structure
                     if isinstance(data, dict) and '@graph' in data:
                         # Find the Event object in the graph
-                        data = next((item for item in data['@graph'] if item.get('@type') == 'Event'), None)
+                        data = self._find_event_node(data['@graph'])
                     # Handle array of objects
                     elif isinstance(data, list):
-                        data = next((item for item in data if item.get('@type') == 'Event'), None)
+                        data = self._find_event_node(data)
 
-                    if data and data.get('@type') == 'Event':
+                    if data and self._is_event_node(data):
                         # Extract description
                         if data.get('description'):
                             details['description'] = self.clean_text(data['description'])
