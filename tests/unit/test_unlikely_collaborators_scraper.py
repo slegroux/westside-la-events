@@ -9,9 +9,17 @@ from src.scrapers.unlikely_collaborators import UnlikelyCollaboratorsScraper
 
 
 def _home_html():
+    # Salons are linked as /home/<speaker-slug>. The site used to use
+    # /spark-salon-<slug> and this fixture still emitted that after the scraper
+    # moved on, so link discovery found nothing: test_parses_upcoming_salon
+    # failed, and test_skips_past_salon passed *vacuously* -- asserting an empty
+    # result is trivially true when zero candidates are discovered. Keep the
+    # legacy-shaped link here too, so the discovery pattern staying specific to
+    # /home/ is itself covered.
     return (
         '<html><body>'
-        '<a href="/spark-salon-test-speaker">Salon</a>'
+        '<a href="/home/test-speaker">Salon</a>'
+        '<a href="/spark-salon-speaker-series">Series overview (not a salon)</a>'
         '</body></html>'
     )
 
