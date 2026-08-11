@@ -13,10 +13,11 @@ Note: Events are automatically filtered to Westside/Malibu area by the base scra
 geo_filter validation. Some venues with dedicated scrapers (like Beyond Baroque) are
 handled separately.
 """
+import copy
 import json
 import os
 import re
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import List, Optional
 from dateutil import parser as date_parser
 
@@ -120,7 +121,7 @@ class EventbriteScraper(BaseScraper):
                 try:
                     event = self._scrape_event_page(event_url)
                     if event:
-                        events.append(event)
+                        events.extend(self._expand_recurring(event))
                         self.log(f"  [{i}/{len(event_urls)}] ✓ {event.title}")
                 except Exception as e:
                     self.log(f"  [{i}/{len(event_urls)}] ✗ Error: {e}")
@@ -189,7 +190,7 @@ class EventbriteScraper(BaseScraper):
                 try:
                     event = self._scrape_event_page(event_url)
                     if event:
-                        events.append(event)
+                        events.extend(self._expand_recurring(event))
                         self.log(f"  [{i}/{len(event_urls)}] ✓ {event.title}")
                 except Exception as e:
                     self.log(f"  [{i}/{len(event_urls)}] ✗ Error: {e}")
@@ -269,7 +270,7 @@ class EventbriteScraper(BaseScraper):
                 try:
                     event = self._scrape_event_page(event_url)
                     if event:
-                        events.append(event)
+                        events.extend(self._expand_recurring(event))
                         self.log(f"  [{i}/{len(event_urls)}] ✓ {event.title}")
                 except Exception as e:
                     self.log(f"  [{i}/{len(event_urls)}] ✗ Error: {e}")
@@ -283,6 +284,94 @@ class EventbriteScraper(BaseScraper):
             traceback.print_exc()
 
         return events
+
+    # --- recurring-series normalization -------------------------------------
+    #
+    # Eventbrite flattens a recurring series into ONE listing whose startDate is
+    # the first occurrence and endDate the *last* -- its JSON-LD carries no
+    # eventSchedule or subEvent to say otherwise. Stored verbatim, a weekly
+    # night like "Marina Nights - Every Saturday 8PM" running Aug 8 -> Dec 26
+    # becomes a single 140-day event. The site's multi-day rule (database.py
+    # _on(), which exists so exhibitions show every day they are open) then
+    # displays it on all 140 days instead of only Saturdays.
+    #
+    # Beyond this many days, a "single" Eventbrite listing is really a series.
+    # Kept above genuine multi-day events (a festival weekend runs ~1.3 days).
+    RECURRING_SPAN_DAYS = 2
+    # Beyond this, a span we cannot decode a cadence for is dropped rather than
+    # left to blanket the calendar. Multi-day conferences stay intact below it.
+    MAX_SINGLE_SPAN_DAYS = 7
+    RECURRENCE_HORIZON_WEEKS = 8
+
+    _WEEKDAYS = {
+        'mon': 0, 'tues': 1, 'wednes': 2, 'thurs': 3, 'fri': 4, 'satur': 5, 'sun': 6,
+    }
+    # "Every Saturday", "Saturdays", "every sat." -- the cadence the title states.
+    _RECURRENCE_RE = re.compile(
+        r'\bevery\s+(mon|tues|wednes|thurs|fri|satur|sun)day\b'
+        r'|\b(mon|tues|wednes|thurs|fri|satur|sun)days\b',
+        re.I,
+    )
+
+    def _expand_recurring(self, event: Event) -> List[Event]:
+        """Turn a flattened Eventbrite series into real per-week occurrences."""
+        start, end = event.event_date, event.end_date
+        if not start or not end:
+            return [event]
+
+        span_days = (end - start).total_seconds() / 86400
+        if span_days <= self.RECURRING_SPAN_DAYS:
+            return [event]          # genuine multi-day event, leave alone
+
+        weekday = self._recurring_weekday(event.title)
+        if weekday is None:
+            # No stated cadence to expand on. Don't let an undecodable span
+            # blanket months of the calendar -- keep it on its start day only.
+            if span_days > self.MAX_SINGLE_SPAN_DAYS:
+                self.log(
+                    f"  ~ '{event.title[:50]}' spans {span_days:.0f}d with no stated "
+                    f"cadence; dropping end_date so it shows on its start date only"
+                )
+                event.end_date = None
+            return [event]
+
+        occurrences = self._weekly_occurrences(event, weekday, end)
+        self.log(
+            f"  ~ '{event.title[:50]}' is a weekly series ({span_days:.0f}d span); "
+            f"expanded to {len(occurrences)} occurrence(s)"
+        )
+        return occurrences
+
+    @classmethod
+    def _recurring_weekday(cls, title: str) -> Optional[int]:
+        """Weekday index a title advertises, e.g. 'Every Saturday' -> 5."""
+        match = cls._RECURRENCE_RE.search(title or '')
+        if not match:
+            return None
+        return cls._WEEKDAYS[(match.group(1) or match.group(2)).lower()]
+
+    def _weekly_occurrences(self, event: Event, weekday: int,
+                            series_end: datetime) -> List[Event]:
+        """Clone `event` onto each weekly occurrence up to the horizon."""
+        today = date.today()
+        cursor = max(event.event_date.date(), today)
+        cursor += timedelta(days=(weekday - cursor.weekday()) % 7)
+
+        horizon = today + timedelta(weeks=self.RECURRENCE_HORIZON_WEEKS)
+        last = min(series_end.date(), horizon)
+
+        occurrences = []
+        while cursor <= last:
+            occurrence = copy.copy(event)
+            occurrence.event_date = datetime.combine(cursor, event.event_date.time())
+            # The series end is not this night's end, and Eventbrite gives no
+            # per-occurrence duration, so leave it open rather than invent one.
+            occurrence.end_date = None
+            if event.url:
+                occurrence.url = f'{event.url}#{cursor:%Y-%m-%d}'
+            occurrences.append(occurrence)
+            cursor += timedelta(days=7)
+        return occurrences
 
     def _scrape_event_page(self, url: str) -> Optional[Event]:
         """
