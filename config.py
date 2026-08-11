@@ -460,9 +460,11 @@ EVENT_SOURCES = {
     'old_town_music_hall': {
         'name': 'Old Town Music Hall',
         'url': 'https://prod5.agileticketing.net/websales/pages/list.aspx?epguid=046f24e9-20f3-4095-9ab6-2596f53377e0&',
-        'enabled': False,  # Shelved: Agile Ticketing is behind Imperva/Incapsula bot protection
-        # (edet=12 JS challenge) that requests and headed Playwright both fail. Venue is also
-        # in El Segundo, outside the Westside geo-fence. Needs a paid unblocker proxy to revive.
+        'enabled': False,  # Shelved. Two reasons were recorded; only the second still holds:
+        # (1) Agile Ticketing sat behind Imperva/Incapsula bot protection (edet=12 JS challenge).
+        #     As of 2026-08-10 this no longer blocks -- a direct run returns 59 upcoming events.
+        # (2) The venue is in El Segundo, outside the Westside geo-fence. This is the reason it
+        #     stays off, so re-enabling is a coverage decision, not a scraper fix.
         'uses_api': False,
         'note': 'Historic cinema and music venue in El Segundo showing classic films and live performances with Wurlitzer organ'
     },
@@ -558,6 +560,44 @@ EVENT_SOURCES = {
         'enabled': True,
         'uses_api': False,
         'note': "Free public programming at the Culver Steps plaza (9300 Culver Blvd): sunset yoga, kids' play mornings, summer concerts. Hand-authored WPBakery cards with undated free-text schedules; years are inferred from the stated weekday and weekly series are expanded per occurrence. Open-ended series with no end date are skipped rather than projected forward"
+    },
+
+    # These four shipped with working scrapers, tests and logos but no entry
+    # here, so `registry.get_enabled_scraper_names()` -- which reads this dict --
+    # silently never ran them. A scraper missing from EVENT_SOURCES is dead code
+    # that looks alive: it fails no test and logs no error. All four are Santa
+    # Monica venues whose events pass the geo filter.
+    'brightside': {
+        'name': 'Brightside California Kitchen',
+        'url': 'https://brightsidecaliforniakitchen.com/events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Santa Monica restaurant (2901 Ocean Park Blvd) hosting live music, trivia and community nights'
+    },
+    'la_puglia': {
+        'name': 'La Puglia',
+        'url': 'https://lapuglia.us/events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Italian restaurant in Santa Monica (2830 Ocean Park Blvd) with live music and supper-club evenings'
+    },
+    'tripp': {
+        'name': 'Tripp',
+        'url': 'https://www.tripsantamonica.com/trip-santa-monica-events',
+        'enabled': True,
+        'uses_api': False,
+        # Reads the "Weekly Shows" page, NOT /calendar. The calendar is an
+        # eventscalendar.co widget in an iframe that only loads data with a
+        # Wix-signed `instance` token, so /calendar contains no events at all --
+        # pointing here is what took this scraper from 0 events to working.
+        'note': 'TRiP Santa Monica (2101 Lincoln Blvd), a bar/music room with standing weekly nights (Friday trivia, Monday open mic). Weekly shows are expanded into occurrences over an 8-week horizon since the source gives no end date'
+    },
+    'victorian': {
+        'name': 'The Victorian',
+        'url': 'https://www.thevictorian.com/what-s-on',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Historic Main Street venue in Santa Monica (2640 Main St) hosting music, markets and private events'
     }
 }
 
