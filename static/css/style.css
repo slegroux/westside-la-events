@@ -3156,3 +3156,49 @@ footer .footer-photo-credit a:hover {
         scroll-behavior: auto !important;
     }
 }
+
+/* ==========================================================================
+   Region tabs (Westside / Beyond the Westside)
+   ========================================================================== */
+
+.region-tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin: 0 0 1rem;
+    padding: 0.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    /* Narrow screens get a horizontal scroll rather than a wrapped, ragged
+       tab strip. */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.region-tab {
+    flex: 0 0 auto;
+    padding: 0.5rem 1.1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    white-space: nowrap;
+    border-radius: calc(var(--radius-lg) - 0.2rem);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.region-tab:hover {
+    color: var(--primary-color);
+}
+
+.region-tab.active {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.region-tab:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}

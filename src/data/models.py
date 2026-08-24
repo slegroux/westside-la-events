@@ -27,6 +27,7 @@ class Event:
         price: Optional[float] = None,
         is_free: bool = False,
         price_note: str = "",
+        region: str = "westside",
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None
     ):
@@ -47,6 +48,9 @@ class Event:
         self.price = price
         self.is_free = is_free
         self.price_note = price_note
+        # 'westside' (the core coverage area) or 'beyond' (curated sources
+        # elsewhere in LA County, surfaced in their own tab).
+        self.region = region
         self.created_at = created_at or datetime.now()
         self.updated_at = updated_at or datetime.now()
 
@@ -70,6 +74,7 @@ class Event:
             'price': self.price,
             'is_free': self.is_free,
             'price_note': self.price_note,
+            'region': self.region,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -95,6 +100,7 @@ class Event:
             price=data.get('price'),
             is_free=data.get('is_free', False),
             price_note=data.get('price_note', ''),
+            region=data.get('region') or 'westside',
             created_at=datetime.fromisoformat(data['created_at']) if data.get('created_at') else None,
             updated_at=datetime.fromisoformat(data['updated_at']) if data.get('updated_at') else None
         )

@@ -1,153 +1,178 @@
 """
-Scraper for The Victorian events.
+Scraper for The Victorian (Santa Monica).
 Source: https://www.thevictorian.com/what-s-on
 
-The Victorian is a Santa Monica venue featuring recurring weekly events including
-comedy shows, music performances, and nightlife events.
+The page is a Wix site listing "Weekly Happenings" as one block per night:
+a day heading, the night's name, and a run of service/DJ times. Those blocks
+are read directly and expanded across the lookahead window.
+
+This previously shipped a hardcoded schedule that was never checked against the
+site, and it was wrong in every particular -- it advertised comedy nights on
+Monday and Wednesday, when the venue is closed Sunday through Wednesday. Only
+what the page actually says is published now; if the page stops parsing, the
+scraper returns nothing rather than falling back to an assumed schedule.
 """
 import re
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import List, Optional
-from dateutil import parser as date_parser
-from bs4 import BeautifulSoup
 
 from .base import BaseScraper
 from src.data.models import Event
 
+WEEKDAYS = {
+    'MONDAY': 0, 'TUESDAY': 1, 'WEDNESDAY': 2, 'THURSDAY': 3,
+    'FRIDAY': 4, 'SATURDAY': 5, 'SUNDAY': 6,
+}
 
-# Recurring weekly events at The Victorian
-RECURRING_EVENTS = [
-    {
-        'title': 'Westside Comedy Open Mic',
-        'day': 0,  # Monday
-        'time': '19:00',  # 7:00 PM
-        'description': 'Weekly open mic comedy night featuring both new and established comedians from the Westside and beyond.',
-        'category': 'Comedy',
-        'url': 'https://www.thevictorian.com/what-s-on'
-    },
-    {
-        'title': 'The Victorian Comedy Showcase',
-        'day': 2,  # Wednesday
-        'time': '20:00',  # 8:00 PM
-        'description': 'Weekly comedy showcase featuring professional comedians and rising stars.',
-        'category': 'Comedy',
-        'url': 'https://www.thevictorian.com/what-s-on'
-    },
-    {
-        'title': 'Thursday Night Live Music',
-        'day': 3,  # Thursday
-        'time': '20:00',  # 8:00 PM
-        'description': 'Live music performances featuring local and touring artists.',
-        'category': 'Music',
-        'url': 'https://www.thevictorian.com/what-s-on'
-    },
-    {
-        'title': 'Weekend Comedy Shows',
-        'day': 5,  # Friday
-        'time': '20:00',  # 8:00 PM
-        'description': 'Weekend comedy shows featuring top comedians.',
-        'category': 'Comedy',
-        'url': 'https://www.thevictorian.com/what-s-on'
-    },
-    {
-        'title': 'Saturday Night Comedy',
-        'day': 6,  # Saturday (changed from 5)
-        'time': '20:00',  # 8:00 PM
-        'description': 'Saturday night comedy shows with multiple performances.',
-        'category': 'Comedy',
-        'url': 'https://www.thevictorian.com/what-s-on'
-    },
-]
+# "5pm", "8:00 pm", "10:30-11:30pm" -> first time is the night's start.
+_TIME_RE = re.compile(r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)', re.IGNORECASE)
 
 
 class VictorianScraper(BaseScraper):
-    """Scraper for The Victorian events."""
+    """Scraper for The Victorian's weekly happenings."""
+
+    VENUE_NAME = 'The Victorian'
+    ADDRESS = '2640 Main St, Santa Monica, CA 90405'
+
+    LOOKAHEAD_DAYS = 56
 
     def __init__(self):
         super().__init__('The Victorian')
-        self.events_url = 'https://www.thevictorian.com/what-s-on'
-        self.venue_name = 'The Victorian'
-        self.venue_address = '2640 Main St, Santa Monica, CA 90405'
+        self.base_url = 'https://www.thevictorian.com'
+        self.events_url = f'{self.base_url}/what-s-on'
+        self.venue_name = self.VENUE_NAME
+        self.venue_address = self.ADDRESS
 
     def scrape(self) -> List[Event]:
-        """
-        Generate recurring weekly events for The Victorian.
-
-        Since the website lists recurring weekly events, we generate instances
-        for the next 4 weeks.
-
-        Returns:
-            List of Event objects
-        """
+        """Read the weekly happenings and expand them forward."""
         self.log("Starting scrape...")
         events = []
 
         try:
-            # Generate events for next 4 weeks
-            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            weeks_ahead = 4
+            html = self.fetch_page(self.events_url)
+            if not html:
+                self.log("Failed to fetch what's-on page")
+                return events
 
-            for event_template in RECURRING_EVENTS:
-                for week in range(weeks_ahead):
-                    event = self._generate_event_instance(event_template, today, week)
+            nights = self._parse_nights(html)
+            if not nights:
+                self.log("No weekly happenings found on the page")
+                return events
+
+            self.log(f"Found {len(nights)} weekly happenings")
+
+            for night in nights:
+                for moment in self._weekly_occurrences(
+                    night['weekday'], night['hour'], night['minute']
+                ):
+                    event = self.create_event(
+                        title=night['title'],
+                        description=night['description'],
+                        venue_name=self.VENUE_NAME,
+                        address=self.ADDRESS,
+                        event_date=moment,
+                        url=self.events_url,
+                        category=night['category'],
+                        price_note='',
+                    )
                     if event:
                         events.append(event)
 
-            self.log(f"Generated {len(events)} recurring events for next {weeks_ahead} weeks")
+            self.log(f"Successfully scraped {len(events)} events")
 
         except Exception as e:
             self.log(f"Error during scrape: {e}")
-            import traceback
-            traceback.print_exc()
 
         return events
 
-    def _generate_event_instance(self, template: dict, start_date: datetime, weeks_ahead: int) -> Optional[Event]:
+    def _parse_nights(self, html: str) -> List[dict]:
+        """Read each night's block from the Weekly Happenings section.
+
+        Wix splits a block across sibling rich-text elements that share an
+        `__item-<id>` suffix on their ids, so those are grouped back together.
         """
-        Generate a single event instance from a recurring event template.
+        soup = self.parse_html(html)
 
-        Args:
-            template: Dictionary with event template data
-            start_date: Starting date to calculate from
-            weeks_ahead: Number of weeks ahead to schedule
+        groups = {}
+        order = []
+        for element in soup.select('[data-testid="richTextElement"]'):
+            match = re.search(r'__item-(\w+)$', element.get('id', ''))
+            if not match:
+                continue
+            key = match.group(1)
+            if key not in groups:
+                groups[key] = []
+                order.append(key)
+            groups[key].append(element)
 
-        Returns:
-            Event object or None
-        """
-        try:
-            # Calculate the next occurrence of this day of week
-            days_ahead = template['day'] - start_date.weekday()
-            if days_ahead < 0:
-                days_ahead += 7
+        nights = []
+        for key in order:
+            texts = [
+                self.clean_text(el.get_text(' '))
+                for el in groups[key]
+                if el.get_text(strip=True)
+            ]
+            weekday = None
+            for text in texts:
+                if text.upper() in WEEKDAYS:
+                    weekday = WEEKDAYS[text.upper()]
+                    break
+            if weekday is None:
+                continue
 
-            # Add weeks
-            days_ahead += weeks_ahead * 7
+            remaining = [t for t in texts if t.upper() not in WEEKDAYS]
+            if not remaining:
+                continue
 
-            event_date = start_date + timedelta(days=days_ahead)
+            title = remaining[0]
+            description = ' '.join(remaining[1:]).strip()
+            hour, minute = self._start_time(description)
 
-            # Parse time
-            hour, minute = map(int, template['time'].split(':'))
-            event_date = event_date.replace(hour=hour, minute=minute)
+            nights.append({
+                'weekday': weekday,
+                'title': title,
+                'description': description,
+                'hour': hour,
+                'minute': minute,
+                'category': self._category(title, description),
+            })
+        return nights
 
-            # Skip events in the past
-            if event_date < datetime.now():
-                return None
+    def _start_time(self, description: str) -> tuple:
+        """The night's first published time; 8 PM when none is given."""
+        match = _TIME_RE.search(description or '')
+        if not match:
+            return 20, 0
+        hour = int(match.group(1))
+        minute = int(match.group(2) or 0)
+        meridiem = match.group(3).lower()
+        if meridiem == 'pm' and hour != 12:
+            hour += 12
+        elif meridiem == 'am' and hour == 12:
+            hour = 0
+        return hour, minute
 
-            # Make URL unique by adding date to prevent deduplication issues
-            # Since all events share the same page, we add the date as an anchor
-            unique_url = f"{template['url']}#{event_date.strftime('%Y%m%d')}"
+    def _category(self, title: str, description: str) -> str:
+        text = f'{title} {description}'.lower()
+        if 'salsa' in text or 'bachata' in text or 'dancing' in text:
+            return 'Dance'
+        if 'comedy' in text:
+            return 'Comedy'
+        if 'dj' in text or 'music' in text:
+            return 'Music'
+        return 'Nightlife'
 
-            return self.create_event(
-                title=template['title'],
-                description=template['description'],
-                venue_name=self.venue_name,
-                address=self.venue_address,
-                event_date=event_date,
-                url=unique_url,
-                category=template['category'],
-                price_note='TBD'
-            )
-
-        except Exception as e:
-            self.log(f"Error generating event instance: {e}")
-            return None
+    def _weekly_occurrences(self, weekday: int, hour: int, minute: int) -> List[datetime]:
+        now = datetime.now()
+        occurrences = []
+        cursor = now.date()
+        end = (now + timedelta(days=self.LOOKAHEAD_DAYS)).date()
+        while cursor <= end:
+            if cursor.weekday() == weekday:
+                moment = datetime.combine(cursor, datetime.min.time()).replace(
+                    hour=hour, minute=minute
+                )
+                if moment >= now:
+                    occurrences.append(moment)
+            cursor += timedelta(days=1)
+        return occurrences

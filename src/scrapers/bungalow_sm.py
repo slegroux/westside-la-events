@@ -3,11 +3,12 @@ Scraper for The Bungalow Santa Monica events.
 Source: https://thebungalow.com/santa-monica/happenings/
 """
 import re
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import List, Optional
 
 from dateutil import parser as date_parser
 
+from src.utils.dates import named_weekday, resolve_year
 from .base import BaseScraper
 from src.data.models import Event
 
@@ -126,13 +127,30 @@ class BungalowSMScraper(BaseScraper):
         if not date_str:
             return None
 
-        # Handle recurring: "Every Thursday | 7PM" or "Thursdays | 7PM" → next upcoming occurrence
-        recurring_match = re.match(r'(?:Every\s+)?(\w+?)s?\s*\|\s*(\d+(?::\d+)?(?:am|pm)?)', date_str, re.I)
         days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        time_match = re.search(r'(\d+(?::\d+)?\s*(?:am|pm))', date_str, re.I)
+        time_str = time_match.group(1) if time_match else ''
+
+        # Monthly rule: "FIRST THURSDAYS - 5PM", "Second Saturdays". These are a
+        # real schedule, so compute the actual nth weekday rather than letting
+        # the generic parser fall back to today.
+        nth_match = re.match(
+            r'\s*(first|second|third|fourth|last)\s+(\w+?)s?\b', date_str, re.I
+        )
+        if nth_match and nth_match.group(2).lower() in days:
+            return self._nth_weekday_of_month(
+                nth_match.group(1).lower(), days.index(nth_match.group(2).lower()), time_str
+            )
+
+        # Weekly rule: "Every Thursday | 7PM", "Thursdays | 7PM", "Every Thursday"
+        recurring_match = re.match(
+            r'\s*(?:Every\s+)?(\w+?)s?\s*(?:\||$|\s)', date_str, re.I
+        )
         if recurring_match and recurring_match.group(1).lower() in days:
-            day_name = recurring_match.group(1)
-            time_str = recurring_match.group(2)
-            return self._next_weekday(day_name, time_str)
+            # Only treat it as recurring when no explicit day-of-month follows,
+            # otherwise "Thursday, April 9" would be read as "every Thursday".
+            if not re.search(r'\d{1,2}(?!\s*(?::|am|pm))', date_str, re.I):
+                return self._next_weekday(recurring_match.group(1), time_str)
 
         # Normalize: strip pipe and clean up time part
         # e.g. "Thursday, May 7 | 5pm" → "May 7 5pm"
@@ -142,17 +160,66 @@ class BungalowSMScraper(BaseScraper):
         # Remove time range end: "5pm-1am" → "5pm"
         normalized = re.sub(r'(\d+(?::\d+)?(?:am|pm))-\d+(?::\d+)?(?:am|pm)', r'\1', normalized, flags=re.I)
 
+        # A neutral default keeps dateutil from filling missing fields from the
+        # current clock: parsing "FIRST THURSDAYS - 5PM" against now() produced
+        # today-at-5pm, so the listing appeared on whatever day the scrape ran.
+        neutral = datetime(datetime.now().year, 1, 1, 0, 0)
         try:
-            dt = date_parser.parse(normalized, fuzzy=True)
-            # Bump to next year if the date is in the past
-            if dt < datetime.now():
-                dt = dt.replace(year=dt.year + 1)
-            # If still past, give up
-            if dt < datetime.now():
-                return None
-            return dt
+            dt = date_parser.parse(normalized, fuzzy=True, default=neutral)
         except Exception:
             return None
+
+        # dateutil found no month/day at all -- it just echoed the default.
+        if (dt.month, dt.day) == (1, 1) and not re.search(r'\b1\b|jan', normalized, re.I):
+            return None
+
+        if re.search(r'\b20\d{2}\b', normalized):
+            return dt if dt >= datetime.now() else None
+
+        # No year given. Verify against the weekday the listing names rather
+        # than bumping blindly -- "Thursday, April 9" bumped to 2027 landed on
+        # a Friday, inventing an event that was never scheduled.
+        return resolve_year(
+            dt.month, dt.day, weekday=named_weekday(date_str),
+            hour=dt.hour, minute=dt.minute,
+        )
+
+    def _nth_weekday_of_month(self, ordinal: str, weekday: int,
+                              time_str: str) -> Optional[datetime]:
+        """Next occurrence of e.g. the first Thursday of the month."""
+        hour, minute = 19, 0
+        if time_str:
+            try:
+                parsed = date_parser.parse(time_str)
+                hour, minute = parsed.hour, parsed.minute
+            except Exception:
+                pass
+
+        now = datetime.now()
+        for month_offset in range(0, 13):
+            year = now.year + (now.month - 1 + month_offset) // 12
+            month = (now.month - 1 + month_offset) % 12 + 1
+
+            matches = []
+            day = date(year, month, 1)
+            while day.month == month:
+                if day.weekday() == weekday:
+                    matches.append(day)
+                day += timedelta(days=1)
+            if not matches:
+                continue
+
+            index = -1 if ordinal == 'last' else {
+                'first': 0, 'second': 1, 'third': 2, 'fourth': 3
+            }.get(ordinal, 0)
+            if ordinal != 'last' and index >= len(matches):
+                continue
+
+            chosen = matches[index]
+            moment = datetime(chosen.year, chosen.month, chosen.day, hour, minute)
+            if moment >= now:
+                return moment
+        return None
 
     def _next_weekday(self, day_name: str, time_str: str) -> Optional[datetime]:
         days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']

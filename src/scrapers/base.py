@@ -54,6 +54,12 @@ def clean_scraped_text(text: Optional[str]) -> str:
 class BaseScraper(ABC):
     """Abstract base class for event scrapers."""
 
+    # Which tab a scraper's events belong to. 'westside' events must clear the
+    # Westside coverage fence; scrapers that set 'beyond' are hand-picked
+    # venues elsewhere in LA County and are validated against the county
+    # instead, so their events survive to the "beyond the Westside" tab.
+    REGION = 'westside'
+
     def __init__(self, source_name: str):
         """
         Initialize base scraper.
@@ -368,9 +374,23 @@ class BaseScraper(ABC):
             self.log(f"Skipping denylisted venue: '{title}' at {venue_name or address}")
             return None
 
+        # Sources opted into the "beyond" region are curated by hand, so they
+        # only have to land inside LA County rather than the Westside box.
+        if self.REGION == 'beyond':
+            from src.utils.geo_filter import validate_beyond_location
+            is_valid, reason = validate_beyond_location(
+                latitude=latitude,
+                longitude=longitude,
+                address=address,
+                venue_name=venue_name,
+            )
+            if not is_valid:
+                self.log(f"Skipping out-of-county event: '{title}' at {venue_name or address} ({reason})")
+                return None
+
         # Explicitly-included out-of-area venues (e.g. IO Music Academy LA in
         # Hollywood) bypass the coverage-area filter by the owner's choice.
-        if not is_allowlisted_venue(venue_name=venue_name, title=title):
+        elif not is_allowlisted_venue(venue_name=venue_name, title=title):
             # Validate location - filter out events outside Westside/Malibu
             if strict_geo:
                 # Stricter validation for aggregator scrapers (e.g. Shore Hotel).
@@ -416,7 +436,8 @@ class BaseScraper(ABC):
             source_logo_url=self.source_logo_url or "",
             price=price,
             is_free=is_free,
-            price_note=price_note.strip() if price_note else ""
+            price_note=price_note.strip() if price_note else "",
+            region=self.REGION
         )
 
     def clean_text(self, text: Optional[str]) -> str:

@@ -10,6 +10,7 @@ from typing import List, Optional, Set
 
 from dateutil import parser as date_parser
 
+from src.utils.dates import named_weekday, resolve_year
 from .base import BaseScraper
 from src.data.models import Event
 
@@ -138,14 +139,24 @@ class ArcanaBooksScraper(BaseScraper):
         match = re.search(month_pattern, cleaned, flags=re.I)
         candidate = match.group(1) if match else cleaned
 
+        # Parse against a neutral default: dateutil fills missing fields from
+        # `default`, and passing datetime.now() stamped every event with the
+        # scrape's own clock time (and today's date when the text had none).
+        neutral = datetime(datetime.now().year, 1, 1, 0, 0)
         try:
-            parsed = date_parser.parse(candidate, fuzzy=True, default=datetime.now())
+            parsed = date_parser.parse(candidate, fuzzy=True, default=neutral)
         except Exception:
             return None
 
-        # If year wasn't explicit and parsed date is far in the past, push to next year.
-        if not re.search(r'\b20\d{2}\b', candidate):
-            if parsed < (datetime.now() - timedelta(days=60)):
-                parsed = parsed.replace(year=parsed.year + 1)
+        if re.search(r'\b20\d{2}\b', candidate):
+            return parsed
 
-        return parsed
+        # No year in the text. Arcana's blog keeps years of past posts, and
+        # bumping a stale one to next year resurrected it as a future event
+        # ("Saturday 9/27" -- a 2025 Saturday -- became 2026, a Sunday). Use
+        # the weekday the post names as a checksum instead.
+        weekday = named_weekday(text)
+        return resolve_year(
+            parsed.month, parsed.day, weekday=weekday,
+            hour=parsed.hour, minute=parsed.minute,
+        )

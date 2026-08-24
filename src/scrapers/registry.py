@@ -76,6 +76,23 @@ from .smdp import SMDPScraper
 from .winston_house import WinstonHouseScraper
 from .bungalow_sm import BungalowSMScraper
 from .unlikely_collaborators import UnlikelyCollaboratorsScraper
+from .venice_book_club import VeniceBookClubScraper
+from .zinque import ZinqueScraper
+from .crashspace import CrashSpaceScraper
+from .anima_mundi import AnimaMundiScraper
+from .meetup_groups import (
+    PracticalPhilosophyClubScraper,
+    EuropeansMingleScraper,
+    SocialLingoLAScraper,
+    SiliconBeachLocalsScraper,
+    MeetupGroupRxiwtjjqScraper,
+)
+from .momentsapp import CarlsonParkScraper
+from .one_hotel_weho import OneHotelWeHoScraper
+from .hotel_june import HotelJuneScraper
+from .hollywood_roosevelt import HollywoodRooseveltScraper
+from .bodega_wine_bar import BodegaWineBarScraper
+from .vino_y_vinyl import VinoYVinylScraper
 
 
 SCRAPER_MAP: Dict[str, Type] = {
@@ -150,6 +167,21 @@ SCRAPER_MAP: Dict[str, Type] = {
     'corner_door': CornerDoorScraper,
     'boulevard_music': BoulevardMusicScraper,
     'culver_steps': CulverStepsScraper,
+    'venice_book_club': VeniceBookClubScraper,
+    'zinque': ZinqueScraper,
+    'crashspace': CrashSpaceScraper,
+    'anima_mundi': AnimaMundiScraper,
+    'practical_philosophy': PracticalPhilosophyClubScraper,
+    'europeans_mingle': EuropeansMingleScraper,
+    'social_lingo_la': SocialLingoLAScraper,
+    'silicon_beach_locals': SiliconBeachLocalsScraper,
+    'la_social_meetup': MeetupGroupRxiwtjjqScraper,
+    'carlson_park': CarlsonParkScraper,
+    'one_hotel_weho': OneHotelWeHoScraper,
+    'hotel_june': HotelJuneScraper,
+    'hollywood_roosevelt': HollywoodRooseveltScraper,
+    'bodega_wine_bar': BodegaWineBarScraper,
+    'vino_y_vinyl': VinoYVinylScraper,
 }
 
 

@@ -156,6 +156,15 @@ class GeocodingService:
         # breaker and return None instantly (no sleep) for the rest of the run.
         self._consecutive_errors = 0
         self._breaker_tripped = False
+        self._breaker_tripped_at = 0.0
+        # Nominatim's usage policy caps the WHOLE application at 1 request per
+        # second, not 1 per thread. The scraper runner drives this service from
+        # a thread pool, so a per-thread sleep let ~N_THREADS requests/sec
+        # through, earning sustained 429s that tripped the breaker and silently
+        # dropped location data for the rest of the run. Serialize the pacing on
+        # a shared deadline instead.
+        self._throttle_lock = threading.Lock()
+        self._next_request_at = 0.0
 
     def _load_cache(self) -> dict:
         """Load geocoding cache from file."""
@@ -251,18 +260,21 @@ class GeocodingService:
         if cached is not _CACHE_MISS:
             return cached  # coords tuple or None for cached-negative
 
-        # Breaker tripped earlier this run (e.g. Nominatim returning 429): don't
-        # sleep or hit the network, just fail fast so scrapers stay within budget.
-        with self._lock:
-            if self._breaker_tripped:
-                return None
+        # Breaker tripped earlier (e.g. Nominatim returning 429): don't sleep or
+        # hit the network, just fail fast so scrapers stay within budget. The
+        # trip is time-boxed -- rate limiting clears on its own, and a permanent
+        # trip meant one transient burst silently cost the rest of the run its
+        # coordinates.
+        if self._breaker_open():
+            return None
 
         # Cache miss — geocode. Do the network call outside the lock so
         # other threads can read/write the cache concurrently.
         for attempt in range(retry):
             try:
-                # Respect Nominatim's rate limit (1 request per second)
-                time.sleep(1)
+                # Respect Nominatim's rate limit (1 request per second,
+                # application-wide) across every scraper thread.
+                self._await_rate_limit()
 
                 location = self.geolocator.geocode(
                     address,
@@ -296,9 +308,13 @@ class GeocodingService:
                 return None
 
             except GeocoderServiceError as e:
-                # Service errors (notably HTTP 429 rate-limiting) are not
-                # address-specific and won't clear on retry. Count them and trip
-                # the breaker once they pile up so the rest of the run fails fast.
+                # Service errors are not address-specific. Rate-limiting (429)
+                # does clear on its own, so back off and retry before giving up
+                # -- returning immediately used to burn one of the five
+                # consecutive errors that trip the breaker for the whole run.
+                if attempt < retry - 1:
+                    self._back_off(attempt)
+                    continue
                 self._record_service_error()
                 print(f"Geocoding service error for address '{address}': {e}")
                 return None
@@ -309,8 +325,56 @@ class GeocodingService:
 
         return None
 
-    # Consecutive service errors before the breaker trips for the rest of the run.
+    # Minimum seconds between outbound Nominatim requests, application-wide.
+    _MIN_REQUEST_INTERVAL = 1.1
+
+    def _await_rate_limit(self) -> None:
+        """Block until this process is allowed to issue the next request.
+
+        Held under a lock so concurrent scraper threads queue up behind a
+        single shared deadline rather than each pacing themselves.
+        """
+        with self._throttle_lock:
+            now = time.monotonic()
+            wait = self._next_request_at - now
+            if wait > 0:
+                time.sleep(wait)
+                now = time.monotonic()
+            self._next_request_at = now + self._MIN_REQUEST_INTERVAL
+
+    def _back_off(self, attempt: int) -> None:
+        """Push the shared request deadline out after a service error.
+
+        Backing off the shared deadline (rather than sleeping locally) makes
+        every waiting thread inherit the pause, which is what a 429 is asking
+        for.
+        """
+        delay = self._MIN_REQUEST_INTERVAL * (2 ** (attempt + 1))
+        with self._throttle_lock:
+            self._next_request_at = max(
+                self._next_request_at, time.monotonic() + delay
+            )
+
+    # Consecutive service errors before the breaker trips.
     _BREAKER_THRESHOLD = 5
+    # How long the breaker stays open before probing the service again.
+    _BREAKER_COOLDOWN_SECONDS = 120.0
+
+    def _breaker_open(self) -> bool:
+        """Whether geocoding is currently short-circuited.
+
+        Closes the breaker again once the cooldown has elapsed so a long run
+        recovers instead of finishing blind.
+        """
+        with self._lock:
+            if not self._breaker_tripped:
+                return False
+            if time.monotonic() - self._breaker_tripped_at < self._BREAKER_COOLDOWN_SECONDS:
+                return True
+            self._breaker_tripped = False
+            self._consecutive_errors = 0
+            print("Geocoding circuit breaker cooled down; resuming lookups.")
+            return False
 
     def _record_service_error(self) -> None:
         """Track a service-level geocoding failure and trip the breaker if the
@@ -319,10 +383,11 @@ class GeocodingService:
             self._consecutive_errors += 1
             if self._consecutive_errors >= self._BREAKER_THRESHOLD and not self._breaker_tripped:
                 self._breaker_tripped = True
+                self._breaker_tripped_at = time.monotonic()
                 print(
                     "Geocoding circuit breaker tripped after "
                     f"{self._consecutive_errors} consecutive service errors; "
-                    "skipping further geocoding this run."
+                    f"pausing lookups for {self._BREAKER_COOLDOWN_SECONDS:.0f}s."
                 )
 
     def geocode_with_fallback(

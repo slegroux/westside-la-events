@@ -119,6 +119,13 @@ class MeetupScraper(BaseScraper):
         address = "Los Angeles, CA"  # Default fallback
 
         venue_data = event_data.get('venue')
+        # Apollo normalizes nested objects into {'__ref': 'Venue:123'} pointers,
+        # so resolve the reference before reading the venue. Without this every
+        # event silently fell back to a bare "Los Angeles, CA", which loses the
+        # real address and fails the geo filter.
+        if isinstance(venue_data, dict) and '__ref' in venue_data:
+            venue_data = apollo_state.get(venue_data['__ref'], {})
+
         if isinstance(venue_data, dict) and venue_data.get('__typename') == 'Venue':
             venue_name = venue_data.get('name', '')
             street = (venue_data.get('address') or '').strip().rstrip(',')

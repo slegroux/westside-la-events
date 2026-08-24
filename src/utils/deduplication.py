@@ -112,6 +112,53 @@ def normalize_venue(venue: str) -> str:
     return normalized
 
 
+# Two venues further apart than this are treated as genuinely different places
+# when deciding whether similarly-titled events are the same event. Generous
+# enough to tolerate imprecise geocoding of the same building.
+_DIFFERENT_PLACE_KM = 1.0
+
+
+# Below this similarity, two titles name different events -- a shared URL alone
+# will not collapse them.
+_TITLE_COMPATIBILITY = 0.5
+
+
+def titles_compatible(title_a: str, title_b: str) -> bool:
+    """Whether two titles are close enough to be the same listing.
+
+    Venues routinely publish a whole week's programme under a single page URL,
+    so the URL on its own cannot establish identity: "SIGNATURE SATURDAYS" was
+    being absorbed into "WEEKEND KICK OFF" listed 20 hours earlier under the
+    same URL. An absent title cannot contradict the URL, so it passes.
+    """
+    if not title_a or not title_b:
+        return True
+
+    return calculate_similarity(
+        normalize_title(title_a), normalize_title(title_b)
+    ) >= _TITLE_COMPATIBILITY
+
+
+def _at_different_places(event1: Event, event2: Event, scores: dict) -> bool:
+    """Whether coordinates prove two events are at different places.
+
+    Used to stop a title-only match from merging same-named recurring nights
+    held at different venues. Deliberately requires measured coordinates:
+    venue *names* are unreliable evidence of difference, because one source
+    may name the operator ("Center Theatre Group") where another names the
+    room ("Ahmanson Theatre") for the very same event. With no coordinates on
+    both sides this returns False, leaving the original behaviour intact.
+    """
+    lat1, lon1 = getattr(event1, 'latitude', None), getattr(event1, 'longitude', None)
+    lat2, lon2 = getattr(event2, 'latitude', None), getattr(event2, 'longitude', None)
+    if not (lat1 and lon1 and lat2 and lon2):
+        return False
+
+    distance = _geo_distance_km(lat1, lon1, lat2, lon2)
+    scores['geo_distance_km'] = distance
+    return distance > _DIFFERENT_PLACE_KM
+
+
 def events_are_duplicates(
     event1: Event,
     event2: Event,
@@ -153,14 +200,26 @@ def events_are_duplicates(
         'match_method': None,
     }
 
-    # PRIORITY 1: Check for exact URL match FIRST (most reliable indicator)
-    # This is checked before everything else to avoid expensive comparisons
+    # PRIORITY 1: exact URL match, provided the titles don't contradict it.
+    # A shared URL is the strongest signal available, but it is not proof: many
+    # venues hang every event on one page URL, and treating those as one event
+    # silently deletes a night's programme.
     if event1.url and event2.url and event1.url.strip() == event2.url.strip():
+        # Sharing both a URL and a start time means one event described twice,
+        # whatever the titles say. Once the times diverge, the titles have to
+        # agree too -- otherwise one night's programme absorbs the next night's
+        # off a shared page URL.
+        same_moment = (
+            event1.event_date is not None
+            and event2.event_date is not None
+            and abs((event1.event_date - event2.event_date).total_seconds()) < 3600
+        )
+        if same_moment or titles_compatible(event1.title, event2.title):
+            scores['same_url'] = True
+            scores['same_source'] = event1.source == event2.source
+            scores['match_method'] = 'url'
+            return True, scores
         scores['same_url'] = True
-        scores['same_source'] = event1.source == event2.source
-        scores['match_method'] = 'url'
-        # Same URL = same event, regardless of source or date
-        return True, scores
 
     # Check if both events have dates
     if not event1.event_date or not event2.event_date:
@@ -218,10 +277,15 @@ def events_are_duplicates(
         scores['venue_similarity'] = calculate_similarity(venue1, venue2)
 
     # Decision logic:
-    # 1. Very similar titles = duplicate
+    # 1. Very similar titles = duplicate -- unless the two events are plainly at
+    #    different places. Recurring nights share names across venues ("Trivia
+    #    Night", "Happy Hour", "Wino Wednesdays" vs "Wine Wednesdays"), and
+    #    matching on title alone silently merged one venue's schedule into
+    #    another's.
     if scores['title_similarity'] >= title_threshold:
-        scores['match_method'] = 'title'
-        return True, scores
+        if not _at_different_places(event1, event2, scores):
+            scores['match_method'] = 'title'
+            return True, scores
 
     # 2. Somewhat similar titles + matching venues = duplicate
     if scores['title_similarity'] >= 0.7 and scores['venue_similarity'] >= venue_threshold:
@@ -347,6 +411,10 @@ def merge_event_data(primary: Event, secondary: Event) -> Event:
         price=secondary.price if secondary.price is not None else primary.price,
         is_free=secondary.is_free if secondary.is_free is not None else primary.is_free,
         price_note=secondary.price_note,  # Always use secondary's price_note (may be empty to clear old value)
+        # Region follows the primary, whose source is the one being kept. Left
+        # unset it would fall back to the 'westside' default, quietly moving a
+        # curated out-of-area event into the main tab on the next re-scrape.
+        region=getattr(primary, 'region', None) or getattr(secondary, 'region', None) or 'westside',
         created_at=primary.created_at,
         updated_at=datetime.now()
     )

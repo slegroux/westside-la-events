@@ -6,7 +6,8 @@ from fasthtml.common import *
 from src.web.state import track_page_view
 from src.web.components import (
     page_head, page_header, page_footer,
-    htmx_loading_indicator, top_filter_bar, filter_tallies_section, events_list
+    htmx_loading_indicator, top_filter_bar, filter_tallies_section, events_list,
+    region_tabs
 )
 
 
@@ -14,13 +15,15 @@ def setup_routes(rt, state):
     """Register the home page route."""
 
     @rt('/')
-    def home_page(request, session):
+    def home_page(request, session, region: str = 'westside'):
         """Home page with search and map."""
         # Track page view
         track_page_view(request, session, '/')
 
         # Get initial events - default to "upcoming"
-        initial_events = state.search.search(date_filter='upcoming', limit=100)
+        initial_events = state.search.search(
+            date_filter='upcoming', region=region, limit=100
+        )
 
         # Live counts for the header. Cheap two-row query so the count
         # also includes multi-day events that are currently running today.
@@ -45,8 +48,11 @@ def setup_routes(rt, state):
                 # date, time-of-day, categories, free, and venues sit in the top bar.
                 Div(
                     Form(
+                        # Region tab strip sits above the filters; switching it
+                        # re-runs the current search against the other region.
+                        region_tabs(active=region),
                         # Primary filters across the top: search + date + categories
-                        top_filter_bar(),
+                        top_filter_bar(region=region),
                         Main(
                                 # The List/Map view toggle now lives top-right in
                                 # top_filter_bar(); it targets #view-container below.

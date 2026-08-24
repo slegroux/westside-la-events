@@ -32,10 +32,11 @@ def setup_routes(rt, state):
         specific_date: str = '',
         favorites_only: str = '',
         time_of_day: List[str] = None,
+        region: str = 'westside',
         session=None
     ):
         """HTMX endpoint to get events list HTML fragment."""
-        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session, time_of_day=time_of_day)
+        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session, time_of_day=time_of_day, region=region)
         # Return just the HTML fragment without full page wrapper
         result = events_list(events, session)
         return HTMLResponse(to_xml(result))
@@ -51,11 +52,12 @@ def setup_routes(rt, state):
         specific_date: str = '',
         favorites_only: str = '',
         time_of_day: List[str] = None,
+        region: str = 'westside',
         session=None
     ):
         """HTMX endpoint to switch to list view."""
         # Get current events based on active filters
-        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session, time_of_day=time_of_day)
+        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session, time_of_day=time_of_day, region=region)
 
         result = Div(
             # Map Container (hidden)
@@ -93,11 +95,12 @@ def setup_routes(rt, state):
         specific_date: str = '',
         favorites_only: str = '',
         time_of_day: List[str] = None,
+        region: str = 'westside',
         session=None
     ):
         """HTMX endpoint to switch to map view."""
         # Get current events based on active filters
-        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session, time_of_day=time_of_day)
+        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session, time_of_day=time_of_day, region=region)
 
         result = Div(
             # Map Container (visible) - explicit height required for Leaflet
@@ -153,13 +156,14 @@ def setup_routes(rt, state):
         specific_date: str = '',
         favorites_only: str = '',
         time_of_day: List[str] = None,
+        region: str = 'westside',
         session=None
     ):
         """HTMX endpoint that updates all filter-related sections using OOB swaps."""
         logger.info(f"Search query: '{q}', date_filter: {date_filter}, categories: {category}, sources: {source}, venues: {venue}")
 
         # Get events list
-        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session, time_of_day=time_of_day)
+        events = _fetch_events(q, date_filter, category, source, venue, free_only, specific_date, favorites_only, session, time_of_day=time_of_day, region=region)
         logger.info(f"Found {len(events)} events for query '{q}'")
 
         # Track search
@@ -182,7 +186,7 @@ def setup_routes(rt, state):
 
         # Get filter tallies (sidebar: venues/free/favorites) and the top
         # category pill bar — both refreshed via OOB swaps below.
-        tallies_html = filter_tallies_section(date_filter, category, source, venue, free_only, specific_date, favorites_only)
+        tallies_html = filter_tallies_section(date_filter, category, source, venue, free_only, specific_date, favorites_only, region=region)
         category_bar_html = category_filter_bar(date_filter, category, source, venue, free_only, specific_date, favorites_only, oob=True)
 
         # Get date picker
@@ -284,6 +288,7 @@ def setup_routes(rt, state):
         specific_date: str = '',
         favorites_only: str = '',
         time_of_day: List[str] = None,
+        region: str = 'westside',
         limit: int = config.MAP_MAX_EVENTS,
         session=None
     ):
@@ -296,7 +301,7 @@ def setup_routes(rt, state):
         limit = max(1, min(limit, config.MAP_MAX_EVENTS))
         events = _fetch_events(q, date_filter, category, source, venue,
                                free_only, specific_date, favorites_only, session,
-                               time_of_day=time_of_day, limit=limit)
+                               time_of_day=time_of_day, region=region, limit=limit)
         return JSONResponse([event.to_dict() for event in events])
 
     @rt('/api/events/{event_id}/calendar')

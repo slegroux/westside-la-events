@@ -181,6 +181,12 @@ def insert_events_to_db(db: Database, results: List[ScraperResult]) -> Dict[str,
     total_skipped = 0
     total_scraped = 0
 
+    # Rows this run vouched for, keyed by the source name stored on events.
+    # Keyed by that rather than the registry name because a source name is what
+    # the events table records, and two scrapers may share one.
+    touched: Dict[str, set] = {}
+    prunable: set = set()
+
     for result in results:
         if not result.success:
             continue
@@ -194,19 +200,51 @@ def insert_events_to_db(db: Database, results: List[ScraperResult]) -> Dict[str,
                 skipped += 1
             elif event_id:
                 saved += 1
+            if event_id:
+                touched.setdefault(event.source, set()).add(event_id)
 
         total_saved += saved
         total_skipped += skipped
         total_scraped += result.count
 
         if result.count > 0:
+            # A scrape that came back empty proves nothing about the source --
+            # it is equally the signature of a broken selector -- so only a
+            # productive run earns the right to retire that source's old rows.
+            prunable.update(event.source for event in result.events)
             print(f"✓ [{result.source}] {saved} saved, {skipped} skipped")
+
+    total_pruned = prune_stale_events(db, touched, prunable)
 
     return {
         'saved': total_saved,
         'skipped': total_skipped,
+        'pruned': total_pruned,
         'total': total_scraped
     }
+
+
+def prune_stale_events(db: Database, touched: Dict[str, set], prunable: set) -> int:
+    """Retire future events a source has stopped listing.
+
+    Sources drop events all the time (a date passes, a series is cancelled, a
+    listing is corrected). Nothing previously removed those rows, so they
+    accumulated: one Oktoberfest listing reached prod 14 times over, each run
+    adding another copy.
+    """
+    if not prunable:
+        return 0
+
+    total = 0
+    for source in sorted(prunable):
+        removed = db.prune_stale_events(source, touched.get(source, set()))
+        if removed:
+            total += removed
+            print(f"  [{source}] retired {removed} stale event(s)")
+
+    if total:
+        print(f"\nRetired {total} stale event(s) no longer listed by their source")
+    return total
 
 
 async def main_async():

@@ -845,12 +845,13 @@ def filter_tallies_section(
     venue: List[str] = None,
     free_only: str = '',
     specific_date: str = '',
-    favorites_only: str = ''
+    favorites_only: str = '',
+    region: str = 'westside'
 ):
     """Render the category and venue filter checkboxes with counts - always visible."""
     from src.web.services import _get_filter_tallies
     available_categories, available_venues, free_events_count = _get_filter_tallies(
-        date_filter, category, source, venue, free_only, specific_date
+        date_filter, category, source, venue, free_only, specific_date, region=region
     )
 
     # For HTMX requests that update tallies, we also need to preserve the checked state
@@ -975,7 +976,44 @@ def category_filter_bar(
     return Div(free_pill, *pills, **attrs)
 
 
-def top_filter_bar():
+def region_tabs(active: str = 'westside'):
+    """Westside / Beyond tab strip.
+
+    The active region rides along in a hidden input so it is picked up by the
+    same `hx_include='closest form'` every other filter uses -- switching tabs
+    then re-runs the current search against the other region rather than
+    resetting the user's filters.
+    """
+    tabs = (
+        ('westside', 'Westside'),
+        ('beyond', 'Beyond the Westside'),
+    )
+    return Div(
+        Input(type='hidden', name='region', id='region-input', value=active),
+        *[
+            Button(
+                label,
+                type='button',
+                cls=f'region-tab{" active" if value == active else ""}',
+                **{'data-region': value},
+                onclick=(
+                    "document.getElementById('region-input').value = this.dataset.region;"
+                    "this.parentElement.querySelectorAll('.region-tab')"
+                    ".forEach(function(b){b.classList.toggle('active', b === this);}, this);"
+                ),
+                hx_get='/filters/update-all',
+                hx_target='#events-container',
+                hx_include='closest form, #header-search',
+                hx_indicator='#loading-indicator',
+            )
+            for value, label in tabs
+        ],
+        cls='region-tabs',
+        role='tablist',
+    )
+
+
+def top_filter_bar(region: str = 'westside'):
     """Primary filter bar above the results: search + date + category pills.
 
     Lives inside the page-spanning filter <form> (see the home route) so every
@@ -1034,7 +1072,7 @@ def top_filter_bar():
                     type='button', cls='venues-toggle', onclick='toggleVenues(event)',
                     **{'aria-haspopup': 'true', 'aria-expanded': 'false', 'aria-label': 'Filter by venue'}
                 ),
-                Div(filter_tallies_section(), cls='venues-popover', id='venues-popover'),
+                Div(filter_tallies_section(region=region), cls='venues-popover', id='venues-popover'),
                 cls='venues-filter',
             ),
             Button('Clear', type='button', cls='clear-filters-btn', onclick='clearAllFilters()'),
@@ -1064,7 +1102,7 @@ def top_filter_bar():
     )
 
 
-def search_section():
+def search_section(region: str = 'westside'):
     """Search and filter section component."""
     return Form(
         Div(
@@ -1115,7 +1153,7 @@ def search_section():
                 cls='filters-primary-row'
             ),
             # Filter tallies section that will be dynamically updated
-            filter_tallies_section(),
+            filter_tallies_section(region=region),
             cls='filters'
         ),
         cls='search-section',

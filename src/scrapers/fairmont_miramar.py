@@ -5,6 +5,7 @@ Source: https://www.fairmont-miramar.com/explore/events-calendar/
 Fairmont Miramar is a landmark oceanfront hotel in Santa Monica offering
 live music, jazz nights, afternoon tea, holiday events, and seasonal experiences.
 """
+import json
 import re
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
@@ -135,8 +136,19 @@ class FairmontMiramarScraper(BaseScraper):
         is_weekly = 'WEEKLY' in frequency or 'WEEKLY' in date_text.upper()
 
         if is_weekly:
-            # Generate next 4 occurrences based on day-of-week in description
-            dates = self._weekly_dates(description, title, time_text)
+            # A "WEEKLY" card with no day named is undated as far as this page
+            # goes, but the Book Now link often points at a ticketed listing
+            # that does publish real dates. Prefer that over any inference.
+            booking_date = self._booking_date(card)
+            if booking_date:
+                dates = [(booking_date, None)]
+            else:
+                dates = self._weekly_dates(description, title, time_text)
+                if not dates:
+                    self.log(
+                        f"Skipping '{title}': listed WEEKLY with no day of week "
+                        "and no dated booking link"
+                    )
         else:
             # Specific date like "May 08" or "Oct 02"
             dt = self._parse_specific_date(date_text, time_text)
@@ -154,11 +166,53 @@ class FairmontMiramarScraper(BaseScraper):
                 url=url,
                 image_url=image_url,
                 category=category,
-                price_note='TBD',
+                price_note='',
             )
             if event:
                 results.append(event)
         return results
+
+    def _booking_date(self, card) -> Optional[datetime]:
+        """Read the real start date from a linked Eventbrite booking page.
+
+        Only Eventbrite is consulted: the other Book Now targets are OpenTable
+        restaurant pages, which carry no event date at all.
+        """
+        link = None
+        for a in card.find_all('a', href=True):
+            if 'eventbrite.' in a['href']:
+                link = a['href']
+                break
+        if not link:
+            return None
+
+        html = self.fetch_page(link)
+        if not html:
+            return None
+
+        for block in re.findall(
+            r'<script type="application/ld\+json"[^>]*>(.*?)</script>', html, re.S
+        ):
+            try:
+                data = json.loads(block)
+            except json.JSONDecodeError:
+                continue
+            # Eventbrite tags listings with schema.org Event *subtypes*
+            # (SocialEvent, MusicEvent, ...), so match the family rather than
+            # the bare 'Event' type.
+            types = data.get('@type') or ''
+            if isinstance(types, str):
+                types = [types]
+            if not any(str(t).endswith('Event') for t in types):
+                continue
+            raw = data.get('startDate')
+            if not raw:
+                continue
+            try:
+                return date_parser.parse(raw)
+            except (ValueError, OverflowError):
+                return None
+        return None
 
     def _parse_specific_date(self, date_text: str, time_text: str) -> Optional[datetime]:
         """Parse a date like 'May 08' or 'Oct 02' with an optional time."""
@@ -195,15 +249,12 @@ class FairmontMiramarScraper(BaseScraper):
                 pass
 
         if target_weekday is None:
-            # No day found — just return next 4 weekly slots starting today
-            dates = []
-            d = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            if d < now:
-                d += timedelta(days=1)
-            for _ in range(4):
-                dates.append((d, None))
-                d += timedelta(weeks=1)
-            return dates
+            # The card says WEEKLY but never says which day. Anchoring the
+            # series to "today" invented a date -- it put Oktoberfest on the
+            # evening of whichever day the scrape happened to run, and the day
+            # drifted from run to run. Without a published day there is nothing
+            # to schedule, so emit nothing and let the caller log it.
+            return []
 
         # Advance to next occurrence of target_weekday
         days_ahead = (target_weekday - now.weekday()) % 7

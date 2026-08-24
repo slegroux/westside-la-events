@@ -567,6 +567,113 @@ EVENT_SOURCES = {
     # silently never ran them. A scraper missing from EVENT_SOURCES is dead code
     # that looks alive: it fails no test and logs no error. All four are Santa
     # Monica venues whose events pass the geo filter.
+    'venice_book_club': {
+        'name': 'Venice Book Club',
+        'url': 'https://luma.com/venicebookclub',
+        'enabled': True,
+        'uses_api': True,
+        'note': 'Luma calendar; book club meetups around Venice/Mar Vista (often at Saba Coffee Shop)'
+    },
+    'zinque': {
+        'name': 'Zinqué',
+        'url': 'https://lezinque.com/community',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'French restaurant group; live music, DJ nights and aperitivo at the Venice and Malibu locations'
+    },
+    'crashspace': {
+        'name': 'CRASH Space',
+        'url': 'https://blog.crashspace.org/events/',
+        'enabled': True,
+        'uses_api': True,
+        'note': 'Culver City hackerspace; reads the public Google Calendar ICS feed'
+    },
+    'anima_mundi': {
+        'name': 'Anima Mundi Herbals',
+        'url': 'https://animamundiherbals.com/pages/event-calendar',
+        'enabled': True,
+        'uses_api': True,
+        'note': 'Venice apothecary (417 Rose Ave); ticketed ceremonies and workshops sold as Shopify products'
+    },
+    'practical_philosophy': {
+        'name': 'Practical Philosophy Club',
+        'url': 'https://www.meetup.com/practical-philosophy-club-los-angeles/events/',
+        'enabled': True,
+        'uses_api': False,
+        'note': "Weekly philosophy discussion at Father's Office, Helms Bakery District, Culver City"
+    },
+    'carlson_park': {
+        'name': 'Dr Paul Carlson Park',
+        'url': 'https://momentsapp.no/events/los-angeles/venue/dr-paul-carlson-park',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Culver City park; free recurring community classes listed via Moments JSON-LD'
+    },
+    'one_hotel_weho': {
+        'name': '1 Hotel West Hollywood',
+        'url': 'https://www.1hotels.com/west-hollywood/do/events',
+        'enabled': True,
+        'uses_api': False,
+        'region': 'beyond',
+        'note': 'Sunset Blvd hotel; wellness, rooftop and pool programming (JS-rendered Drupal view)'
+    },
+    'hotel_june': {
+        'name': 'Hotel June',
+        'url': 'https://www.thehoteljune.com/west-los-angeles/happenings/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'West LA hotel (8639 Lincoln Blvd); weekly programming at Caravan Cantina, read from JSON-LD'
+    },
+    'europeans_mingle': {
+        'name': 'Europeans Mingle',
+        'url': 'https://www.meetup.com/europeans-mingle-meetup-group/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Social mixers and beach meetups around Santa Monica'
+    },
+    'hollywood_roosevelt': {
+        'name': 'The Hollywood Roosevelt',
+        'url': 'https://www.thehollywoodroosevelt.com/happenings/',
+        'enabled': True,
+        'uses_api': False,
+        'region': 'beyond',
+        'note': 'Hollywood hotel; cabaret, magic, pool parties. Outside the Westside box, shown in the beyond tab'
+    },
+    'social_lingo_la': {
+        'name': 'Social Lingo LA',
+        'url': 'https://www.meetup.com/social-lingo-la/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Language-exchange socials around the Westside'
+    },
+    'silicon_beach_locals': {
+        'name': 'Silicon Beach Locals',
+        'url': 'https://www.meetup.com/silicon-beach-locals-meetup-group/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Tech and founder meetups in the Silicon Beach corridor'
+    },
+    'la_social_meetup': {
+        'name': 'LA Social Meetup',
+        'url': 'https://www.meetup.com/meetup-group-rxiwtjjq/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Meetup group with an auto-generated slug; social events around LA'
+    },
+    'bodega_wine_bar': {
+        'name': 'Bodega Wine Bar',
+        'url': 'https://bodegawinebar.com/specials',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Santa Monica wine bar; weekly specials transcribed from poster images, gated on those posters still being published'
+    },
+    'vino_y_vinyl': {
+        'name': 'Vino Y Vinyl',
+        'url': 'https://www.universe.com/users/6966c1ee369af8002bc61683',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Wine + live music + vinyl pop-ups, usually at Saba Surf & Cafe; ticketed via Universe'
+    },
     'brightside': {
         'name': 'Brightside California Kitchen',
         'url': 'https://brightsidecaliforniakitchen.com/events',

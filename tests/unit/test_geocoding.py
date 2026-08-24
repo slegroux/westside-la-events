@@ -17,6 +17,8 @@ exercise ``get_geocoding_service()``.
 """
 import os
 
+import time
+
 import pytest
 
 import config
@@ -356,14 +358,22 @@ class TestGeocodeErrorHandling:
         # behavior: the key is absent so the next call retries the network.
         assert "times out" not in svc.cache
 
-    def test_service_error_returns_none_immediately(self, service_factory):
+    def test_service_error_retries_then_gives_up(self, service_factory):
         fake = _FakeGeolocator(geocode_exc=GeocoderServiceError("503"))
         svc, fake = service_factory(fake=fake)
         result = svc.geocode("Service Error", retry=3)
         assert result is None
-        # Service errors do not retry — single attempt.
-        assert fake.calls == 1
+        # Rate limiting (429) clears on its own, so back off and retry rather
+        # than burning a breaker slot on the first failure.
+        assert fake.calls == 3
         assert "service error" not in svc.cache
+
+    def test_service_error_counts_once_toward_breaker(self, service_factory):
+        fake = _FakeGeolocator(geocode_exc=GeocoderServiceError("429"))
+        svc, fake = service_factory(fake=fake)
+        svc.geocode("Rate Limited", retry=3)
+        # Three attempts, but only one exhausted lookup, so one strike.
+        assert svc._consecutive_errors == 1
 
     def test_unexpected_exception_returns_none(self, service_factory):
         fake = _FakeGeolocator(geocode_exc=ValueError("boom"))
@@ -372,6 +382,85 @@ class TestGeocodeErrorHandling:
         assert result is None
         assert fake.calls == 1
         assert "kaboom" not in svc.cache
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting and circuit breaker
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestRateLimiting:
+    """Nominatim's 1 req/sec cap applies to the whole application."""
+
+    def test_throttle_paces_successive_requests(self, monkeypatch, service_factory):
+        """Each caller waits out the previous request's interval.
+
+        The pacing state is shared, so N concurrent scraper threads issue one
+        request per interval between them -- not one request per interval each,
+        which is what earned sustained 429s.
+        """
+        svc, _ = service_factory()
+        svc._MIN_REQUEST_INTERVAL = 1.1
+
+        slept = []
+        monkeypatch.setattr(
+            geocoding.time, "sleep", lambda seconds: slept.append(seconds)
+        )
+
+        # First call has no predecessor to wait for.
+        svc._await_rate_limit()
+        assert slept == []
+
+        # Later calls inherit the deadline the earlier ones pushed forward,
+        # even though nothing actually slept to advance the clock.
+        svc._await_rate_limit()
+        svc._await_rate_limit()
+        assert len(slept) == 2
+        assert all(0 < s <= 1.1 for s in slept), slept
+
+    def test_scrapers_share_one_throttled_service(self):
+        """Pacing only works if every caller goes through the same instance.
+
+        Scrapers reach geocoding via get_geocoding_service(); if that handed
+        out per-scraper instances, each would pace itself independently and the
+        application-wide limit would be violated again.
+        """
+        first = geocoding.get_geocoding_service()
+        second = geocoding.get_geocoding_service()
+        assert first is second
+        assert first._throttle_lock is second._throttle_lock
+
+    def test_backoff_delays_the_shared_deadline(self, service_factory):
+        svc, _ = service_factory()
+        svc._MIN_REQUEST_INTERVAL = 1.0
+        before = svc._next_request_at
+        svc._back_off(attempt=0)
+        assert svc._next_request_at > before
+
+
+@pytest.mark.unit
+class TestCircuitBreaker:
+    def test_breaker_opens_after_threshold(self, service_factory):
+        svc, _ = service_factory()
+        for _ in range(svc._BREAKER_THRESHOLD):
+            svc._record_service_error()
+        assert svc._breaker_open() is True
+
+    def test_breaker_closes_after_cooldown(self, service_factory):
+        """A transient burst must not cost the rest of the run its coordinates."""
+        svc, _ = service_factory()
+        svc._BREAKER_COOLDOWN_SECONDS = 0.0
+        for _ in range(svc._BREAKER_THRESHOLD):
+            svc._record_service_error()
+        assert svc._breaker_open() is False
+        assert svc._consecutive_errors == 0
+
+    def test_open_breaker_short_circuits_lookups(self, service_factory):
+        svc, fake = service_factory()
+        for _ in range(svc._BREAKER_THRESHOLD):
+            svc._record_service_error()
+        assert svc.geocode("Somewhere In Santa Monica") is None
+        assert fake.calls == 0
 
 
 # ---------------------------------------------------------------------------

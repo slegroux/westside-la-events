@@ -27,7 +27,8 @@ def _get_filter_tallies(
     source: List[str] = None,
     venue: List[str] = None,
     free_only: str = '',
-    specific_date: str = ''
+    specific_date: str = '',
+    region: str = 'westside'
 ):
     """
     Get category and venue tallies based on current filters.
@@ -46,6 +47,7 @@ def _get_filter_tallies(
             'venue': sorted(venue) if venue else [],
             'free_only': free_only,
             'specific_date': specific_date,
+            'region': region,
         }.items())).encode()
     ).hexdigest()
 
@@ -63,6 +65,7 @@ def _get_filter_tallies(
             sources=source,
             free_only=free_only,
             specific_date=specific_date,
+            region=region,
             min_venue_count=3
         )
     except Exception as e:
@@ -85,6 +88,7 @@ def _fetch_events(
     favorites_only: str = '',
     session=None,
     time_of_day: List[str] = None,
+    region: str = 'westside',
     limit: int = 100
 ) -> List[Event]:
     """
@@ -100,6 +104,7 @@ def _fetch_events(
         specific_date: Specific date in YYYY-MM-DD format (when date_filter is 'specific_date')
         favorites_only: Show favorites only ('true' or empty string)
         session: Session object for accessing favorites
+        region: Which tab's events to return ('westside' or 'beyond')
         limit: Maximum number of events to return
 
     Returns:
@@ -138,6 +143,7 @@ def _fetch_events(
                 venues=venues,
                 is_free=is_free,
                 times_of_day=times_of_day,
+                region=region,
                 limit=limit
             )
         except ValueError:
@@ -150,6 +156,7 @@ def _fetch_events(
                 venues=venues,
                 is_free=is_free,
                 times_of_day=times_of_day,
+                region=region,
                 limit=limit
             )
     else:
@@ -161,6 +168,7 @@ def _fetch_events(
             venues=venues,
             is_free=is_free,
             times_of_day=times_of_day,
+            region=region,
             limit=limit
         )
 

@@ -6,7 +6,7 @@ import re
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Set
 from contextlib import contextmanager
 
 from .models import Event
@@ -16,6 +16,7 @@ from src.utils.deduplication import (
     merge_event_data,
     normalize_title,
     normalize_venue,
+    titles_compatible,
 )
 import config
 
@@ -190,6 +191,15 @@ class Database:
             except sqlite3.OperationalError:
                 pass  # Column already exists
 
+            try:
+                # 'westside' for the core coverage area, 'beyond' for curated
+                # sources elsewhere in LA County shown in their own tab.
+                cursor.execute(
+                    "ALTER TABLE events ADD COLUMN region TEXT DEFAULT 'westside'"
+                )
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
             # Create indexes for common queries
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_event_date
@@ -341,13 +351,13 @@ class Database:
                     title, description, venue_name, address,
                     latitude, longitude, event_date, end_date,
                     category, source, url, image_url, source_logo_url,
-                    price, is_free, price_note
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    price, is_free, price_note, region
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 event.title, event.description, event.venue_name, event.address,
                 event.latitude, event.longitude, event.event_date, event.end_date,
                 event.category, event.source, event.url, event.image_url, event.source_logo_url,
-                event.price, event.is_free, event.price_note
+                event.price, event.is_free, event.price_note, event.region
             ))
             return cursor.lastrowid, False
 
@@ -363,14 +373,14 @@ class Database:
                     title = ?, description = ?, venue_name = ?, address = ?,
                     latitude = ?, longitude = ?, event_date = ?, end_date = ?,
                     category = ?, source = ?, url = ?, image_url = ?, source_logo_url = ?,
-                    price = ?, is_free = ?, price_note = ?,
+                    price = ?, is_free = ?, price_note = ?, region = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             """, (
                 event.title, event.description, event.venue_name, event.address,
                 event.latitude, event.longitude, event.event_date, event.end_date,
                 event.category, event.source, event.url, event.image_url, event.source_logo_url,
-                event.price, event.is_free, event.price_note,
+                event.price, event.is_free, event.price_note, event.region,
                 event.id
             ))
             return cursor.rowcount > 0
@@ -480,6 +490,7 @@ class Database:
         max_lng: Optional[float] = None,
         is_free: Optional[bool] = None,
         times_of_day: Optional[List[str]] = None,
+        region: Optional[str] = None,
         limit: int = 100,
         offset: int = 0
     ) -> List[Event]:
@@ -537,6 +548,15 @@ class Database:
                 params.extend(categories)
 
             # Sources
+            if region:
+                # Events predating the region column default to the Westside
+                # tab, so a NULL counts as 'westside' rather than vanishing.
+                if region == 'westside':
+                    conditions.append("(region IS NULL OR region = 'westside')")
+                else:
+                    conditions.append("region = ?")
+                    params.append(region)
+
             if sources:
                 placeholders = ','.join('?' * len(sources))
                 conditions.append(f"source IN ({placeholders})")
@@ -610,6 +630,7 @@ class Database:
         sources: Optional[List[str]] = None,
         free_only: str = '',
         specific_date: str = '',
+        region: Optional[str] = None,
         min_venue_count: int = 3
     ) -> Tuple[Dict[str, int], List[Tuple[str, int]], int]:
         """
@@ -629,6 +650,17 @@ class Database:
 
             # Always filter out NULL sources and categories
             base_conditions = ["source IS NOT NULL", "category IS NOT NULL"]
+
+            # Keep the tallies on the same side of the region split as the
+            # results, so a tab never offers venue/category filters for events
+            # it cannot show. base_conditions is reused by three queries that
+            # each carry their own parameter list, so this condition is kept
+            # parameter-free -- a bound value here would misalign the
+            # placeholders in the free-count query.
+            if region == 'westside':
+                base_conditions.append("(region IS NULL OR region = 'westside')")
+            elif region == 'beyond':
+                base_conditions.append("region = 'beyond'")
 
             # Apply Westside geographic filtering if enabled
             # Allow events with NULL coordinates to pass through (can't be geographically filtered)
@@ -715,6 +747,41 @@ class Database:
             free_events_count = result[0] if result else 0
 
         return available_categories, available_venues, free_events_count
+
+    def prune_stale_events(self, source: str, keep_ids: Set[int]) -> int:
+        """Drop a source's future events that its latest scrape no longer lists.
+
+        Without this, an event that disappears from its source lives in the
+        database forever: prod accumulated 14 copies of one Oktoberfest listing
+        because each run added a fresh row and nothing ever retired the old
+        ones.
+
+        Only future events are considered -- past events are the archive and
+        are left alone. Callers must not invoke this for a scrape that failed
+        or returned nothing, or a transient outage would wipe the source.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            rows = cursor.execute(
+                "SELECT id FROM events "
+                "WHERE source = ? AND event_date >= datetime('now', 'localtime')",
+                (source,),
+            ).fetchall()
+
+            stale = [row[0] for row in rows if row[0] not in keep_ids]
+            if not stale:
+                return 0
+
+            # Chunked to stay clear of SQLite's variable limit.
+            removed = 0
+            for start in range(0, len(stale), 500):
+                chunk = stale[start:start + 500]
+                placeholders = ','.join('?' * len(chunk))
+                cursor.execute(
+                    f"DELETE FROM events WHERE id IN ({placeholders})", chunk
+                )
+                removed += cursor.rowcount
+            return removed
 
     def get_all_events(self, limit: Optional[int] = None, offset: int = 0) -> List[Event]:
         """Get all events with optional pagination."""
@@ -817,6 +884,26 @@ class Database:
                         ) / 3600.0
                         if diff_h >= 24:
                             continue  # different occurrence, keep looking
+
+                    # A shared URL plus a shared start time is one event
+                    # described twice. Once the times differ, the titles must
+                    # agree too -- venues publish a whole week's programme
+                    # under one page URL, and without this "SIGNATURE
+                    # SATURDAYS" (Sat 4pm) was absorbed into "WEEKEND KICK OFF"
+                    # (Fri 8pm) 20 hours earlier. Mirrors the rule in
+                    # events_are_duplicates() so both paths agree.
+                    same_moment = (
+                        existing_event.event_date is not None
+                        and event.event_date is not None
+                        and abs(
+                            (existing_event.event_date - event.event_date).total_seconds()
+                        ) < 3600
+                    )
+                    if not same_moment and not titles_compatible(
+                        existing_event.title, event.title
+                    ):
+                        continue
+
                     scores = {
                         'same_url': True,
                         'same_source': existing_event.source == event.source,
@@ -920,6 +1007,7 @@ class Database:
             price=safe_get('price'),
             is_free=bool(safe_get('is_free', 0)),
             price_note=safe_get('price_note', ''),
+            region=safe_get('region', 'westside') or 'westside',
             created_at=datetime.fromisoformat(row['created_at']) if row['created_at'] else None,
             updated_at=datetime.fromisoformat(row['updated_at']) if row['updated_at'] else None
         )

@@ -89,6 +89,47 @@ WESTSIDE_VENUE_ALLOWLIST = (
     'io music academy',     # Hollywood DJ/production academy (ra.co/clubs/282834)
 )
 
+# Los Angeles County bounding box, used for the "beyond the Westside" region.
+# Sources opted into that region skip the Westside fence but still have to land
+# somewhere in the county, so a mis-geocoded venue can't drop an event in
+# another state.
+LA_COUNTY_BOUNDS = {
+    'north': 34.8233,   # Antelope Valley / Kern County line
+    'south': 33.6900,   # Long Beach / San Pedro coast
+    'east': -117.6460,  # San Bernardino County line
+    'west': -118.9520,  # Malibu / Ventura County line
+}
+
+# Region identifiers stored on each event.
+REGION_WESTSIDE = 'westside'
+REGION_BEYOND = 'beyond'
+
+
+def is_in_la_county(latitude: float, longitude: float) -> bool:
+    """Check whether coordinates fall inside Los Angeles County."""
+    return (
+        LA_COUNTY_BOUNDS['south'] <= latitude <= LA_COUNTY_BOUNDS['north'] and
+        LA_COUNTY_BOUNDS['west'] <= longitude <= LA_COUNTY_BOUNDS['east']
+    )
+
+
+def validate_beyond_location(latitude: Optional[float] = None,
+                             longitude: Optional[float] = None,
+                             address: Optional[str] = None,
+                             venue_name: Optional[str] = None) -> Tuple[bool, str]:
+    """Validate an event from a source opted into the "beyond" region.
+
+    These sources are curated by hand, so the bar is only that the event is
+    somewhere in LA County. Coordinates decide when we have them; without them
+    we accept the event rather than discard a hand-picked source's listing.
+    """
+    if latitude is not None and longitude is not None:
+        if is_in_la_county(latitude, longitude):
+            return True, "in_la_county"
+        return False, "outside_la_county"
+    return True, "beyond_source_unlocated"
+
+
 # Reference point: Santa Monica Pier
 SANTA_MONICA_PIER = (34.0095, -118.4977)
 MAX_DISTANCE_MILES = 12  # Radius to consider "Westside" (covers Malibu, excludes Hollywood/DTLA)

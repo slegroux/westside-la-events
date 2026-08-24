@@ -39,31 +39,35 @@ class LACMAScraper(BaseScraper):
 
             soup = self.parse_html(html)
 
-            # Restrict to the calendar section. The /events page also contains a
+            # Restrict to the calendar sections. The /events page also contains a
             # second listing of static category links (Exhibitions, Film, etc.)
             # that have no dates and would otherwise be returned as undated rows.
-            calendar = soup.find('div', class_='views-calendar-results')
-            if calendar:
-                # Within the calendar, events are grouped under <h3> day headers
+            # LACMA renders one .views-calendar-results block PER DAY, so every
+            # block has to be walked -- taking only the first silently drops
+            # every day but the nearest one.
+            calendars = soup.find_all('div', class_='views-calendar-results')
+            if calendars:
+                # Within each calendar, events are grouped under <h3> day headers
                 # like "Today, May 29, 2026" or "Saturday, May 30, 2026" and each
                 # event card sits inside a div.views-row with a .card-event block.
-                current_day_text = None
-                # Walk the descendants in order so each event is associated with
-                # the most recently seen day header.
-                from bs4 import NavigableString, Tag
-                for el in calendar.descendants:
-                    if not isinstance(el, Tag):
-                        continue
-                    if el.name == 'h3':
-                        current_day_text = self.clean_text(el.get_text())
-                    elif el.name == 'div' and el.get('class') and 'views-row' in el.get('class') and el.find(class_='card-event'):
-                        try:
-                            event = self._parse_event(el, current_day_text)
-                            if event:
-                                events.append(event)
-                        except Exception as e:
-                            self.log(f"Error parsing event: {e}")
+                from bs4 import Tag
+                for calendar in calendars:
+                    current_day_text = None
+                    # Walk the descendants in order so each event is associated
+                    # with the most recently seen day header.
+                    for el in calendar.descendants:
+                        if not isinstance(el, Tag):
                             continue
+                        if el.name == 'h3':
+                            current_day_text = self.clean_text(el.get_text())
+                        elif el.name == 'div' and el.get('class') and 'views-row' in el.get('class') and el.find(class_='card-event'):
+                            try:
+                                event = self._parse_event(el, current_day_text)
+                                if event:
+                                    events.append(event)
+                            except Exception as e:
+                                self.log(f"Error parsing event: {e}")
+                                continue
             else:
                 self.log("No calendar section found on LACMA events page")
 

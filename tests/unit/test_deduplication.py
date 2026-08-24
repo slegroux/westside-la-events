@@ -180,6 +180,74 @@ class TestEventsAreDuplicates:
         assert is_dup is True
         assert scores['title_similarity'] >= 0.85
 
+    def test_similar_titles_at_distant_venues_are_not_duplicates(self):
+        """Recurring nights share names across venues; coordinates settle it.
+
+        "Wino Wednesdays" at Bodega (Santa Monica) was being merged into
+        "Wine Wednesdays" at Caravan Cantina (West LA) -- 93% title match, an
+        hour apart, but 6 km away and unrelated.
+        """
+        bodega = Event(
+            title="Wino Wednesdays",
+            venue_name="Bodega Wine Bar",
+            latitude=34.0186,
+            longitude=-118.4913,
+            event_date=datetime(2026, 8, 19, 17, 0),
+            source="Bodega Wine Bar",
+        )
+        caravan = Event(
+            title="Wine Wednesdays",
+            venue_name="Caravan Cantina",
+            latitude=33.9584,
+            longitude=-118.4165,
+            event_date=datetime(2026, 8, 19, 18, 0),
+            source="Hotel June",
+        )
+
+        is_dup, scores = events_are_duplicates(bodega, caravan)
+        assert is_dup is False
+        assert scores['geo_distance_km'] > 1.0
+
+    def test_similar_titles_at_the_same_place_still_merge(self):
+        """The guard must not block genuine cross-source duplicates."""
+        one = Event(
+            title="'Paranormal Activity' Opening Night",
+            venue_name="Center Theatre Group",
+            latitude=34.0564,
+            longitude=-118.2489,
+            event_date=datetime(2025, 11, 14),
+            source="KCRW",
+        )
+        two = Event(
+            title="Paranormal Activity (OPENING NIGHT)",
+            venue_name="Ahmanson Theatre",
+            latitude=34.0565,
+            longitude=-118.2490,
+            event_date=datetime(2025, 11, 14),
+            source="Discover LA",
+        )
+
+        is_dup, _ = events_are_duplicates(one, two)
+        assert is_dup is True
+
+    def test_similar_titles_without_coordinates_still_merge(self):
+        """With no coordinates, fall back to the original title-match rule."""
+        one = Event(
+            title="'Paranormal Activity' Opening Night",
+            venue_name="Center Theatre Group",
+            event_date=datetime(2025, 11, 14),
+            source="KCRW",
+        )
+        two = Event(
+            title="Paranormal Activity (OPENING NIGHT)",
+            venue_name="Ahmanson Theatre",
+            event_date=datetime(2025, 11, 14),
+            source="Discover LA",
+        )
+
+        is_dup, _ = events_are_duplicates(one, two)
+        assert is_dup is True
+
     def test_same_source_exact_duplicate(self):
         """Same source + exact same title + same venue + same date = duplicate.
 

@@ -37,6 +37,7 @@ class EventSearch:
         max_lng: Optional[float] = None,
         is_free: Optional[bool] = None,
         times_of_day: Optional[List[str]] = None,
+        region: Optional[str] = None,
         limit: int = 100,
         offset: int = 0
     ) -> List[Event]:
@@ -85,6 +86,7 @@ class EventSearch:
             max_lng=max_lng,
             is_free=is_free,
             times_of_day=times_of_day,
+            region=region,
             limit=limit,
             offset=offset
         )
