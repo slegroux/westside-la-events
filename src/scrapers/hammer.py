@@ -200,8 +200,15 @@ class HammerScraper(BaseScraper):
         s = re.sub(r'\s+', ' ', date_str).strip()
         try:
             now = datetime.now()
-            # Use today as default so missing year resolves sensibly
-            dt = date_parser.parse(s, fuzzy=True, default=now)
+            # dateutil fills every field the string omits from `default`, so a
+            # now() default silently invented the time-of-day -- Hammer listings
+            # give a date only, and each one came back stamped with the moment
+            # the scraper happened to run. Anchor to midnight so an absent time
+            # stays absent; the date half still resolves a missing year.
+            dt = date_parser.parse(
+                s, fuzzy=True,
+                default=now.replace(hour=0, minute=0, second=0, microsecond=0),
+            )
             # If parsed date is more than 30 days in the past, assume next year
             if (now - dt).days > 30:
                 try:

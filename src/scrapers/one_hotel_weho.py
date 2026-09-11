@@ -2,9 +2,11 @@
 Scraper for 1 Hotel West Hollywood "Happenings".
 Source: https://www.1hotels.com/west-hollywood/do/events
 
-The listing is a Drupal view rendered client-side, so the static HTML has no
-event cards -- Playwright is required. Cards carry a day/month but no year, and
-the page mixes in other 1 Hotels properties, so both are handled here.
+The listing is a Drupal view whose first page is server-rendered: the static
+HTML already carries every ``article.event`` card, so a plain fetch is tried
+first and Playwright is kept only as a fallback for the day the markup goes
+back to being client-side. Cards carry a day/month but no year, and the page
+mixes in other 1 Hotels properties, so both are handled here.
 """
 from datetime import datetime
 from typing import List, Optional
@@ -42,15 +44,23 @@ class OneHotelWeHoScraper(BaseScraper):
         events = []
 
         try:
-            html = self.fetch_page_js(
-                self.events_url, wait_selector='article.event', timeout=45000
-            )
-            if not html:
-                self.log("Failed to fetch events page (JS render)")
-                return events
+            html = self.fetch_page(self.events_url)
+            cards = []
+            if html:
+                cards = self.parse_html(html).select('article.event')
 
-            soup = self.parse_html(html)
-            cards = soup.select('article.event')
+            if not cards:
+                # Markup went client-side again (or the fetch was blocked);
+                # pay for a browser only when the cheap path came back empty.
+                self.log("No cards in static HTML; retrying with JS render")
+                html = self.fetch_page_js(
+                    self.events_url, wait_selector='article.event', timeout=45000
+                )
+                if not html:
+                    self.log("Failed to fetch events page (JS render)")
+                    return events
+                cards = self.parse_html(html).select('article.event')
+
             self.log(f"Found {len(cards)} event cards")
 
             for card in cards:
@@ -70,8 +80,13 @@ class OneHotelWeHoScraper(BaseScraper):
         return events
 
     def _parse_card(self, card) -> Optional[Event]:
+        # The card's first link is its detail page, but the path varies:
+        # aliased (/west-hollywood/do/events/...), unaliased (/node/8118), or a
+        # campaign page (/west-hollywood/hispanic-heritage). Requiring one shape
+        # silently dropped real events, so the href is read, not vetted -- the
+        # property label below is what decides whether a card belongs to us.
         link = card.find('a', href=True)
-        if not link or '/do/events/' not in link['href']:
+        if not link:
             return None
 
         title_elem = card.find('h3')

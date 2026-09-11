@@ -109,9 +109,13 @@ class NuartTheatreScraper(BaseScraper):
             except Exception:
                 pass
 
-        # If no specific date found, default to today (movies showing now)
+        # If no specific date found, default to today (movies showing now).
+        # Midnight, not now(): the scrape instant is not a showtime, and a
+        # timestamp that moves every run stops the row matching itself.
         if not event_date:
-            event_date = datetime.now()
+            event_date = datetime.now().replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
 
         # Venue info - Nuart Theatre in West LA
         venue_name = "Nuart Theatre"

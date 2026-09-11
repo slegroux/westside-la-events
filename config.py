@@ -132,7 +132,7 @@ EVENT_SOURCES = {
     },
     'timeout': {
         'name': 'Timeout LA',
-        'url': 'https://www.timeout.com/los-angeles/things-to-do/things-to-do-in-los-angeles-this-week',
+        'url': 'https://www.timeout.com/los-angeles/things-to-do/things-to-do-in-los-angeles-today',
         'enabled': True
     },
     'kcrw': {
@@ -535,7 +535,7 @@ EVENT_SOURCES = {
     },
     'losangelesfunevents': {
         'name': 'Los Angeles Fun Events',
-        'url': 'https://www.losangelesfunevents.com/weary-livers',
+        'url': 'https://www.losangelesfunevents.com/',
         'enabled': True,
         'uses_api': False,
         'note': 'Off the Couch Adventures LLC recurring events (musicians nights, karaoke, comedy, singles socials, watch parties) at Weary Livers, 2819 Pico Blvd, Santa Monica; events parsed from the Wix data blob embedded in the listing page'
@@ -557,7 +557,14 @@ EVENT_SOURCES = {
     'culver_steps': {
         'name': 'The Culver Steps',
         'url': 'https://theculversteps.com/happenings/',
-        'enabled': True,
+        'enabled': False,  # Disabled 2026-09-11: the source stopped publishing
+        # events. /happenings/ was a WPBakery grid of plaza programming (sunset
+        # yoga, kids' play mornings, summer concerts); it is now an ordinary
+        # WordPress post archive whose three newest entries are press releases
+        # from 2022-2023, and the /directory/ detail pages the cards linked to
+        # are gone. Nothing on the site lists events any more, so this is a dead
+        # source rather than a broken selector. Re-enable if plaza programming
+        # returns; the parser itself still works against the old markup.
         'uses_api': False,
         'note': "Free public programming at the Culver Steps plaza (9300 Culver Blvd): sunset yoga, kids' play mornings, summer concerts. Hand-authored WPBakery cards with undated free-text schedules; years are inferred from the stated weekday and weekly series are expanded per occurrence. Open-ended series with no end date are skipped rather than projected forward"
     },

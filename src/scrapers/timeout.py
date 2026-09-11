@@ -293,7 +293,14 @@ class TimeoutScraper(BaseScraper):
                     time_text = time_elem.get_text()
                     parsed_date = date_parser.parse(date_str)
                     if 'until' in time_text.lower():
-                        event_date = datetime.now()
+                        # "until Oct 5" is a run that is already open, so it
+                        # starts today -- but at midnight, not at the scrape
+                        # instant. Stamping now() gave every such event a
+                        # bogus wall-clock start that also changed on each
+                        # run, so the same listing never matched itself.
+                        event_date = datetime.now().replace(
+                            hour=0, minute=0, second=0, microsecond=0
+                        )
                         end_date = parsed_date
                     else:
                         event_date = parsed_date

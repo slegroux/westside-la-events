@@ -1,12 +1,19 @@
 """
 Scraper for Los Angeles Fun Events (Off the Couch Adventures LLC).
-Source: https://www.losangelesfunevents.com/weary-livers
+Source: https://www.losangelesfunevents.com/
 
-The organizer runs a recurring events program (musicians nights, karaoke,
-comedy shows, singles socials, World Cup watch parties, etc.) out of a single
-Westside venue — Weary Livers, 2819 Pico Blvd, Santa Monica. The site is a Wix
-build: the listing page ships every upcoming event as a JSON blob embedded in
-the HTML under a ``"events":[ ... ]`` key, so no JavaScript rendering is needed.
+The organizer runs a recurring events program (speed dating, singles socials,
+film-industry networking nights, watch parties, etc.). It used to run out of a
+single Westside venue, Weary Livers on Pico, and this scraper pointed at that
+venue page; that page has since 404'd and the programme now moves around the
+whole metro (NoHo, Pasadena, Long Beach, West LA). The listing is therefore
+read from the site root, and each event's own ``location`` decides where it is
+— the ingestion geo-filter drops the ones outside the coverage area, so only
+the Westside dates survive.
+
+The site is a Wix build: the listing page ships every upcoming event as a JSON
+blob embedded in the HTML under a ``"events":[ ... ]`` key, so no JavaScript
+rendering is needed.
 
 Each embedded event object carries everything we need:
 
@@ -33,10 +40,10 @@ from src.data.models import Event
 
 
 class LosAngelesFunEventsScraper(BaseScraper):
-    """Scraper for Los Angeles Fun Events at Weary Livers (Santa Monica)."""
+    """Scraper for Los Angeles Fun Events (metro-wide; geo-filtered to the Westside)."""
 
     BASE_URL = 'https://www.losangelesfunevents.com'
-    LISTING_URL = 'https://www.losangelesfunevents.com/weary-livers'
+    LISTING_URL = 'https://www.losangelesfunevents.com/'
 
     # This organizer runs a small, well-defined set of recurring event types.
     # The shared auto-classifier misreads several of them (e.g. "Musicians
@@ -165,7 +172,9 @@ class LosAngelesFunEventsScraper(BaseScraper):
 
         location = raw.get('location') or {}
         address = (location.get('address') or '').strip()
-        venue_name = (location.get('name') or '').strip() or 'Weary Livers'
+        # No single venue any more, so an unnamed location falls back to the
+        # organizer rather than to the venue this scraper was first written for.
+        venue_name = (location.get('name') or '').strip() or 'Los Angeles Fun Events'
         coords = location.get('coordinates') or {}
         latitude = coords.get('lat')
         longitude = coords.get('lng')
