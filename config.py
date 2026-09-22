@@ -554,6 +554,13 @@ EVENT_SOURCES = {
         'uses_api': True,
         'note': 'Culver City guitar shop and listening room (4316 Sepulveda Blvd); concerts read from The Events Calendar REST API (/wp-json/tribe/events/v1/events). The API carries no venue record, so venue name/address/coordinates are constants in the scraper'
     },
+    'grateful_giraffes': {
+        'name': 'Grateful Giraffes',
+        'url': 'https://app.grateful.gg/events',
+        'enabled': True,
+        'uses_api': True,
+        'note': "LA gratitude/wellness community (salons, sound baths, bootcamps, dinners), mostly Westside and Beverly Hills. base44 single-page app: /events renders no markup, so events are read from the public entity API (/api/apps/<id>/entities/Event) rather than a browser. The feed is the full history, so the scraper filters to active, public, non-hidden, in-person, future records; invite_only is private and skipped while giraffes_only is publicly listed and kept. Most events set address_hidden and publish only a neighbourhood, so ones that resolve no finer than 'Los Angeles' are dropped by the shared geo-filter rather than pinned at the city centre"
+    },
     'culver_steps': {
         'name': 'The Culver Steps',
         'url': 'https://theculversteps.com/happenings/',

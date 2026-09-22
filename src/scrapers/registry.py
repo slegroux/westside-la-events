@@ -24,6 +24,7 @@ from .discover_la import DiscoverLAScraper
 from .eventbrite import EventbriteScraper
 from .fowler_museum import FowlerMuseumScraper
 from .geffen_playhouse import GeffenPlayhouseScraper
+from .grateful_giraffes import GratefulGiraffesScraper
 from .getty_center import GettyCenterScraper
 from .getty_villa import GettyVillaScraper
 from .gnarwhal import GnarwhalScraper
@@ -136,6 +137,7 @@ SCRAPER_MAP: Dict[str, Type] = {
     'laemmle_monica': LaemmleMonicaScraper,
     'mudwtr': MudWtrScraper,
     'getty_center': GettyCenterScraper,
+    'grateful_giraffes': GratefulGiraffesScraper,
     'getty_villa': GettyVillaScraper,
     'skirball': SkirballScraper,
     'geffen_playhouse': GeffenPlayhouseScraper,
