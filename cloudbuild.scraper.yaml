@@ -1,0 +1,24 @@
+# Cloud Build configuration for the scraper image (Dockerfile.scraper).
+#
+# Same Kaniko caching as cloudbuild.yaml, pointed at the fat image: Chromium for
+# the 19 scrapers that render JavaScript, plus the Google Cloud SDK so
+# run_scrapers.py can upload the finished database with gsutil.
+#
+# Built to its own repository so the web image stays small; the web server pulls
+# gcr.io/$PROJECT_ID/westside-events and never sees this one.
+
+steps:
+  - name: 'gcr.io/kaniko-project/executor:latest'
+    args:
+      - --dockerfile=Dockerfile.scraper
+      - --destination=gcr.io/$PROJECT_ID/westside-events-scraper
+      - --cache=true
+      - --cache-ttl=168h  # 7 days
+      - --compressed-caching=false
+    timeout: 900s  # 15 minutes max
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1200s

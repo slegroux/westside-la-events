@@ -4,9 +4,10 @@ starlette<0.40.0
 uvicorn>=0.24.0
 
 # Web Scraping
+# playwright lives in requirements-scraper.txt -- its pip package bundles a
+# ~130MB Node driver, and only the scraper image ever launches a browser.
 beautifulsoup4>=4.12.0
 requests>=2.31.0
-playwright>=1.40.0
 lxml>=5.0.0
 aiohttp>=3.9.0
 

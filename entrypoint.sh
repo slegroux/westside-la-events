@@ -5,8 +5,16 @@ echo "🚀 Starting Westside Events application..."
 # By default, skip database download and use bundled version (faster cold starts)
 # Set SKIP_DB_DOWNLOAD=false to force download from Cloud Storage
 if [ "$SKIP_DB_DOWNLOAD" = "true" ]; then
-    echo "⚡ Using bundled database (fast startup mode)"
-    echo "   Database is baked into the Docker image for instant cold starts"
+    echo "⚡ Skipping database download (fast startup mode)"
+    echo "   /app/data is a GCSFuse mount of the events bucket, so the database"
+    echo "   is read live from there -- nothing to fetch at startup."
+elif ! command -v gsutil >/dev/null 2>&1; then
+    # The web image ships no gcloud SDK -- it reads the database from the
+    # GCSFuse mount at /app/data instead. Say so plainly rather than letting
+    # every gsutil call below fail one by one.
+    echo "⚠️  SKIP_DB_DOWNLOAD is not 'true' but gsutil is unavailable."
+    echo "   This is the web image: /app/data is a GCSFuse mount and needs no download."
+    echo "   Continuing with whatever is mounted there."
 else
     # Download database from Cloud Storage if it exists
     BUCKET="gs://westside-la-events-data"

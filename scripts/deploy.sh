@@ -20,6 +20,12 @@ PROJECT_ID="westside-la-events"
 SERVICE_NAME="westside-events"
 REGION="us-west1"
 IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
+# The scrapers run as their own service off Dockerfile.scraper. Splitting them
+# out is what keeps the web image small: Chromium and the gcloud SDK were ~650MB
+# of a 906MB pull that the page renderer never touched, and paid for on every
+# cold start.
+SCRAPER_SERVICE_NAME="westside-events-scraper"
+SCRAPER_IMAGE_NAME="gcr.io/${PROJECT_ID}/${SCRAPER_SERVICE_NAME}"
 BUCKET_NAME="westside-la-events-data"
 
 # Parse command line arguments
@@ -256,6 +262,16 @@ else
     fi
 fi
 
+# Build the scraper image. Kept as a separate build so a web-only change does
+# not wait on Chromium, and vice versa.
+echo ""
+echo "🔨 Building scraper image..."
+if [ -f "cloudbuild.scraper.yaml" ]; then
+    gcloud builds submit --config cloudbuild.scraper.yaml
+else
+    gcloud builds submit --tag ${SCRAPER_IMAGE_NAME} -f Dockerfile.scraper
+fi
+
 # Prepare environment variables
 SCHEDULER_SA_FOR_ENV="scheduler-invoker@${PROJECT_ID}.iam.gserviceaccount.com"
 # SCRAPER_AUDIENCE: the OIDC token audience Cloud Scheduler sends. Must match
@@ -330,25 +346,72 @@ else
     echo "Check logs: gcloud run logs read ${SERVICE_NAME} --region ${REGION} --limit 50"
 fi
 
+# Deploy the scraper service
+#
+# Same FastHTML app and the same /api/run-scrapers endpoint as before -- only
+# the image differs -- so the scrape path is unchanged. It needs the GCSFuse
+# mount because /api/run-scrapers snapshots /app/data/events.db before scraping
+# into /tmp (GCSFuse cannot serve SQLite's WAL random writes directly).
+echo ""
+echo "☁️  Deploying scraper service..."
+gcloud run deploy ${SCRAPER_SERVICE_NAME} \
+    --image ${SCRAPER_IMAGE_NAME} \
+    --platform managed \
+    --region ${REGION} \
+    --no-allow-unauthenticated \
+    --memory 2Gi \
+    --cpu 2 \
+    --timeout 3600 \
+    --no-cpu-throttling \
+    --set-env-vars "${ENV_VARS}" \
+    --add-volume=name=data,type=cloud-storage,bucket=${BUCKET_NAME} \
+    --add-volume-mount=volume=data,mount-path=/app/data \
+    --max-instances 1 \
+    --min-instances 0
+
+SCRAPER_SERVICE_URL=$(gcloud run services describe ${SCRAPER_SERVICE_NAME} \
+    --region ${REGION} \
+    --format 'value(status.url)')
+
+# SCRAPER_AUDIENCE has to match the URL the scheduler calls, which is this
+# service's own -- not the web service's, which ENV_VARS carries for the app.
+# The URL only exists after the first deploy, hence the second pass.
+echo "  Pinning OIDC audience to ${SCRAPER_SERVICE_URL}..."
+gcloud run services update ${SCRAPER_SERVICE_NAME} \
+    --region ${REGION} \
+    --update-env-vars "SCRAPER_AUDIENCE=${SCRAPER_SERVICE_URL}" \
+    --quiet
+
+echo "  ✓ Scraper service: ${SCRAPER_SERVICE_URL}"
+
 # Set up Cloud Scheduler for daily scraping
 echo ""
 echo "⏰ Setting up Cloud Scheduler for daily scraping..."
 SCHEDULER_JOB="scrape-daily"
-SCRAPER_URL="${SERVICE_URL}/api/run-scrapers"
+# Points at the scraper service since the split -- the web image has no Chromium
+# and no gsutil, so /api/run-scrapers there could not do the job.
+SCRAPER_URL="${SCRAPER_SERVICE_URL}/api/run-scrapers"
 SCHEDULER_SA="scheduler-invoker@${PROJECT_ID}.iam.gserviceaccount.com"
 
 # Confirm the invoker service account exists; it has to be created once via:
 #   gcloud iam service-accounts create scheduler-invoker
-#   gcloud run services add-iam-policy-binding ${SERVICE_NAME} --region=${REGION} \
+#   gcloud run services add-iam-policy-binding ${SCRAPER_SERVICE_NAME} --region=${REGION} \
 #       --member=serviceAccount:${SCHEDULER_SA} --role=roles/run.invoker
 if ! gcloud iam service-accounts describe "${SCHEDULER_SA}" &>/dev/null; then
     echo "  ⚠️  Service account ${SCHEDULER_SA} not found."
     echo "  Create it once with:"
     echo "    gcloud iam service-accounts create scheduler-invoker"
-    echo "    gcloud run services add-iam-policy-binding ${SERVICE_NAME} --region=${REGION} \\"
+    echo "    gcloud run services add-iam-policy-binding ${SCRAPER_SERVICE_NAME} --region=${REGION} \\"
     echo "        --member=serviceAccount:${SCHEDULER_SA} --role=roles/run.invoker"
     echo "  Skipping scheduler setup."
 else
+    echo "  Granting ${SCHEDULER_SA} invoker on ${SCRAPER_SERVICE_NAME}..."
+    gcloud run services add-iam-policy-binding ${SCRAPER_SERVICE_NAME} \
+        --region=${REGION} \
+        --member="serviceAccount:${SCHEDULER_SA}" \
+        --role=roles/run.invoker \
+        --quiet >/dev/null
+
     if gcloud scheduler jobs describe ${SCHEDULER_JOB} --location=${REGION} &>/dev/null; then
         echo "  Updating existing scheduler job (OIDC)..."
         # NOTE: do not add --remove-headers here. OIDC auth lives in oidcToken,
@@ -362,7 +425,7 @@ else
             --uri="${SCRAPER_URL}" \
             --http-method=POST \
             --oidc-service-account-email="${SCHEDULER_SA}" \
-            --oidc-token-audience="${SERVICE_URL}" \
+            --oidc-token-audience="${SCRAPER_SERVICE_URL}" \
             --attempt-deadline=1800s \
             --quiet
     else
@@ -374,7 +437,7 @@ else
             --uri="${SCRAPER_URL}" \
             --http-method=POST \
             --oidc-service-account-email="${SCHEDULER_SA}" \
-            --oidc-token-audience="${SERVICE_URL}" \
+            --oidc-token-audience="${SCRAPER_SERVICE_URL}" \
             --attempt-deadline=1800s \
             --quiet
     fi

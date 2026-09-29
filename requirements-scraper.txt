@@ -1,0 +1,12 @@
+# Scraper-only dependencies, on top of the shared web requirements.
+#
+# Included rather than duplicated so the two cannot drift: the scraper image
+# installs this file, the web image installs requirements.txt alone.
+#
+# playwright's wheel carries a bundled Node driver (~130MB installed) that is
+# dead weight in an image that never calls fetch_page_js. The import in
+# scrapers/base.py is lazy -- inside the method -- so leaving it out of the
+# web image breaks nothing at import time.
+-r requirements.txt
+
+playwright>=1.40.0

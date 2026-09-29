@@ -1,69 +1,54 @@
-# Use Python 3.11 slim image
+# Web image: serves the site and nothing else.
+#
+# This used to be one image doing both jobs, which cost the web server a 906 MB
+# pull on every cold start -- 452 MB of Chromium and ~200 MB of Google Cloud SDK
+# that a request for a page never touches. Cold TTFB was ~32s.
+#
+# Splitting is safe because the web app never imports the scrapers: the only
+# link was /api/run-scrapers shelling out to run_scrapers.py in a subprocess,
+# and that endpoint now lives in the scraper service built from
+# Dockerfile.scraper. Keep the two in step when changing shared dependencies.
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies for Playwright, gsutil, and other tools
-# Combine into single layer and use --no-install-recommends to reduce size
+# curl is kept for container-level healthchecks; everything else the page
+# renderer needs comes from pip.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    gnupg \
     curl \
     ca-certificates \
-    lsb-release \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
-
-# Install Google Cloud SDK for gsutil (needed to download database from Cloud Storage)
-# Using the official install script which is more reliable than apt
-RUN curl https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir=/opt \
-    && /opt/google-cloud-sdk/bin/gcloud components install gsutil --quiet
-
-# Add gcloud to PATH
-ENV PATH="/opt/google-cloud-sdk/bin:${PATH}"
 
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install Python dependencies with optimizations
+# The shared dependency set. The scraper image installs requirements-scraper.txt
+# instead, which starts with "-r requirements.txt" and adds playwright, so the
+# two cannot drift apart while the web image stays free of playwright's ~130MB
+# bundled Node driver.
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Install Playwright browsers (this is the slowest step - ~500MB)
-# Cache this layer separately so it only rebuilds if requirements change
-# Use --with-deps chromium for minimal footprint
-RUN playwright install --with-deps chromium && \
-    rm -rf /var/lib/apt/lists/* && \
-    apt-get clean && \
-    # Remove unnecessary Playwright files to reduce image size
-    rm -rf /root/.cache/ms-playwright/*/firefox* /root/.cache/ms-playwright/*/webkit*
 
 # Copy application code (this changes most frequently, so it's last)
 COPY . .
 
-# Ensure data directory exists (COPY . . creates it if data/ exists locally)
+# /app/data is a GCSFuse mount of gs://westside-la-events-data at runtime, so
+# this is only the mount point -- anything baked in here is shadowed by it.
 RUN mkdir -p /app/data
 
-# Set environment variables
-# IMPORTANT: Set timezone to America/Los_Angeles (PST/PDT) since events are in local LA time
-# This ensures SQLite's date('now', 'localtime') returns the correct local time
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8080 \
     TZ=America/Los_Angeles \
     # Reduce Python startup time
     PYTHONHASHSEED=0 \
-    # Use bundled database for fast cold starts. The deploy script bundles
-    # the latest DB from Cloud Storage into the image, and the scraper
-    # uploads fresh data to GCS after each run.
+    # The database is read live from the GCSFuse mount, so there is nothing to
+    # download at startup. This image has no gsutil to do it with either.
     SKIP_DB_DOWNLOAD=true
 
-# Expose port (Cloud Run will set $PORT environment variable)
 EXPOSE 8080
 
-# Copy entrypoint script and make it executable
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# Run the application via entrypoint script
 CMD ["/app/entrypoint.sh"]
