@@ -44,7 +44,11 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONHASHSEED=0 \
     # The database is read live from the GCSFuse mount, so there is nothing to
     # download at startup. This image has no gsutil to do it with either.
-    SKIP_DB_DOWNLOAD=true
+    SKIP_DB_DOWNLOAD=true \
+    # Serve events.db from a local copy, not the GCSFuse mount: SQLite over
+    # GCSFuse made cold requests take ~26s and wrote the file back to the
+    # bucket at startup. See src/data/db_mirror.py.
+    DB_CACHE_DIR=/tmp/db
 
 EXPOSE 8080
 

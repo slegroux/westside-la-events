@@ -24,6 +24,12 @@ FACEBOOK_ACCESS_TOKEN = os.getenv('FACEBOOK_ACCESS_TOKEN', '')
 # Database Configuration
 DATABASE_PATH = os.getenv('DATABASE_PATH', 'data/events.db')
 ANALYTICS_DB_PATH = os.getenv('ANALYTICS_DB_PATH', 'data/analytics.db')
+# When set, the web app serves DATABASE_PATH from a local copy in this directory
+# instead of opening it in place. Production sets it because DATABASE_PATH is on
+# a GCSFuse mount, where SQLite is slow and opening it writes the file back to
+# the bucket. See src/data/db_mirror.py.
+DB_CACHE_DIR = os.getenv('DB_CACHE_DIR', '')
+DB_REFRESH_SECONDS = float(os.getenv('DB_REFRESH_SECONDS', '60'))
 
 # Scraper Configuration
 SCRAPER_CONFIG = {

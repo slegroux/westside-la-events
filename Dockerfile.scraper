@@ -66,7 +66,11 @@ ENV PYTHONUNBUFFERED=1 \
     # Use bundled database for fast cold starts. The deploy script bundles
     # the latest DB from Cloud Storage into the image, and the scraper
     # uploads fresh data to GCS after each run.
-    SKIP_DB_DOWNLOAD=true
+    SKIP_DB_DOWNLOAD=true \
+    # Serve events.db from a local copy, not the GCSFuse mount: SQLite over
+    # GCSFuse made cold requests take ~26s and wrote the file back to the
+    # bucket at startup. See src/data/db_mirror.py.
+    DB_CACHE_DIR=/tmp/db
 
 # Expose port (Cloud Run will set $PORT environment variable)
 EXPOSE 8080

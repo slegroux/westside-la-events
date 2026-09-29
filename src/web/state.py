@@ -6,6 +6,7 @@ import os
 import config
 from src.data.database import Database
 from src.data.analytics import Analytics
+from src.data.db_mirror import DbMirror
 from src.search.query import EventSearch
 
 
@@ -14,6 +15,7 @@ class AppState:
     db: Database = None
     search: EventSearch = None
     analytics: Analytics = None
+    db_mirror: "DbMirror" = None  # set when serving a local copy of the DB
 
 
 state = AppState()

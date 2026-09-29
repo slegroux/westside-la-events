@@ -9,12 +9,15 @@ from typing import Optional
 import logging
 import os
 
+import anyio
+
 import config
 from src.utils.logging import setup_logging
 setup_logging()
 
 from src.data.database import Database
 from src.data.analytics import Analytics
+from src.data.db_mirror import DbMirror
 from src.search.query import EventSearch
 
 # Import state singleton and helpers (re-exported for backward compatibility)
@@ -53,7 +56,13 @@ async def lifespan(app):
     """Manage application lifecycle - startup and shutdown."""
     # Startup: Initialize database and search (preserve injected test state)
     if state.db is None:
-        state.db = Database(config.DATABASE_PATH)
+        if config.DB_CACHE_DIR:
+            state.db_mirror = DbMirror(
+                config.DATABASE_PATH, config.DB_CACHE_DIR, config.DB_REFRESH_SECONDS
+            )
+            state.db = Database(state.db_mirror.sync())
+        else:
+            state.db = Database(config.DATABASE_PATH)
     if state.search is None:
         state.search = EventSearch(state.db)
 
@@ -119,6 +128,40 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+
+def _switch_db(new_path: str) -> None:
+    """Point the app at a freshly mirrored database file.
+
+    Raises (and DbMirror keeps the current copy) if the new one has no events:
+    Database() would otherwise create an empty events table and serve nothing.
+    """
+    import sqlite3
+    conn = sqlite3.connect(f'file:{new_path}?mode=ro', uri=True)
+    try:
+        count = conn.execute('SELECT count(*) FROM events').fetchone()[0]
+    finally:
+        conn.close()
+    if count == 0:
+        raise ValueError(f'{new_path} has no events; keeping the current copy')
+    Database(new_path)  # bring the new copy's schema up to date first
+    state.db.db_path = new_path
+    _tally_cache.clear()
+
+
+class DbRefreshMiddleware(BaseHTTPMiddleware):
+    """Pick up the scraper's daily database upload without a restart.
+
+    The stat is throttled inside DbMirror, so most requests do nothing. The
+    copy runs in a worker thread so it does not block the event loop.
+    """
+    async def dispatch(self, request, call_next):
+        if state.db_mirror is not None and state.db is not None and state.db_mirror.due():
+            await anyio.to_thread.run_sync(state.db_mirror.refresh_if_changed, _switch_db)
+        return await call_next(request)
+
+
+app.add_middleware(DbRefreshMiddleware)
 
 
 # Setup analytics routes
