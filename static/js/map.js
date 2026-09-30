@@ -30,6 +30,26 @@ function configureDefaultMarkerIcons() {
     defaultIconsConfigured = true;
 }
 
+// Coral pin in the site palette, drawn inline so it needs no image request
+// (the default Leaflet pin is a blue PNG that clashed with the clusters).
+// Built lazily because Leaflet loads with defer.
+let eventPinIcon = null;
+function getEventPinIcon() {
+    if (!eventPinIcon) {
+        eventPinIcon = L.divIcon({
+            className: 'wla-pin',
+            html: '<svg viewBox="0 0 28 38" width="28" height="38" aria-hidden="true">'
+                + '<path d="M14 1C6.8 1 1 6.7 1 13.8 1 23.5 14 37 14 37s13-13.5 13-23.2C27 6.7 21.2 1 14 1z" '
+                + 'fill="#d93036" stroke="#fff" stroke-width="2"/>'
+                + '<circle cx="14" cy="13.5" r="4.6" fill="#fff"/></svg>',
+            iconSize: [28, 38],
+            iconAnchor: [14, 37],
+            popupAnchor: [0, -32],
+        });
+    }
+    return eventPinIcon;
+}
+
 function initMap() {
     // Check if map container exists
     const mapContainer = document.getElementById('map');
@@ -116,7 +136,7 @@ async function loadMapEvents() {
         loadMapEventsRetryCount = 0;
 
         // Guard for missing DOM elements - use safe defaults
-        const searchInput = document.getElementById('search-input');
+        const searchInput = document.getElementById('header-search') || document.getElementById('search-input');
         const dateFilterEl = document.getElementById('date-filter');
         const datePickerEl = document.getElementById('date-picker');
         const freeOnlyCheckbox = document.querySelector('input[name="free_only"]');
@@ -178,7 +198,7 @@ async function loadMapEvents() {
         let markerCount = 0;
         events.forEach(event => {
             if (event.latitude && event.longitude) {
-                const marker = L.marker([event.latitude, event.longitude]);
+                const marker = L.marker([event.latitude, event.longitude], { icon: getEventPinIcon() });
                 marker.bindPopup(buildEventPopup(event), { maxWidth: 300 });
                 markerCluster.addLayer(marker);
                 markerCount++;
@@ -208,10 +228,10 @@ async function loadMapEvents() {
             errorDiv.innerHTML = `
                 <div style="color: #ef4444; font-size: 1.5rem; margin-bottom: 0.5rem;">⚠️</div>
                 <div style="font-weight: 600; margin-bottom: 0.5rem;">Unable to load events</div>
-                <div style="color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">
+                <div style="color: #6b635b; font-size: 0.9rem; margin-bottom: 1rem;">
                     ${error.message || 'Please check your connection and try again'}
                 </div>
-                <button onclick="this.parentElement.remove(); loadMapEvents();" style="background: #0891b2; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.25rem; cursor: pointer; font-weight: 600;">
+                <button onclick="this.parentElement.remove(); loadMapEvents();" style="background: #d93036; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.25rem; cursor: pointer; font-weight: 600;">
                     Retry
                 </button>
             `;
@@ -257,20 +277,20 @@ function buildEventPopup(event) {
     root.appendChild(title);
 
     const dateLine = document.createElement('div');
-    dateLine.style.cssText = 'font-size: 0.9rem; color: #64748b; margin-bottom: 0.5rem;';
+    dateLine.style.cssText = 'font-size: 0.9rem; color: #6b635b; margin-bottom: 0.5rem;';
     dateLine.textContent = '📅 ' + formatDate(event.event_date);
     root.appendChild(dateLine);
 
     if (event.venue_name) {
         const venue = document.createElement('div');
-        venue.style.cssText = 'font-size: 0.9rem; color: #64748b; margin-bottom: 0.75rem;';
+        venue.style.cssText = 'font-size: 0.9rem; color: #6b635b; margin-bottom: 0.75rem;';
         venue.textContent = '📍 ' + event.venue_name;
         root.appendChild(venue);
     }
 
     if (event.description) {
         const desc = document.createElement('p');
-        desc.style.cssText = 'font-size: 0.85rem; margin: 0.75rem 0; color: #475569;';
+        desc.style.cssText = 'font-size: 0.85rem; margin: 0.75rem 0; color: #44403c;';
         const trimmed = event.description.length > 100
             ? event.description.substring(0, 100) + '...'
             : event.description;
@@ -282,7 +302,7 @@ function buildEventPopup(event) {
         const catWrap = document.createElement('div');
         catWrap.style.marginTop = '0.75rem';
         const cat = document.createElement('span');
-        cat.style.cssText = 'display: inline-block; padding: 0.25rem 0.75rem; background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); color: white; border-radius: 1rem; font-size: 0.75rem; font-weight: 700;';
+        cat.style.cssText = 'display: inline-block; padding: 0.25rem 0.75rem; background: #1c1917; color: white; border-radius: 1rem; font-size: 0.75rem; font-weight: 700;';
         cat.textContent = event.category;
         catWrap.appendChild(cat);
         root.appendChild(catWrap);
@@ -297,7 +317,7 @@ function buildEventPopup(event) {
         a.href = eventUrl;
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
-        a.style.cssText = 'color: #0891b2; font-weight: 600; text-decoration: none;';
+        a.style.cssText = 'color: #b42329; font-weight: 600; text-decoration: none;';
         a.textContent = 'View Event →';
         linksWrap.appendChild(a);
     }
@@ -307,7 +327,7 @@ function buildEventPopup(event) {
     directions.href = directionsUrl;
     directions.target = '_blank';
     directions.rel = 'noopener noreferrer';
-    directions.style.cssText = 'color: #10b981; font-weight: 600; text-decoration: none;';
+    directions.style.cssText = 'color: #067647; font-weight: 600; text-decoration: none;';
     directions.textContent = '🗺️ Directions';
     linksWrap.appendChild(directions);
 
@@ -480,7 +500,7 @@ function openVenueMapPopup(venueName, latitude, longitude, address) {
             }).addTo(popupMap);
 
             // Add marker
-            L.marker([latitude, longitude])
+            L.marker([latitude, longitude], { icon: getEventPinIcon() })
                 .addTo(popupMap)
                 .bindPopup(`<b>${venueName}</b>${address ? '<br>' + address : ''}`)
                 .openPopup();

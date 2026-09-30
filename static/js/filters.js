@@ -107,6 +107,18 @@ document.body.addEventListener('htmx:beforeRequest', function(event) {
     }
 });
 
+// On phones the category pills are a sideways-scrolling rail; bring the first
+// selected pill into view so it's visible which filter is active.
+document.body.addEventListener('htmx:oobAfterSwap', function(event) {
+    if (!event.detail.target || event.detail.target.id !== 'category-filter-bar') return;
+    // detail.target is the element that was swapped out; read the live one.
+    const bar = document.getElementById('category-filter-bar');
+    const checked = bar && bar.querySelector('label:has(input:checked)');
+    if (checked && bar.scrollWidth > bar.clientWidth) {
+        bar.scrollLeft = checked.offsetLeft - bar.offsetLeft - (bar.clientWidth - checked.offsetWidth) / 2;
+    }
+});
+
 // Immediately fix icons after OOB swap using stored state
 document.body.addEventListener('htmx:oobAfterSwap', function(event) {
     console.log('htmx:oobAfterSwap fired, target:', event.detail.target?.id);
@@ -226,6 +238,82 @@ function clearAllFilters() {
     htmx.trigger(form, 'submit');
 }
 window.clearAllFilters = clearAllFilters;
+
+// Header search, explicit submit (Enter / the phone keyboard's Search key).
+// Typing already searches after a pause; Enter additionally closes the
+// keyboard and brings the results into view. Without that, on a phone the
+// results updated below the keyboard and it looked like nothing happened.
+// preventDefault stops the implicit submit of #filter-form (the input is
+// form-associated), which would otherwise send a second, duplicate request.
+let scrollToResultsAfterSwap = false;
+
+document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' || !e.target || e.target.id !== 'header-search') return;
+    e.preventDefault();
+    scrollToResultsAfterSwap = true;
+    htmx.trigger(e.target, 'search');
+    e.target.blur();
+});
+
+document.body.addEventListener('htmx:afterSwap', function(e) {
+    if (!scrollToResultsAfterSwap || !e.detail.target || e.detail.target.id !== 'events-container') return;
+    scrollToResultsAfterSwap = false;
+    const header = document.querySelector('header');
+    const offset = (header ? header.offsetHeight : 0) + 12;
+    const top = e.detail.target.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ top: top, behavior: 'smooth' });
+});
+
+// Hero shortcuts: set the real filter controls, then submit once, so the
+// pills and the date select always show what the results reflect. Each
+// shortcut is a fresh browse, so it starts from a cleared form.
+const QUICK_FILTERS = {
+    'weekend': { date: 'this_weekend' },
+    'free': { checkbox: 'input[name="free_only"]' },
+    'family': { category: 'Family' },
+    'date-night': { category: 'Date Night' },
+};
+
+function applyQuickFilter(key) {
+    const spec = QUICK_FILTERS[key];
+    const form = document.getElementById('filter-form');
+    if (!spec || !form) return;
+    // The form submit doesn't carry the header search, so clear it rather
+    // than leave text in the box that the results ignore.
+    const headerSearch = document.getElementById('header-search');
+    if (headerSearch) headerSearch.value = '';
+    form.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+    form.querySelectorAll('input[type="hidden"][name="category"]').forEach(el => el.remove());
+    const dateFilter = form.querySelector('#date-filter');
+    if (dateFilter) dateFilter.value = spec.date || 'upcoming';
+    if (spec.checkbox) {
+        const cb = form.querySelector(spec.checkbox);
+        if (cb) cb.checked = true;
+    }
+    if (spec.category) {
+        // The pill bar only renders categories with events under the current
+        // filters, so the pill may be absent. Submit the value through a hidden
+        // input instead; the OOB-swapped bar then renders the real pill checked.
+        const cb = form.querySelector(`input[name="category"][value="${spec.category}"]`);
+        if (cb) {
+            cb.checked = true;
+        } else {
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'category';
+            hidden.value = spec.category;
+            (form.querySelector('#category-filter-bar') || form).appendChild(hidden);
+        }
+    }
+    htmx.trigger(form, 'submit');
+    // Land just below the sticky header, whose height differs on phones
+    // (the search wraps to its own row there).
+    const bar = document.querySelector('.region-tabs') || form;
+    const header = document.querySelector('header');
+    const offset = (header ? header.offsetHeight : 0) + 12;
+    window.scrollTo({ top: bar.getBoundingClientRect().top + window.scrollY - offset, behavior: 'smooth' });
+}
+window.applyQuickFilter = applyQuickFilter;
 
 // Venues popover: toggle open/close; close on outside click or Escape.
 function toggleVenues(e) {

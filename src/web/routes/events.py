@@ -9,7 +9,7 @@ from typing import List
 import logging
 
 import config
-from src.web.components import events_list, filter_tallies_section, category_filter_bar
+from src.web.components import events_list, filter_tallies_section, category_filter_bar, view_toggle
 from src.web.services import _fetch_events
 from src.web.state import get_session_id
 
@@ -65,21 +65,7 @@ def setup_routes(rt, state):
             # Events list (visible)
             Div(events_list(events, session), id='events-container'),
             # OOB swap to update button states
-            Div(
-                Button(Span('\u2630', style='margin-right: 0.4rem; font-size: 1.1em;'), 'List', type='button', id='list-view-btn', cls='view-btn active',
-                       hx_get='/view/list',
-                       hx_target='#view-container',
-                       hx_swap='innerHTML',
-                       hx_include='.search-section'),
-                Button(Span('\U0001F5FA', style='margin-right: 0.4rem; font-size: 1.1em;'), 'Map', type='button', id='map-view-btn', cls='view-btn',
-                       hx_get='/view/map',
-                       hx_target='#view-container',
-                       hx_swap='innerHTML',
-                       hx_include='.search-section'),
-                cls='view-toggle',
-                id='view-toggle',
-                hx_swap_oob='true'
-            )
+            view_toggle('list', oob=True)
         )
 
         return HTMLResponse(to_xml(result))
@@ -108,21 +94,7 @@ def setup_routes(rt, state):
             # Events list (hidden)
             Div(events_list(events, session), id='events-container', style='display: none;'),
             # OOB swap to update button states
-            Div(
-                Button(Span('\u2630', style='margin-right: 0.4rem; font-size: 1.1em;'), 'List', type='button', id='list-view-btn', cls='view-btn',
-                       hx_get='/view/list',
-                       hx_target='#view-container',
-                       hx_swap='innerHTML',
-                       hx_include='.search-section'),
-                Button(Span('\U0001F5FA', style='margin-right: 0.4rem; font-size: 1.1em;'), 'Map', type='button', id='map-view-btn', cls='view-btn active',
-                       hx_get='/view/map',
-                       hx_target='#view-container',
-                       hx_swap='innerHTML',
-                       hx_include='.search-section'),
-                cls='view-toggle',
-                id='view-toggle',
-                hx_swap_oob='true'
-            ),
+            view_toggle('map', oob=True),
             # Force trigger map initialization after DOM settles
             Script('''
                 (function() {

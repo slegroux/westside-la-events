@@ -176,6 +176,10 @@ def page_head(title: str, description: Optional[str] = None):
         Meta(property='og:title', content=title),
         Meta(property='og:description', content=description or default_description),
         Meta(property='og:type', content='website'),
+        Meta(name='theme-color', content='#ffffff'),
+        Link(rel='icon', href='/static/favicon.svg', type='image/svg+xml'),
+        Link(rel='alternate icon', href='/favicon.ico'),
+        Link(rel='apple-touch-icon', href='/static/images/apple-touch-icon.png'),
         # Resource hints for performance - preconnect to external domains
         Link(rel='preconnect', href='https://unpkg.com'),
         Link(rel='dns-prefetch', href='https://unpkg.com'),
@@ -209,6 +213,67 @@ def page_head(title: str, description: Optional[str] = None):
         Script(src=f'/static/js/analytics.js?v={_compute_asset_version()}', defer=True) if config.ENABLE_ANALYTICS else None,
         # Filter collapse/expand functionality with state persistence
         Script(src=f'/static/js/filters.js?v={_compute_asset_version()}', defer=True),
+    )
+
+
+def brand_lockup(cls: str = 'brand'):
+    """Logo mark + two-tone wordmark, linking home.
+
+    The text stays a real 'Westside LA Events' string (split across spans) so
+    it remains the accessible name and what search engines read.
+    """
+    return A(
+        Img(src='/static/images/logo.svg', alt='', cls='brand-mark',
+            width='36', height='36', **{'aria-hidden': 'true'}),
+        Span(
+            Span('Westside', cls='brand-name'),
+            ' ',
+            Span('LA Events', cls='brand-tag'),
+            cls='brand-text',
+        ),
+        href='/',
+        cls=cls,
+    )
+
+
+def home_hero(total_count: Optional[int] = None, today_count: Optional[int] = None,
+              source_count: Optional[int] = None):
+    """Sunset banner above the filters: what the site is, how much is on,
+    and one-tap shortcuts into the most common browses.
+
+    The shortcuts drive the real filter controls (see applyQuickFilter in
+    filters.js), so they stay in sync with the pills and the date select.
+    """
+    stats = []
+    for value, label in ((total_count, 'upcoming events'), (today_count, 'happening today'),
+                         (source_count, 'sources')):
+        if value is not None:
+            stats.append(Div(Span(f'{value:,}', cls='hero-stat-num'),
+                             Span(label, cls='hero-stat-label'), cls='hero-stat'))
+
+    quick = [
+        ('weekend', 'This weekend'),
+        ('free', 'Free'),
+        ('family', 'Family'),
+        ('date-night', 'Date night'),
+    ]
+    return Section(
+        Div(
+            H2('What\'s on the Westside', cls='hero-title'),
+            P('Concerts, art, food, family days and more, from Santa Monica to '
+              'Culver City, updated every morning.', cls='hero-subtitle'),
+            Div(
+                *[Button(label, type='button', cls='hero-chip',
+                         onclick=f"applyQuickFilter('{key}')")
+                  for key, label in quick],
+                cls='hero-chips',
+                role='group',
+                **{'aria-label': 'Quick filters'},
+            ),
+            cls='hero-copy',
+        ),
+        (Div(*stats, cls='hero-stats') if stats else None),
+        cls='home-hero',
     )
 
 
@@ -256,13 +321,16 @@ def page_header(total_count: Optional[int] = None, today_count: Optional[int] = 
 
     # Global search lives in the nav bar (find-a-specific-event), keeping the
     # filter bar below as a pure browse zone. It sits outside the filter <form>,
-    # so it pulls the active filters in via hx_include='#filter-form'; the in-form
-    # controls reciprocate by including '#header-search'.
+    # so it pulls the active filters in via hx_include='#filter-form'. The form=
+    # attribute makes it one of that form's elements, which is how the in-form
+    # controls' 'closest form' picks up q: htmx 2.0.3 reads
+    # 'closest form, #header-search' as closest('form, #header-search'), so the
+    # '#header-search' half of those includes never matched on its own.
     search = Div(
         Span(NotStr(_SEARCH_SVG), cls='header-search-icon', **{'aria-hidden': 'true'}),
         Input(
-            type='search', id='header-search', name='q',
-            placeholder='Search events…',
+            type='search', id='header-search', name='q', form='filter-form',
+            placeholder='Search events…', enterkeyhint='search',
             hx_get='/filters/update-all', hx_target='#events-container',
             hx_trigger='input changed delay:500ms, search',
             hx_include='#filter-form', hx_indicator='#loading-indicator',
@@ -273,7 +341,7 @@ def page_header(total_count: Optional[int] = None, today_count: Optional[int] = 
 
     return Header(
         Div(
-            H1(A('Westside LA Events', href='/'), cls='header-wordmark'),
+            H1(brand_lockup(), cls='header-wordmark'),
             search,
             counter,
             tonight,
@@ -286,8 +354,9 @@ def page_footer():
     """Shared page footer component."""
     return Footer(
         Div(
-            P('Westside LA Events', cls='footer-title'),
-            P('Aggregating events from Santa Monica, Timeout LA, KCRW, and 30+ sources.', cls='footer-sources'),
+            brand_lockup(cls='footer-brand'),
+            P('Everything happening on LA\'s Westside, gathered daily from '
+              'Santa Monica, Timeout LA, KCRW, and 30+ more sources.', cls='footer-sources'),
             P(
                 'Made with \u2764 by ',
                 A('Sisyphe.ai', href='https://ccrma.stanford.edu/~slegroux/', target='_blank', rel='noopener noreferrer'),
@@ -366,6 +435,20 @@ _PIN_SVG = (
     'stroke-linejoin="round" aria-hidden="true" focusable="false">'
     '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>'
     '<circle cx="12" cy="10" r="3"/></svg>'
+)
+
+_LIST_SVG = (
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" '
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+    'stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    '<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>'
+)
+
+_MAP_SVG = (
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" '
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+    'stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>'
 )
 
 _SEARCH_SVG = (
@@ -1013,6 +1096,29 @@ def region_tabs(active: str = 'westside'):
     )
 
 
+def view_toggle(active: str = 'list', oob: bool = False):
+    """List/Map segmented control.
+
+    One definition for the initial render and the OOB swaps from /view/list
+    and /view/map. It lives inside #filter-form, so 'closest form' carries the
+    active filters into the switch; the header search sits outside the form and
+    is included explicitly.
+    """
+    def btn(value, label, icon):
+        return Button(
+            Span(NotStr(icon), cls='view-btn-icon', **{'aria-hidden': 'true'}), label,
+            type='button', id=f'{value}-view-btn',
+            cls=f'view-btn{" active" if value == active else ""}',
+            hx_get=f'/view/{value}', hx_target='#view-container', hx_swap='innerHTML',
+            hx_include='closest form, #header-search',
+            **{'aria-pressed': 'true' if value == active else 'false'},
+        )
+    attrs = {'cls': 'view-toggle', 'id': 'view-toggle', 'role': 'group', 'aria-label': 'View mode'}
+    if oob:
+        attrs['hx_swap_oob'] = 'true'
+    return Div(btn('list', 'List', _LIST_SVG), btn('map', 'Map', _MAP_SVG), **attrs)
+
+
 def top_filter_bar(region: str = 'westside'):
     """Primary filter bar above the results: search + date + category pills.
 
@@ -1077,24 +1183,8 @@ def top_filter_bar(region: str = 'westside'):
             ),
             Button('Clear', type='button', cls='clear-filters-btn', onclick='clearAllFilters()'),
             # List/Map view toggle, top-right of the controls row (sits right of
-            # Clear, which carries margin-left:auto). It targets #view-container
-            # below and stays outside the filter HTMX swaps, so its state persists.
-            Div(
-                Button(
-                    Span('☰', cls='view-btn-icon', **{'aria-hidden': 'true'}), 'List',
-                    type='button', id='list-view-btn', cls='view-btn active',
-                    hx_get='/view/list', hx_target='#view-container', hx_swap='innerHTML',
-                    hx_include='closest form'
-                ),
-                Button(
-                    Span('\U0001F5FA', cls='view-btn-icon', **{'aria-hidden': 'true'}), 'Map',
-                    type='button', id='map-view-btn', cls='view-btn',
-                    hx_get='/view/map', hx_target='#view-container', hx_swap='innerHTML',
-                    hx_include='closest form'
-                ),
-                cls='view-toggle', id='view-toggle', role='tablist',
-                **{'aria-label': 'View mode'},
-            ),
+            # Clear, which carries margin-left:auto). /view/* re-renders it OOB.
+            view_toggle('list'),
             cls='top-filter-controls'
         ),
         category_filter_bar(),

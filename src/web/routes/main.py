@@ -7,7 +7,7 @@ from src.web.state import track_page_view
 from src.web.components import (
     page_head, page_header, page_footer,
     htmx_loading_indicator, top_filter_bar, filter_tallies_section, events_list,
-    region_tabs
+    region_tabs, home_hero
 )
 
 
@@ -25,7 +25,7 @@ def setup_routes(rt, state):
             date_filter='upcoming', region=region, limit=100
         )
 
-        # Live counts for the header. Cheap two-row query so the count
+        # Live counts for the hero. Cheap two-row query so the count
         # also includes multi-day events that are currently running today.
         with state.db.get_connection() as conn:
             total_count = conn.execute(
@@ -39,14 +39,21 @@ def setup_routes(rt, state):
                        AND substr(event_date,1,10) <= date('now','localtime')
                        AND substr(end_date,1,10) >= date('now','localtime'))
             """).fetchone()[0]
+            source_count = conn.execute(
+                "SELECT COUNT(DISTINCT source) FROM events "
+                "WHERE substr(event_date,1,10) >= date('now','localtime')"
+            ).fetchone()[0]
 
         return Html(
             page_head('Westside LA Events'),
             Body(
-                page_header(total_count=total_count, today_count=today_count, show_search=True),
+                # Counts live in the hero on the home page, not the nav bar.
+                page_header(show_search=True),
                 # Single filter form (no sidebar): search lives in the header;
                 # date, time-of-day, categories, free, and venues sit in the top bar.
                 Div(
+                    home_hero(total_count=total_count, today_count=today_count,
+                              source_count=source_count),
                     Form(
                         # Region tab strip sits above the filters; switching it
                         # re-runs the current search against the other region.
