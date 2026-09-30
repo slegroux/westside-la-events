@@ -66,6 +66,14 @@ ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', '').strip()
 # Analytics Configuration
 ENABLE_ANALYTICS = os.getenv('ENABLE_ANALYTICS', 'True').lower() == 'true'
 ANALYTICS_RETENTION_DAYS = int(os.getenv('ANALYTICS_RETENTION_DAYS', '365'))  # Keep data for 1 year
+# Seconds between batched analytics writes; 0 writes on every request. The
+# database is on the GCSFuse mount, where each commit is slow and GCS throttles
+# rapid rewrites of one object, so tracking is queued off the request path.
+# 0 or less means write synchronously.
+try:
+    ANALYTICS_FLUSH_SECONDS = float(os.getenv('ANALYTICS_FLUSH_SECONDS') or '10')
+except ValueError:
+    ANALYTICS_FLUSH_SECONDS = 10.0
 
 # Westside LA Geographic Bounds
 # Approximate boundaries for filtering events

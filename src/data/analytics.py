@@ -10,28 +10,68 @@ This module provides privacy-friendly analytics tracking for:
 """
 
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional, Dict, List, Tuple
+from typing import Callable, Optional, Dict, List, Tuple
 from contextlib import contextmanager
 import hashlib
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
+
+# Most writes kept queued while the writer is blocked or failing; beyond this
+# the oldest are dropped rather than growing memory without bound.
+MAX_PENDING_WRITES = 10_000
+# A batch that fails this many flushes in a row is dropped, so one bad write
+# cannot be retried forever.
+MAX_FLUSH_ATTEMPTS = 3
+# Busy timeout for the writer's connection. Short, so a locked database fails
+# the batch quickly (and it is retried) instead of stalling the writer, and so
+# the final flush at shutdown fits in Cloud Run's 10s SIGTERM grace.
+WRITER_TIMEOUT_SECONDS = 5.0
+
+
+def _utc_now() -> str:
+    """Current UTC time in SQLite's CURRENT_TIMESTAMP format.
+
+    Tracking calls stamp their own rows instead of relying on the column
+    default, which would record when a batch was flushed, not when the
+    visitor acted.
+    """
+    return datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
 
 class Analytics:
     """Analytics tracking and reporting."""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, flush_interval: float = 0):
         """
         Initialize analytics database.
 
         Args:
             db_path: Path to SQLite analytics database
+            flush_interval: Seconds between batched writes. 0 writes each
+                tracking call immediately. In production analytics.db sits on
+                the GCSFuse mount, where one commit costs ~0.5s and GCS
+                throttles repeated writes to the same object (HTTP 429), so
+                the app queues tracking calls and a background thread commits
+                them together; requests never wait on the mount.
         """
         self.db_path = db_path
         self._ensure_database()
+
+        self._flush_interval = flush_interval
+        self._failed_flushes = 0
+        self._pending: List[Callable[[sqlite3.Connection], None]] = []
+        self._pending_lock = threading.Lock()
+        self._stop = threading.Event()
+        self._writer: Optional[threading.Thread] = None
+        if flush_interval > 0:
+            self._writer = threading.Thread(
+                target=self._run_writer, name='analytics-writer', daemon=True
+            )
+            self._writer.start()
 
     def _ensure_database(self):
         """Create analytics tables if they don't exist."""
@@ -133,14 +173,14 @@ class Analytics:
         self._enable_wal_mode()
 
     @contextmanager
-    def get_connection(self):
+    def get_connection(self, timeout: float = 30.0):
         """Get database connection context manager."""
         # Use longer timeout for better concurrent access
-        conn = sqlite3.connect(self.db_path, timeout=30.0)
+        conn = sqlite3.connect(self.db_path, timeout=timeout)
         conn.row_factory = sqlite3.Row
 
-        # Set busy timeout to 30 seconds
-        conn.execute('PRAGMA busy_timeout=30000')
+        # Set busy timeout (30 seconds by default)
+        conn.execute(f'PRAGMA busy_timeout={int(timeout * 1000)}')
 
         try:
             yield conn
@@ -164,16 +204,115 @@ class Analytics:
         """Hash IP address for privacy."""
         return hashlib.sha256(ip.encode()).hexdigest()[:16]
 
-    def _get_or_create_session(self, session_id: str) -> None:
-        """Get or create a session record."""
-        with self.get_connection() as conn:
-            conn.execute("""
-                INSERT INTO sessions (session_id, first_seen, last_seen)
-                VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                ON CONFLICT(session_id) DO UPDATE SET
-                    last_seen = CURRENT_TIMESTAMP
-            """, (session_id,))
-            conn.commit()
+    # ---- Writes -------------------------------------------------------------
+    #
+    # Every tracking call is a closure over one connection. _submit either runs
+    # it now (flush_interval=0) or queues it for the writer thread, which runs
+    # the whole queue in a single transaction.
+
+    def _submit(self, op: Callable[[sqlite3.Connection], None]) -> None:
+        if self._writer is None:
+            self._write_batch([op])
+            return
+        with self._pending_lock:
+            self._pending.append(op)
+            self._trim_pending_locked()
+
+    def _trim_pending_locked(self) -> None:
+        overflow = len(self._pending) - MAX_PENDING_WRITES
+        if overflow > 0:
+            del self._pending[:overflow]
+            logger.warning('Analytics queue full; dropped %d oldest writes', overflow)
+
+    def _write_batch(self, ops: List[Callable[[sqlite3.Connection], None]]) -> bool:
+        """Apply ops in one transaction; return False if the batch failed.
+
+        A row-level error (bad data, constraint) rolls back that op alone and
+        the rest still commit. An OperationalError -- locked, I/O, the mount
+        misbehaving -- is about the database, not the row, so it fails the
+        whole batch at once rather than being hit again for every op.
+        """
+        try:
+            with self.get_connection(timeout=WRITER_TIMEOUT_SECONDS) as conn:
+                # IMMEDIATE takes the write lock up front: a busy database
+                # fails here once, not inside each op.
+                conn.execute('BEGIN IMMEDIATE')
+                for op in ops:
+                    conn.execute('SAVEPOINT op')
+                    try:
+                        op(conn)
+                    except sqlite3.OperationalError:
+                        raise
+                    except Exception as e:
+                        if not conn.in_transaction:
+                            # SQLite rolled back the whole transaction.
+                            raise
+                        conn.execute('ROLLBACK TO op')
+                        logger.warning(f"Skipping analytics row: {e}")
+                    conn.execute('RELEASE op')
+                conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error writing {len(ops)} analytics rows: {e}")
+            return False
+
+    def flush(self) -> None:
+        """Write everything queued so far.
+
+        A failed batch goes back to the front of the queue and is retried on
+        the next flush, up to MAX_FLUSH_ATTEMPTS times in a row.
+        """
+        with self._pending_lock:
+            ops, self._pending = self._pending, []
+        if not ops:
+            return
+        if self._write_batch(ops):
+            self._failed_flushes = 0
+            return
+        self._failed_flushes += 1
+        if self._failed_flushes >= MAX_FLUSH_ATTEMPTS:
+            logger.error(
+                'Dropping %d analytics rows after %d failed flushes',
+                len(ops), self._failed_flushes,
+            )
+            self._failed_flushes = 0
+            return
+        with self._pending_lock:
+            self._pending[:0] = ops
+            self._trim_pending_locked()
+
+    def _run_writer(self) -> None:
+        while not self._stop.wait(self._flush_interval):
+            try:
+                self.flush()
+            except Exception:
+                logger.exception('Analytics writer failed; retrying next interval')
+
+    def close(self) -> None:
+        """Stop the writer thread and flush what is left. Call on shutdown.
+
+        Bounded to fit Cloud Run's 10s SIGTERM grace: at most 3s waiting for
+        an in-progress flush, then one final flush with a 5s busy timeout.
+        """
+        self._stop.set()
+        if self._writer is not None:
+            self._writer.join(timeout=min(self._flush_interval, 3))
+        self.flush()
+
+    @staticmethod
+    def _touch_session(conn: sqlite3.Connection, session_id: str, at: str) -> None:
+        """Create the session record, or widen its first_seen/last_seen.
+
+        MIN/MAX rather than overwrite: batches from different instances can
+        land out of order, and must not move last_seen backwards.
+        """
+        conn.execute("""
+            INSERT INTO sessions (session_id, first_seen, last_seen)
+            VALUES (?, ?, ?)
+            ON CONFLICT(session_id) DO UPDATE SET
+                first_seen = MIN(first_seen, excluded.first_seen),
+                last_seen = MAX(last_seen, excluded.last_seen)
+        """, (session_id, at, at))
 
     def track_page_view(
         self,
@@ -193,27 +332,24 @@ class Analytics:
             user_agent: User agent string
             ip_address: User IP address (will be hashed)
         """
-        try:
-            self._get_or_create_session(session_id)
+        at = _utc_now()
+        ip_hash = self._hash_ip(ip_address) if ip_address else None
 
-            ip_hash = self._hash_ip(ip_address) if ip_address else None
+        def op(conn):
+            self._touch_session(conn, session_id, at)
+            conn.execute("""
+                INSERT INTO page_views (session_id, path, referrer, user_agent, ip_hash, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (session_id, path, referrer, user_agent, ip_hash, at))
 
-            with self.get_connection() as conn:
-                conn.execute("""
-                    INSERT INTO page_views (session_id, path, referrer, user_agent, ip_hash)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (session_id, path, referrer, user_agent, ip_hash))
+            # Update session page views counter
+            conn.execute("""
+                UPDATE sessions
+                SET page_views = page_views + 1
+                WHERE session_id = ?
+            """, (session_id,))
 
-                # Update session page views counter
-                conn.execute("""
-                    UPDATE sessions
-                    SET page_views = page_views + 1
-                    WHERE session_id = ?
-                """, (session_id,))
-
-                conn.commit()
-        except Exception as e:
-            logger.error(f"Error tracking page view: {e}")
+        self._submit(op)
 
     def track_event_interaction(
         self,
@@ -233,33 +369,31 @@ class Analytics:
             source: Event source
             category: Event category
         """
-        try:
-            self._get_or_create_session(session_id)
+        at = _utc_now()
 
-            with self.get_connection() as conn:
+        def op(conn):
+            self._touch_session(conn, session_id, at)
+            conn.execute("""
+                INSERT INTO event_interactions
+                (session_id, event_id, interaction_type, source, category, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (session_id, event_id, interaction_type, source, category, at))
+
+            # Update session counters
+            if interaction_type == 'view':
                 conn.execute("""
-                    INSERT INTO event_interactions
-                    (session_id, event_id, interaction_type, source, category)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (session_id, event_id, interaction_type, source, category))
+                    UPDATE sessions
+                    SET events_viewed = events_viewed + 1
+                    WHERE session_id = ?
+                """, (session_id,))
+            elif interaction_type == 'click':
+                conn.execute("""
+                    UPDATE sessions
+                    SET events_clicked = events_clicked + 1
+                    WHERE session_id = ?
+                """, (session_id,))
 
-                # Update session counters
-                if interaction_type == 'view':
-                    conn.execute("""
-                        UPDATE sessions
-                        SET events_viewed = events_viewed + 1
-                        WHERE session_id = ?
-                    """, (session_id,))
-                elif interaction_type == 'click':
-                    conn.execute("""
-                        UPDATE sessions
-                        SET events_clicked = events_clicked + 1
-                        WHERE session_id = ?
-                    """, (session_id,))
-
-                conn.commit()
-        except Exception as e:
-            logger.error(f"Error tracking event interaction: {e}")
+        self._submit(op)
 
     def track_search(
         self,
@@ -283,29 +417,26 @@ class Analytics:
             free_only: Whether free-only filter was applied
             results_count: Number of results returned
         """
-        try:
-            self._get_or_create_session(session_id)
+        at = _utc_now()
+        categories_str = ','.join(categories) if categories else None
+        sources_str = ','.join(sources) if sources else None
 
-            categories_str = ','.join(categories) if categories else None
-            sources_str = ','.join(sources) if sources else None
+        def op(conn):
+            self._touch_session(conn, session_id, at)
+            conn.execute("""
+                INSERT INTO search_queries
+                (session_id, query, date_filter, categories, sources, free_only, results_count, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (session_id, query, date_filter, categories_str, sources_str, free_only, results_count, at))
 
-            with self.get_connection() as conn:
-                conn.execute("""
-                    INSERT INTO search_queries
-                    (session_id, query, date_filter, categories, sources, free_only, results_count)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (session_id, query, date_filter, categories_str, sources_str, free_only, results_count))
+            # Update session searches counter
+            conn.execute("""
+                UPDATE sessions
+                SET searches = searches + 1
+                WHERE session_id = ?
+            """, (session_id,))
 
-                # Update session searches counter
-                conn.execute("""
-                    UPDATE sessions
-                    SET searches = searches + 1
-                    WHERE session_id = ?
-                """, (session_id,))
-
-                conn.commit()
-        except Exception as e:
-            logger.error(f"Error tracking search: {e}")
+        self._submit(op)
 
     def get_daily_metrics(self, date: datetime) -> Dict:
         """

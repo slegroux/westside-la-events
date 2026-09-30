@@ -68,15 +68,20 @@ async def lifespan(app):
 
     # Initialize analytics if enabled
     if config.ENABLE_ANALYTICS and state.analytics is None:
-        state.analytics = Analytics(config.ANALYTICS_DB_PATH)
+        state.analytics = Analytics(
+            config.ANALYTICS_DB_PATH, flush_interval=config.ANALYTICS_FLUSH_SECONDS
+        )
 
     # Surface risky/incomplete configuration as warnings (non-fatal)
     config.validate_config()
 
     yield
 
-    # Shutdown: Clean up resources (Database uses context managers, no explicit close needed)
-    pass
+    # Shutdown: write out queued analytics. Cloud Run sends SIGTERM and allows
+    # 10s before killing the instance; close() is bounded to fit in that.
+    # (Database uses context managers, no explicit close needed.)
+    if state.analytics is not None:
+        await anyio.to_thread.run_sync(state.analytics.close)
 
 
 # Initialize FastHTML app with lifespan
