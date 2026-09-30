@@ -71,7 +71,7 @@ scripts/
 **Features:**
 - Backs up production database before overwriting (optional)
 - Optionally runs scrapers to update local database first
-- Uploads events.db, analytics.db, and geocode_cache.json
+- Uploads events.db and geocode_cache.json (never analytics.db: production writes that file, and uploading the local copy would overwrite it)
 - Shows database statistics (event count, file size)
 - Verifies uploaded files
 - Includes dry-run mode for testing

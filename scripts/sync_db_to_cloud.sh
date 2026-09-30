@@ -22,7 +22,6 @@ SERVICE_NAME="westside-events"
 REGION="us-west1"
 BUCKET_NAME="westside-la-events-data"
 LOCAL_DB="./data/events.db"
-LOCAL_ANALYTICS="./data/analytics.db"
 LOCAL_GEOCODE="./data/geocode_cache.json"
 
 # Parse command line arguments
@@ -187,15 +186,10 @@ if [ "$DRY_RUN" = false ]; then
     rm -f "${EVENTS_SNAPSHOT}"
     echo "   ✓ Uploaded events.db"
 
-    # Upload analytics database if it exists
-    if [ -f "${LOCAL_ANALYTICS}" ]; then
-        ANALYTICS_SNAPSHOT="/tmp/analytics_snapshot.db"
-        rm -f "${ANALYTICS_SNAPSHOT}"
-        sqlite3 "${LOCAL_ANALYTICS}" ".backup '${ANALYTICS_SNAPSHOT}'"
-        gsutil cp "${ANALYTICS_SNAPSHOT}" "gs://${BUCKET_NAME}/analytics.db"
-        rm -f "${ANALYTICS_SNAPSHOT}"
-        echo "   ✓ Uploaded analytics.db"
-    fi
+    # analytics.db is deliberately NOT uploaded. Production owns it: Cloud Run
+    # mounts this bucket at /app/data and records page views into
+    # gs://.../analytics.db, so uploading the local copy replaces production's
+    # history with local dev traffic (this happened on 2026-09-29).
 
     # Upload geocode cache if it exists
     if [ -f "${LOCAL_GEOCODE}" ]; then
@@ -205,7 +199,6 @@ if [ "$DRY_RUN" = false ]; then
 else
     echo "   [DRY RUN] Would upload:"
     echo "      ${LOCAL_DB} -> gs://${BUCKET_NAME}/events.db"
-    [ -f "${LOCAL_ANALYTICS}" ] && echo "      ${LOCAL_ANALYTICS} -> gs://${BUCKET_NAME}/analytics.db"
     [ -f "${LOCAL_GEOCODE}" ] && echo "      ${LOCAL_GEOCODE} -> gs://${BUCKET_NAME}/geocode_cache.json"
 fi
 
