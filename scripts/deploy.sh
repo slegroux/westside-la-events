@@ -180,69 +180,11 @@ if [ -d .git ]; then
     fi
 fi
 
-# Download fresh database from Cloud Storage to bundle in Docker image
-echo ""
-echo "📥 Downloading fresh database for bundling..."
-mkdir -p data
-
-# Download events.db (required).
-#
-# This overwrites ./data/events.db with whatever Cloud Storage holds. If the
-# local copy is NEWER, it contains work that has not been synced yet and
-# downloading would destroy it -- and then a later sync would push the older
-# data straight back up. Sync first, then deploy.
-if gsutil -q stat "gs://${BUCKET_NAME}/events.db" 2>/dev/null; then
-    if [ -f "data/events.db" ]; then
-        REMOTE_EPOCH=$(gsutil stat "gs://${BUCKET_NAME}/events.db" 2>/dev/null \
-            | awk -F'Update time:' '/Update time:/{print $2}' \
-            | xargs -I{} date -j -f "%a, %d %b %Y %H:%M:%S %Z" "{}" "+%s" 2>/dev/null \
-            || echo 0)
-        LOCAL_EPOCH=$(stat -f %m "data/events.db" 2>/dev/null || stat -c %Y "data/events.db" 2>/dev/null || echo 0)
-        if [ "${LOCAL_EPOCH}" -gt "${REMOTE_EPOCH}" ] && [ "${REMOTE_EPOCH}" -gt 0 ]; then
-            echo "  ❌ Local data/events.db is newer than the copy in Cloud Storage."
-            echo "     Deploying would overwrite unsynced local data, and a later"
-            echo "     sync would then push the older data back to production."
-            echo ""
-            echo "     Sync the local database first:"
-            echo "       ./scripts/sync_db_to_cloud.sh"
-            echo "     then re-run this deploy."
-            exit 1
-        fi
-    fi
-    echo "  Downloading events.db..."
-    gsutil cp "gs://${BUCKET_NAME}/events.db" data/events.db
-    DB_SIZE=$(ls -lh data/events.db | awk '{print $5}')
-    echo "  ✓ Downloaded events.db (${DB_SIZE})"
-else
-    echo "  ⚠️  No events.db in Cloud Storage"
-    if [ ! -f "data/events.db" ]; then
-        echo "  ❌ Error: No local events.db found either"
-        echo "  Run scrapers first: micromamba run -n la python run_scrapers.py"
-        exit 1
-    else
-        echo "  Using existing local events.db"
-    fi
-fi
-
-# Download analytics.db (optional)
-if gsutil -q stat "gs://${BUCKET_NAME}/analytics.db" 2>/dev/null; then
-    echo "  Downloading analytics.db..."
-    gsutil cp "gs://${BUCKET_NAME}/analytics.db" data/analytics.db
-    echo "  ✓ Downloaded analytics.db"
-else
-    echo "  ⚠️  No analytics.db in Cloud Storage (will start fresh)"
-fi
-
-# Download geocode_cache.json (optional)
-if gsutil -q stat "gs://${BUCKET_NAME}/geocode_cache.json" 2>/dev/null; then
-    echo "  Downloading geocode_cache.json..."
-    gsutil cp "gs://${BUCKET_NAME}/geocode_cache.json" data/geocode_cache.json
-    echo "  ✓ Downloaded geocode_cache.json"
-else
-    echo "  ⚠️  No geocode_cache.json in Cloud Storage"
-fi
-
-echo "✅ Database bundle ready for Docker build"
+# No database is bundled into either image. Both services mount the bucket at
+# /app/data (GCSFuse), which hides anything baked in there, and the web service
+# serves a local copy it makes at startup (DB_CACHE_DIR). This step used to
+# download events.db into ./data before the build, which only enlarged the
+# image and overwrote the local database with the production one.
 
 # Build the container image
 echo ""

@@ -45,10 +45,17 @@ tests/
 *.log
 logs/
 
-# Data files
-# Keep primary DB/cache files included in build context because deploy.sh
-# refreshes them from Cloud Storage before gcloud builds submit.
-data/backup/
+# Data - runtime state only. Both services mount the bucket over /app/data,
+# which hides anything baked in. Anchored with a leading slash: gitignore
+# syntax would otherwise also match src/data/, the app's database code.
+/data/
+
+# DVC cache (~170 MB) and local tool state
+.dvc/
+.omc/
+
+# Review screenshots in the repo root
+/*.png
 
 # Scripts (not needed in container)
 scripts/
