@@ -178,7 +178,7 @@ def page_head(title: str, description: Optional[str] = None):
         Meta(property='og:type', content='website'),
         Meta(name='theme-color', content='#ffffff'),
         Link(rel='icon', href='/static/favicon.svg', type='image/svg+xml'),
-        Link(rel='alternate icon', href='/favicon.ico'),
+        Link(rel='alternate icon', href='/static/favicon.ico'),
         Link(rel='apple-touch-icon', href='/static/images/apple-touch-icon.png'),
         # Resource hints for performance - preconnect to external domains
         Link(rel='preconnect', href='https://unpkg.com'),
