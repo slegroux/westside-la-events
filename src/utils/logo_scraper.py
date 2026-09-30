@@ -7,9 +7,36 @@ from pathlib import Path
 from typing import Optional, Dict
 import hashlib
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
+
+
+# Leading bytes of the image formats a logo can arrive in. Checked instead of
+# the Content-Type header, which some sites get wrong in both directions.
+# ICO is here because favicons are a common fallback and browsers render them.
+_IMAGE_SIGNATURES = (
+    b'\x89PNG\r\n\x1a\n', b'\xff\xd8\xff', b'GIF87a', b'GIF89a', b'\x00\x00\x01\x00',
+)
+_SVG_TAG = re.compile(rb'<svg[\s>]', re.IGNORECASE)
+
+
+def looks_like_image(data: bytes) -> bool:
+    """True if data is a PNG, JPEG, GIF, ICO, WebP or SVG image.
+
+    Several cached logos turned out to be HTML error pages or empty files,
+    saved because the download took any 200 response at face value. They
+    rendered as broken images on every card from that source.
+    """
+    if not isinstance(data, (bytes, bytearray)):
+        return False
+    if data.startswith(_IMAGE_SIGNATURES):
+        return True
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return True
+    head = data[:1024].lstrip()
+    return head.startswith((b'<svg', b'<?xml')) and bool(_SVG_TAG.search(data[:4096]))
 
 class LogoScraper:
     """
@@ -126,7 +153,7 @@ class LogoScraper:
         'UCLA Design Media Arts': 'https://www.design.ucla.edu/assets/android-icon-192x192.png',
         'Village Well Books & Coffee': 'https://cdn1.bookmanager.com/i/9916539/logo_navbar.png?mtime=1587316814',
         'Hammer Museum': 'https://hammer.ucla.edu/sites/default/files/logo_0.png',
-        'LACMA': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/LACMA_logo.svg/320px-LACMA_logo.svg.png',
+        'LACMA': 'https://www.lacma.org/themes/custom/lacma_d8/logo.svg',
         'Venice Beach Events': 'https://www.visitveniceca.com/wp-content/uploads/2021/03/venice-logo.png',
         'West Hollywood': 'https://www.weho.org/Home/ShowPublishedImage/6958/637444285636730000',
         'Culver City': 'https://www.culvercity.gov/files/assets/public/v/1/images/culver-city-logo.png',
@@ -140,7 +167,7 @@ class LogoScraper:
         'Recreation Cafe': 'https://images.squarespace-cdn.com/content/v1/62c3a4bf2c1e2e57e6b0be39/8c2a7d45-7e0f-4c82-8a4c-4ba95a3f4c4d/recreation-cafe-logo.png',
         'Jamesons Pub': 'https://static.spotapps.co/web/santamonica--jamesonsirishpub--com/custom/logo.png',
         'Visit Santa Monica': 'https://www.santamonica.com/wp-content/themes/visit-santa-monica/assets/images/logo.svg',
-        'Arcana Books': 'https://www.arcanabooks.com/images/logo.png',
+        'Arcana Books': 'https://www.arcanabooks.com/s/img/logo.png',
         'Skirball Cultural Center': 'https://www.skirball.org/themes/custom/skirball/favicon.ico',
         'The Broad Stage': 'https://broadstage.org/media/i0kdq3nu/broadstage_logo_horizontal_purple_rgb.png',
         'Nuart Theatre': 'https://www.landmarktheatres.com/apple-touch-icon.png',
@@ -318,6 +345,9 @@ class LogoScraper:
         for alt_filename in alternative_names:
             alt_filepath = self.cache_dir / alt_filename
             if alt_filepath.exists():
+                if not looks_like_image(alt_filepath.read_bytes()[:4096]):
+                    logger.warning(f"Ignoring {alt_filename}: not an image")
+                    continue
                 logger.info(f"Using manually provided logo: {alt_filename}")
                 return f"/static/logos/{alt_filename}"
 
@@ -344,10 +374,17 @@ class LogoScraper:
             filename = f"{source.lower().replace(' ', '_')}{ext}"
             filepath = self.cache_dir / filename
 
-            # Download if not already cached
-            if not filepath.exists():
+            # Download if not already cached (or if the cached file is broken)
+            if not filepath.exists() or not looks_like_image(filepath.read_bytes()[:4096]):
                 response = self.session.get(logo_url, timeout=10)
                 response.raise_for_status()
+                if not looks_like_image(response.content):
+                    logger.warning(
+                        f"Logo URL for {source} did not return an image "
+                        f"({response.headers.get('Content-Type')}, "
+                        f"{len(response.content)} bytes): {logo_url}"
+                    )
+                    return None
 
                 with open(filepath, 'wb') as f:
                     f.write(response.content)

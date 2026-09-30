@@ -395,6 +395,21 @@ class Analytics:
 
         self._submit(op)
 
+    def track_event_view(
+        self,
+        session_id: str,
+        event_id: int,
+        source: Optional[str] = None,
+        category: Optional[str] = None
+    ) -> None:
+        """Track an event detail page view.
+
+        The /event/{id} route has always called this, but it did not exist:
+        the AttributeError was swallowed there, so no detail view was ever
+        recorded.
+        """
+        self.track_event_interaction(session_id, event_id, 'view', source, category)
+
     def track_search(
         self,
         session_id: str,

@@ -170,3 +170,15 @@ def test_out_of_order_batches_do_not_move_session_times_backwards(batched, db_pa
             "SELECT first_seen, last_seen FROM sessions WHERE session_id = 's1'"
         ).fetchone()
     assert (first, last) == ("2026-01-01 11:00:00", "2026-01-01 12:00:00")
+
+
+def test_track_event_view_records_a_view(db_path):
+    a = Analytics(db_path)
+    a.track_event_view("s1", 42, source="LACMA", category="art")
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT event_id, interaction_type, source FROM event_interactions"
+        ).fetchone()
+        viewed = conn.execute("SELECT events_viewed FROM sessions").fetchone()[0]
+    assert row == (42, "view", "LACMA")
+    assert viewed == 1

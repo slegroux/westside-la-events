@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from src.utils.logo_scraper import looks_like_image
+
 LOGO_DIR = Path(__file__).resolve().parents[2] / "static" / "logos"
 MAX_RASTER_BYTES = 64 * 1024
 # Vector logos traced from artwork can be path-heavy; the largest today is
@@ -33,3 +35,10 @@ def test_logo_is_small(logo):
         f"300x96, e.g. `sips -Z 300 {logo.name}` for PNG/JPEG or "
         f"`cwebp -resize` for WebP"
     )
+
+
+@pytest.mark.parametrize("logo", LOGOS, ids=lambda p: p.name)
+def test_logo_is_an_image(logo):
+    # HTML error pages and empty files were once saved here as logos and
+    # rendered as broken images on every card from their source.
+    assert looks_like_image(logo.read_bytes()[:4096]), f"{logo.name} is not an image"
