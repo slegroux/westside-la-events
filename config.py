@@ -112,7 +112,6 @@ CATEGORIES = [
     'Community',
     'Education',
     'Tech',
-    'Date Night',
     'Other'
 ]
 

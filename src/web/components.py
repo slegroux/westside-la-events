@@ -625,7 +625,7 @@ _STOCK_ROOT = os.path.normpath(
 # Canonical category (lowercased) -> stock theme folder.
 _CATEGORY_THEME = {
     'music': 'music', 'entertainment': 'music',
-    'nightlife': 'nightlife', 'date night': 'nightlife',
+    'nightlife': 'nightlife',
     'art': 'art', 'arts': 'art', 'art & museums': 'art',
     'art shows & galleries': 'art', 'museums': 'art',
     'culture': 'art', 'cultural': 'art',

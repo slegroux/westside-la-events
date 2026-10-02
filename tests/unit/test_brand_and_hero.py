@@ -8,6 +8,7 @@ import pytest
 from fastcore.xml import to_xml
 from httpx import AsyncClient, ASGITransport
 
+import config
 from src.web.app import app, state
 from src.web.components import brand_lockup, home_hero, view_toggle
 
@@ -43,6 +44,18 @@ class TestHomeHero:
 
     def test_omits_stats_without_counts(self):
         assert 'hero-stats' not in to_xml(home_hero())
+
+    def test_date_night_is_a_curated_preset(self):
+        # Date Night is no longer a category: the chip checks Evening + Night
+        # and the categories people plan an evening around.
+        js = (STATIC / 'js' / 'filters.js').read_text()
+        preset = js[js.index("'date-night': {"):]
+        preset = preset[:preset.index('},') + 2]
+        assert "times: ['evening', 'night']" in preset
+        for cat in ('Music', 'Theater', 'Film', 'Food & Drink', 'Comedy'):
+            assert cat in config.CATEGORIES
+            assert f"'{cat}'" in preset
+        assert 'Date Night' not in js
 
 
 @pytest.mark.unit

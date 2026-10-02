@@ -13,7 +13,6 @@ class CategoryClassifier:
         """Initialize classifier with keyword mappings."""
         # Category priority weights (higher = more important when there's a tie)
         self.category_priorities = {
-            'Date Night': 3.0,  # Highest priority for date-worthy events
             'Family': 2.5,      # Family events should override generic categories
             'Theater': 2.0,     # Theater is more specific than generic Music/Art
             'Comedy': 2.0,      # Comedy is more specific than generic Entertainment
@@ -24,17 +23,11 @@ class CategoryClassifier:
             'Sports': 1.5,      # Moderate priority
             'Wellness': 1.5,    # Moderate priority
             'Education': 1.5,   # Moderate priority
-            'Food & Drink': 1.0,  # Lower priority (often overlaps with Date Night)
-            'Nightlife': 1.0,     # Lower priority (often overlaps with Date Night)
+            'Food & Drink': 1.0,  # Lower priority
+            'Nightlife': 1.0,     # Lower priority
             'Community': 1.0,     # Lower priority (generic)
             'Other': 0.5        # Lowest priority
         }
-
-        # Strong date night indicators get bonus weight
-        self.date_night_strong_indicators = [
-            'romantic', 'date night', 'couples', 'candlelit', 'candlelight',
-            'intimate', 'romantic evening', 'prix fixe', 'adults only'
-        ]
 
         # Venue-based category mappings (venues strongly associated with specific categories)
         self.venue_categories = {
@@ -130,15 +123,6 @@ class CategoryClassifier:
                 'training', 'educational', 'learning', 'discussion', 'panel',
                 'conference', 'symposium', 'presentation'
             ],
-            'Date Night': [
-                'romantic', 'date night', 'couples', 'candlelit', 'candlelight',
-                'prix fixe', 'adults only', 'romantic evening', 'dinner for two',
-                'wine tasting', 'intimate dinner', 'date spot', 'perfect for couples',
-                'romantic atmosphere', 'dimly lit', 'couples night', 'romantic setting',
-                'rooftop', 'jazz night', 'live jazz', 'speakeasy', 'dinner show',
-                'cocktail hour', 'sunset cruise', 'wine dinner', 'tasting menu',
-                'valentine', 'candlelight concert', 'intimate setting',
-            ],
             'Tech': [
                 'tech ', ' tech', 'technology', 'startup', 'artificial intelligence',
                 'machine learning', 'software', 'developer', 'programming', 'coding',
@@ -190,19 +174,6 @@ class CategoryClassifier:
         for category, raw_score in raw_scores.items():
             priority = self.category_priorities.get(category, 1.0)
             weighted_scores[category] = raw_score * priority
-
-        # Date Night requires either a strong explicit signal OR 2+ keyword matches.
-        # This prevents single generic words (rooftop, jazz) from overriding
-        # more specific categories on their own.
-        if 'Date Night' in weighted_scores:
-            has_strong_indicator = any(
-                indicator in text for indicator in self.date_night_strong_indicators
-            )
-            if has_strong_indicator:
-                weighted_scores['Date Night'] += 5.0
-            elif raw_scores.get('Date Night', 0) < 2:
-                # Only 1 weak match — not enough evidence, suppress Date Night
-                del weighted_scores['Date Night']
 
         # Return category with highest weighted score
         if weighted_scores:

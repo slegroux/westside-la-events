@@ -267,11 +267,16 @@ document.body.addEventListener('htmx:afterSwap', function(e) {
 // Hero shortcuts: set the real filter controls, then submit once, so the
 // pills and the date select always show what the results reflect. Each
 // shortcut is a fresh browse, so it starts from a cleared form.
+// "Date night" is a curated view (a mood, not a category): evening and night
+// across the categories people plan an evening around.
 const QUICK_FILTERS = {
     'weekend': { date: 'this_weekend' },
     'free': { checkbox: 'input[name="free_only"]' },
-    'family': { category: 'Family' },
-    'date-night': { category: 'Date Night' },
+    'family': { categories: ['Family'] },
+    'date-night': {
+        times: ['evening', 'night'],
+        categories: ['Music', 'Theater', 'Film', 'Food & Drink', 'Comedy'],
+    },
 };
 
 function applyQuickFilter(key) {
@@ -290,21 +295,25 @@ function applyQuickFilter(key) {
         const cb = form.querySelector(spec.checkbox);
         if (cb) cb.checked = true;
     }
-    if (spec.category) {
+    (spec.times || []).forEach(t => {
+        const cb = form.querySelector(`input[name="time_of_day"][value="${t}"]`);
+        if (cb) cb.checked = true;
+    });
+    (spec.categories || []).forEach(category => {
         // The pill bar only renders categories with events under the current
         // filters, so the pill may be absent. Submit the value through a hidden
         // input instead; the OOB-swapped bar then renders the real pill checked.
-        const cb = form.querySelector(`input[name="category"][value="${spec.category}"]`);
+        const cb = form.querySelector(`input[name="category"][value="${category}"]`);
         if (cb) {
             cb.checked = true;
         } else {
             const hidden = document.createElement('input');
             hidden.type = 'hidden';
             hidden.name = 'category';
-            hidden.value = spec.category;
+            hidden.value = category;
             (form.querySelector('#category-filter-bar') || form).appendChild(hidden);
         }
-    }
+    });
     htmx.trigger(form, 'submit');
     // Land just below the sticky header, whose height differs on phones
     // (the search wraps to its own row there).

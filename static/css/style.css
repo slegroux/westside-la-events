@@ -44,7 +44,7 @@
     /* Category Colors - 6 hues at least 29deg apart so the pill dots stay
        distinguishable (indigo sat 19deg from purple and 22deg from blue). */
     --category-purple: #7c3aed;      /* Music, Nightlife */
-    --category-pink: #e11d48;        /* Art, Date Night, Theater */
+    --category-pink: #e11d48;        /* Art, Theater */
     --category-orange: #ea580c;      /* Food & Drink, Comedy */
     --category-green: #16a34a;       /* Sports, Wellness, Outdoors, Family */
     --category-blue: #2563eb;        /* Community, Education */
@@ -1079,8 +1079,7 @@ header {
 .category-checkbox-label[data-category="Music"],
 .category-checkbox-label[data-category="Nightlife"] { --cat: var(--category-purple); }
 .category-checkbox-label[data-category="Art"],
-.category-checkbox-label[data-category="Theater"],
-.category-checkbox-label[data-category="Date Night"] { --cat: var(--category-pink); }
+.category-checkbox-label[data-category="Theater"] { --cat: var(--category-pink); }
 .category-checkbox-label[data-category="Food & Drink"],
 .category-checkbox-label[data-category="Comedy"] { --cat: var(--category-orange); }
 .category-checkbox-label[data-category="Sports"],
@@ -1283,7 +1282,6 @@ header {
 
 .event-card[data-category="Art"]::before,
 .event-card[data-category="Art Shows & Galleries"]::before,
-.event-card[data-category="Date Night"]::before,
 .event-card[data-category="Theater"]::before,
 .event-card[data-category="Theatre"]::before {
     background: var(--category-pink);
@@ -1483,8 +1481,7 @@ a.event-date-chip:focus-visible {
 
 .event-image-placeholder[data-category="Art"],
 .event-image-placeholder[data-category="Theater"],
-.event-image-placeholder[data-category="Theatre"],
-.event-image-placeholder[data-category="Date Night"] {
+.event-image-placeholder[data-category="Theatre"] {
     background: linear-gradient(135deg, #880e4f 0%, #e11d48 100%);
 }
 
@@ -1625,14 +1622,6 @@ a.event-date-chip:focus-visible {
     color: #9a3412;
     border-color: #fed7aa;
     font-size: var(--text-xs);
-}
-
-.date-night-badge {
-    background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%);
-    color: white;
-    border-color: #e11d48;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    font-weight: 600;
 }
 
 /* Single metadata row: time + venue. Replaces the older .event-date and
@@ -1803,7 +1792,6 @@ a.event-date-chip:focus-visible {
 
 .event-category[data-category="Art"],
 .event-category[data-category="Art Shows & Galleries"],
-.event-category[data-category="Date Night"],
 .event-category[data-category="Theater"],
 .event-category[data-category="Theatre"] {
     --cat: var(--category-pink);
