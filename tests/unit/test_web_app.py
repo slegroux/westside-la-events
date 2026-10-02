@@ -340,6 +340,34 @@ class TestPageComponents:
         card = event_card(event)
         assert card is not None
 
+    def test_event_card_links_to_detail_page(self):
+        """Image and title open /event/{id}; only the source link leaves the site."""
+        import re
+        from fastcore.xml import to_xml
+        from src.web.app import event_card
+
+        event = Event(
+            id=42,
+            title="Test Event",
+            venue_name="Test Venue",
+            event_date=datetime.now(),
+            category="Music",
+            source="Test Source",
+            url="https://example.com/e/1",
+        )
+        html = to_xml(event_card(event))
+        anchors = re.findall(r'<a\b[^>]*>', html)
+        internal = [a for a in anchors if 'href="/event/42"' in a]
+        # Image and title (no description on this event).
+        assert len(internal) == 2
+        assert all('target=' not in a for a in internal)
+        assert re.search(r'<a href="/event/42"[^>]*>\s*<h2 class="event-title">', html)
+
+        outbound = [a for a in anchors if 'href="https://example.com/e/1"' in a]
+        assert len(outbound) == 1
+        assert 'target="_blank"' in outbound[0] and 'noopener' in outbound[0]
+        assert 'View on Test Source' in html
+
     def test_events_list_with_events(self, sample_events):
         """Test events list component with events."""
         from src.web.app import events_list

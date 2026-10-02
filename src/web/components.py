@@ -683,17 +683,16 @@ def _placeholder_image(event: Event):
 def event_card(event: Event, session=None):
     """Component to render a single event card."""
 
-    # Source logo element - clickable, pointing to original event URL
-    # Wrap logo and label in a container
+    # Source attribution: the one outbound link on the card, labelled as such
+    # ("View on X ↗") since the image and title now stay on our site.
     if event.url:
         source_display = A(
             Img(src=event.source_logo_url, alt=f'{event.source} logo', cls='source-logo', loading='lazy') if event.source_logo_url else None,
-            Span(event.source, cls='source-label'),
+            Span(f'View on {event.source}', Span(' ↗', **{'aria-hidden': 'true'}), cls='source-label'),
             href=event.url,
             target='_blank',
             rel='noopener noreferrer',
             cls='event-source-link',
-            title=f'View on {event.source}'
         )
     else:
         source_display = Div(
@@ -702,13 +701,12 @@ def event_card(event: Event, session=None):
             cls='event-source-container'
         )
 
-    # Create link attributes for external event URL
+    # Image, title and description open our detail page (/event/{id}, which
+    # records the view in analytics), not the source.
     link_attrs = {
-        'href': event.url,
-        'target': '_blank',
-        'rel': 'noopener noreferrer',
+        'href': f'/event/{event.id}',
         'style': 'text-decoration: none; color: inherit;'
-    } if event.url else {
+    } if event.id else {
         'style': 'text-decoration: none; color: inherit; cursor: default;'
     }
 
@@ -748,7 +746,7 @@ def event_card(event: Event, session=None):
             cls='event-card-media',
         ),
         Div(
-            # Title links to the event URL. (Favorites removed — no account to
+            # Title links to the detail page. (Favorites removed — no account to
             # persist them; price lives in the metadata row.)
             A(
                 H2(event.title, cls='event-title'),
