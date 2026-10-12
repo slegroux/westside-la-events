@@ -20,6 +20,7 @@ import sys
 import argparse
 import asyncio
 import os
+from collections import Counter
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
@@ -319,7 +320,12 @@ async def main_async():
 
     # A re-scrape keeps a stored row's category, so rows in a retired
     # category only move when reclassified explicitly.
-    reclassified = reclassify_retired(db)
+    try:
+        reclassified = reclassify_retired(db)
+    except Exception as e:
+        # Never let cleanup cost the day's upload.
+        print(f"⚠ Reclassifying retired categories failed: {e}")
+        reclassified = Counter()
     if reclassified:
         print(f"\nReclassified {sum(reclassified.values())} event(s) out of retired categories: "
               + ', '.join(f'{c} {n}' for c, n in reclassified.most_common()))
@@ -422,18 +428,9 @@ async def main_async():
             os.unlink(events_snapshot)
             print("✓ events.db uploaded")
 
-            # Upload analytics database
-            if os.path.exists('data/analytics.db'):
-                analytics_snapshot = '/tmp/analytics_snapshot.db'
-                print("Uploading analytics.db...")
-                Database.snapshot_db('data/analytics.db', analytics_snapshot)
-                subprocess.run(
-                    ['gsutil', 'cp', analytics_snapshot, f'{bucket}/analytics.db'],
-                    check=True,
-                    timeout=60
-                )
-                os.unlink(analytics_snapshot)
-                print("✓ analytics.db uploaded")
+            # analytics.db is not uploaded: the web service writes page views
+            # to that object live, so a copy taken here would overwrite any
+            # written since (the same reason sync_db_to_cloud.sh skips it).
 
             # Upload geocode cache
             if os.path.exists('data/geocode_cache.json'):
