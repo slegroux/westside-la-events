@@ -2,6 +2,7 @@
 Category classification utility for automatically categorizing events.
 Uses keyword matching to assign categories to events.
 """
+from collections import Counter
 from typing import List
 import config
 
@@ -250,3 +251,32 @@ def classify_event(title: str, description: str = '', venue: str = '') -> str:
     """
     classifier = get_classifier()
     return classifier.classify(title, description, venue)
+
+
+# Categories the classifier no longer produces. Stored rows keep their category
+# when a re-scrape merges into them, so they have to be moved explicitly.
+RETIRED_CATEGORIES = ('Date Night',)
+
+
+def reclassify_retired(db) -> Counter:
+    """Re-run the classifier on rows still in a retired category.
+
+    Idempotent and cheap once nothing is left, so the scraper runs it every
+    time: a database synced up from an older copy heals on the next scrape.
+    Returns a count per new category.
+    """
+    placeholders = ','.join('?' * len(RETIRED_CATEGORIES))
+    moved = Counter()
+    with db.get_connection() as conn:
+        rows = conn.execute(
+            f"SELECT id, title, description, venue_name FROM events WHERE category IN ({placeholders})",
+            RETIRED_CATEGORIES,
+        ).fetchall()
+        for event_id, title, description, venue in rows:
+            new_category = classify_event(title or '', description or '', venue or '')
+            conn.execute(
+                "UPDATE events SET category = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (new_category, event_id),
+            )
+            moved[new_category] += 1
+    return moved

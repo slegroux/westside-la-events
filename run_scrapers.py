@@ -30,6 +30,7 @@ setup_logging()
 
 from src.data.database import Database
 from src.data.models import Event
+from src.utils.categories import reclassify_retired
 from src.scrapers.registry import SCRAPER_MAP, get_enabled_scraper_names
 
 
@@ -315,6 +316,14 @@ async def main_async():
     # Insert events into database
     insert_start = datetime.now()
     counts = insert_events_to_db(db, results)
+
+    # A re-scrape keeps a stored row's category, so rows in a retired
+    # category only move when reclassified explicitly.
+    reclassified = reclassify_retired(db)
+    if reclassified:
+        print(f"\nReclassified {sum(reclassified.values())} event(s) out of retired categories: "
+              + ', '.join(f'{c} {n}' for c, n in reclassified.most_common()))
+    counts['reclassified'] = sum(reclassified.values())
     insert_time = (datetime.now() - insert_start).total_seconds()
 
     total_time = scrape_time + insert_time
@@ -390,7 +399,7 @@ async def main_async():
         print(f"⚠ Failed to send notification: {e}")
 
     # Upload to Cloud Storage if running in production
-    if os.getenv('ENVIRONMENT') == 'production' and counts['saved'] > 0:
+    if os.getenv('ENVIRONMENT') == 'production' and (counts['saved'] > 0 or counts.get('reclassified')):
         print("\n" + "="*60)
         print("UPLOADING TO CLOUD STORAGE")
         print("="*60)

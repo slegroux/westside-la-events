@@ -6,25 +6,13 @@ Every 'Date Night' row was a weekly jazz night: the category's keyword list
 the top weight and pulled jazz out of Music. Date night is now a curated view
 (the hero chip), not a category.
 """
-import importlib.util
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import pytest
 
 import config
 from src.data.models import Event
-from src.utils.categories import CategoryClassifier, classify_event
-
-_SCRIPT = Path(__file__).parents[2] / 'scripts' / 'retire_date_night.py'
-
-
-def _load_script():
-    spec = importlib.util.spec_from_file_location('retire_date_night', _SCRIPT)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
+from src.utils.categories import CategoryClassifier, classify_event, reclassify_retired
 
 @pytest.mark.unit
 class TestDateNightRetired:
@@ -59,7 +47,7 @@ class TestReclassifyDateNight:
         )
         event_id, _ = db.insert_event(event)
 
-        moved = _load_script().reclassify_date_night(db)
+        moved = reclassify_retired(db)
 
         assert dict(moved) == {'Music': 1}
         assert db.get_event(event_id).category == 'Music'
@@ -68,3 +56,5 @@ class TestReclassifyDateNight:
                 "SELECT COUNT(*) FROM events WHERE category = 'Date Night'"
             ).fetchone()[0]
         assert left == 0
+        # Nothing left to move on the next run.
+        assert not reclassify_retired(db)
