@@ -2,27 +2,60 @@
 Main page route for LA Events Aggregator.
 """
 from fasthtml.common import *
+from typing import List
 
+import config
 from src.web.state import track_page_view
+from src.web.services import _fetch_events
 from src.web.components import (
     page_head, page_header, page_footer,
     htmx_loading_indicator, top_filter_bar, filter_tallies_section, events_list,
-    region_tabs, home_hero
+    region_tabs, home_hero, DATE_FILTERS, TIMES_OF_DAY, REGIONS
 )
+
+# A shared link names a whole day range; a specific date needs the date picker,
+# which only the HTMX flow renders.
+_URL_DATE_FILTERS = {value for value, _ in DATE_FILTERS} - {'specific_date'}
 
 
 def setup_routes(rt, state):
     """Register the home page route."""
 
     @rt('/')
-    def home_page(request, session, region: str = 'westside'):
-        """Home page with search and map."""
+    def home_page(
+        request,
+        session,
+        region: str = 'westside',
+        date_filter: str = 'upcoming',
+        category: List[str] = None,
+        time_of_day: List[str] = None,
+        free_only: str = '',
+        q: str = '',
+    ):
+        """Home page with search and map.
+
+        Takes the same query parameters as /filters/update-all, so a filtered
+        view has a shareable URL, e.g.
+        /?date_filter=this_weekend&category=Music&category=Comedy&free_only=true.
+        Unknown values are dropped rather than producing an empty page.
+        """
         # Track page view
         track_page_view(request, session, '/')
 
-        # Get initial events - default to "upcoming"
-        initial_events = state.search.search(
-            date_filter='upcoming', region=region, limit=100
+        if region not in {value for value, _ in REGIONS}:
+            region = 'westside'
+        if date_filter not in _URL_DATE_FILTERS:
+            date_filter = 'upcoming'
+        category = [c for c in (category or []) if c in config.CATEGORIES] or None
+        times = {value for value, _ in TIMES_OF_DAY}
+        time_of_day = [t for t in (time_of_day or []) if t in times] or None
+        free_only = 'true' if free_only.lower() in ('true', '1', 'on', 'yes') else ''
+        q = q.strip()
+
+        # Same query the HTMX filter flow runs, so the counts match.
+        initial_events = _fetch_events(
+            q, date_filter, category, None, None, free_only, '', '', session,
+            time_of_day=time_of_day, region=region,
         )
 
         # Live counts for the hero. Cheap two-row query so the count
@@ -48,7 +81,7 @@ def setup_routes(rt, state):
             page_head('Westside LA Events'),
             Body(
                 # Counts live in the hero on the home page, not the nav bar.
-                page_header(show_search=True),
+                page_header(show_search=True, q=q),
                 # Single filter form (no sidebar): search lives in the header;
                 # date, time-of-day, categories, free, and venues sit in the top bar.
                 Div(
@@ -59,7 +92,9 @@ def setup_routes(rt, state):
                         # re-runs the current search against the other region.
                         region_tabs(active=region),
                         # Primary filters across the top: search + date + categories
-                        top_filter_bar(region=region),
+                        top_filter_bar(region=region, date_filter=date_filter,
+                                       time_of_day=time_of_day, category=category,
+                                       free_only=free_only),
                         Main(
                                 # The List/Map view toggle now lives top-right in
                                 # top_filter_bar(); it targets #view-container below.

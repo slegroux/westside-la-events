@@ -278,7 +278,7 @@ def home_hero(total_count: Optional[int] = None, today_count: Optional[int] = No
 
 
 def page_header(total_count: Optional[int] = None, today_count: Optional[int] = None,
-                show_search: bool = False):
+                show_search: bool = False, q: str = ''):
     """Slim sticky nav-style header: wordmark · search · live counter · Tonight.
 
     Counts are optional — when omitted the counter section is hidden,
@@ -329,7 +329,7 @@ def page_header(total_count: Optional[int] = None, today_count: Optional[int] = 
     search = Div(
         Span(NotStr(_SEARCH_SVG), cls='header-search-icon', **{'aria-hidden': 'true'}),
         Input(
-            type='search', id='header-search', name='q', form='filter-form',
+            type='search', id='header-search', name='q', form='filter-form', value=q,
             placeholder='Search events…', enterkeyhint='search',
             hx_get='/filters/update-all', hx_target='#events-container',
             hx_trigger='input changed delay:500ms, search',
@@ -1059,6 +1059,29 @@ def category_filter_bar(
     return Div(free_pill, *pills, **attrs)
 
 
+# Filter vocabularies shared by the controls below and by the home route,
+# which pre-applies them from the URL (shareable filter links).
+DATE_FILTERS = (
+    ('upcoming', 'Upcoming'),
+    ('today', 'Today'),
+    ('tomorrow', 'Tomorrow'),
+    ('this_week', 'This Week'),
+    ('this_weekend', 'This Weekend'),
+    ('this_month', 'This Month'),
+    ('specific_date', 'Specific Date'),
+)
+TIMES_OF_DAY = (
+    ('morning', 'Morning'),
+    ('afternoon', 'Afternoon'),
+    ('evening', 'Evening'),
+    ('night', 'Night'),
+)
+REGIONS = (
+    ('westside', 'Westside'),
+    ('beyond', 'Beyond the Westside'),
+)
+
+
 def region_tabs(active: str = 'westside'):
     """Westside / Beyond tab strip.
 
@@ -1067,10 +1090,6 @@ def region_tabs(active: str = 'westside'):
     then re-runs the current search against the other region rather than
     resetting the user's filters.
     """
-    tabs = (
-        ('westside', 'Westside'),
-        ('beyond', 'Beyond the Westside'),
-    )
     return Div(
         Input(type='hidden', name='region', id='region-input', value=active),
         *[
@@ -1089,7 +1108,7 @@ def region_tabs(active: str = 'westside'):
                 hx_include='closest form, #header-search',
                 hx_indicator='#loading-indicator',
             )
-            for value, label in tabs
+            for value, label in REGIONS
         ],
         cls='region-tabs',
         role='tablist',
@@ -1119,24 +1138,24 @@ def view_toggle(active: str = 'list', oob: bool = False):
     return Div(btn('list', 'List', _LIST_SVG), btn('map', 'Map', _MAP_SVG), **attrs)
 
 
-def top_filter_bar(region: str = 'westside'):
+def top_filter_bar(region: str = 'westside', date_filter: str = 'upcoming',
+                   time_of_day: List[str] = None, category: List[str] = None,
+                   free_only: str = ''):
     """Primary filter bar above the results: search + date + category pills.
 
     Lives inside the page-spanning filter <form> (see the home route) so every
     control still shares one form for `hx_include='closest form, #header-search'`.
+    The filter arguments pre-set the controls when the page is opened from a
+    shared filter URL.
     """
+    checked_times = set(time_of_day or ())
     return Div(
         Div(
             Div(
                 Label('When', for_='date-filter'),
                 Select(
-                    Option('Upcoming', value='upcoming', selected=True),
-                    Option('Today', value='today'),
-                    Option('Tomorrow', value='tomorrow'),
-                    Option('This Week', value='this_week'),
-                    Option('This Weekend', value='this_weekend'),
-                    Option('This Month', value='this_month'),
-                    Option('Specific Date', value='specific_date'),
+                    *[Option(label, value=value, selected=(value == date_filter))
+                      for value, label in DATE_FILTERS],
                     id='date-filter', name='date_filter',
                     hx_get='/filters/update-all', hx_target='#events-container',
                     hx_trigger='change', hx_include='closest form, #header-search',
@@ -1152,6 +1171,7 @@ def top_filter_bar(region: str = 'westside'):
                     Label(
                         Input(
                             type='checkbox', name='time_of_day', value=val,
+                            checked=(val in checked_times),
                             hx_get='/filters/update-all', hx_target='#events-container',
                             hx_trigger='change', hx_include='closest form, #header-search',
                             hx_indicator='#loading-indicator'
@@ -1159,12 +1179,7 @@ def top_filter_bar(region: str = 'westside'):
                         f' {label}',
                         cls='category-checkbox-label tod-pill',
                     )
-                    for val, label in (
-                        ('morning', 'Morning'),
-                        ('afternoon', 'Afternoon'),
-                        ('evening', 'Evening'),
-                        ('night', 'Night'),
-                    )
+                    for val, label in TIMES_OF_DAY
                 ],
                 cls='tod-group',
                 **{'aria-label': 'Time of day'},
@@ -1178,7 +1193,8 @@ def top_filter_bar(region: str = 'westside'):
                     type='button', cls='venues-toggle', onclick='toggleVenues(event)',
                     **{'aria-haspopup': 'true', 'aria-expanded': 'false', 'aria-label': 'Filter by venue'}
                 ),
-                Div(filter_tallies_section(region=region), cls='venues-popover', id='venues-popover'),
+                Div(filter_tallies_section(date_filter, category, free_only=free_only, region=region),
+                    cls='venues-popover', id='venues-popover'),
                 cls='venues-filter',
             ),
             Button('Clear', type='button', cls='clear-filters-btn', onclick='clearAllFilters()'),
@@ -1187,7 +1203,7 @@ def top_filter_bar(region: str = 'westside'):
             view_toggle('list'),
             cls='top-filter-controls'
         ),
-        category_filter_bar(),
+        category_filter_bar(date_filter, category, free_only=free_only),
         cls='top-filter-bar'
     )
 
