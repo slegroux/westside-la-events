@@ -64,9 +64,9 @@ def sanitize_fts_query(query: str) -> str:
     if not query or not query.strip():
         return '""'
 
-    # Drop control characters (a NUL makes FTS5 report an unterminated string)
-    # and leading/trailing whitespace
-    query = ''.join(ch for ch in query if ch >= ' ' or ch in '\t\n').strip()
+    # Turn control characters into spaces (a NUL makes FTS5 report an
+    # unterminated string), then drop leading/trailing whitespace
+    query = ''.join(' ' if ch < ' ' else ch for ch in query).strip()
     if not query:
         return '""'
 
