@@ -213,6 +213,11 @@ class TestFTSSanitization:
         assert sanitize_fts_query('hello "world"') == '"hello ""world"""'
         assert sanitize_fts_query('"test"') == '"""test"""'
 
+    def test_sanitize_query_strips_control_characters(self):
+        """A NUL would otherwise make FTS5 raise 'unterminated string'."""
+        assert sanitize_fts_query("jazz\x00") == '"jazz"'
+        assert sanitize_fts_query("\x00") == '""'
+
     def test_sanitize_query_with_fts_operators(self):
         """Test that FTS operators are neutralized."""
         # These should be treated as literal text, not operators

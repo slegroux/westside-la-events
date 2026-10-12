@@ -25,6 +25,34 @@ class TestWebEndpoints:
             assert response.status_code == 200
             assert "Westside LA Events" in response.text
 
+    async def test_home_page_preapplies_filters_from_url(self, populated_db):
+        """A shared filter URL renders its controls already set."""
+        state.db = populated_db
+        from src.search.query import EventSearch
+        state.search = EventSearch(populated_db)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(
+                "/?date_filter=this_weekend&time_of_day=evening&free_only=true&q=jazz"
+            )
+            assert response.status_code == 200
+            assert '<option value="this_weekend" selected>' in response.text
+            assert 'value="evening" checked' in response.text
+            assert 'id="header-search"' in response.text and 'value="jazz"' in response.text
+
+    async def test_home_page_ignores_bad_filter_values(self, populated_db):
+        """Unknown values fall back to defaults; a NUL in q doesn't break FTS."""
+        state.db = populated_db
+        from src.search.query import EventSearch
+        state.search = EventSearch(populated_db)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(
+                "/?date_filter=nope&category=Date%20Night&region=mars&q=%00"
+            )
+            assert response.status_code == 200
+            assert '<option value="upcoming" selected>' in response.text
+
     async def test_api_events_endpoint(self, populated_db):
         """Test /api/events endpoint returns JSON."""
         state.db = populated_db

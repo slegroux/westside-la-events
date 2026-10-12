@@ -64,8 +64,11 @@ def sanitize_fts_query(query: str) -> str:
     if not query or not query.strip():
         return '""'
 
-    # Remove leading/trailing whitespace
-    query = query.strip()
+    # Drop control characters (a NUL makes FTS5 report an unterminated string)
+    # and leading/trailing whitespace
+    query = ''.join(ch for ch in query if ch >= ' ' or ch in '\t\n').strip()
+    if not query:
+        return '""'
 
     # Escape double quotes by doubling them (FTS5 phrase search syntax)
     query = query.replace('"', '""')
