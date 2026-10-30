@@ -65,6 +65,9 @@ ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', '').strip()
 
 # Analytics Configuration
 ENABLE_ANALYTICS = os.getenv('ENABLE_ANALYTICS', 'True').lower() == 'true'
+
+# Public origin, used for canonical/og URLs, robots.txt and the sitemap.
+SITE_URL = os.getenv('SITE_URL', 'https://westside-events-406046958598.us-west1.run.app').rstrip('/')
 ANALYTICS_RETENTION_DAYS = int(os.getenv('ANALYTICS_RETENTION_DAYS', '365'))  # Keep data for 1 year
 # Seconds between batched analytics writes; 0 writes on every request. The
 # database is on the GCSFuse mount, where each commit is slow and GCS throttles

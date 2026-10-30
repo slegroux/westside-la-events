@@ -134,6 +134,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
+# Outermost, so it compresses what the middlewares above produce. The home page
+# is ~420 KB of HTML and was served uncompressed.
+from starlette.middleware.gzip import GZipMiddleware
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
 
 def _switch_db(new_path: str) -> None:
     """Point the app at a freshly mirrored database file.
@@ -188,6 +193,11 @@ setup_favorites(rt, state)
 
 from src.web.routes.api import setup_routes as setup_api
 setup_api(rt, state)
+
+
+# Crawler and browser conventions served from the site root
+from src.web.routes.site import setup_routes as setup_site
+setup_site(app, rt)
 
 
 # Error handlers

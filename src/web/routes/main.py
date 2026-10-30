@@ -78,7 +78,7 @@ def setup_routes(rt, state):
             ).fetchone()[0]
 
         return Html(
-            page_head('Westside LA Events'),
+            page_head('Westside LA Events', canonical_path='/'),
             Body(
                 # Counts live in the hero on the home page, not the nav bar.
                 page_header(show_search=True, q=q),
@@ -134,7 +134,7 @@ def setup_routes(rt, state):
                 Div(id='toast-container'),
                 # Scroll-to-top button
                 Button('\u2191', cls='scroll-to-top', id='scroll-to-top', onclick='window.scrollTo({top: 0, behavior: "smooth"})', type='button', title='Back to top'),
-                page_footer(),
+                page_footer(source_count=source_count),
                 # Add script to show skeleton during HTMX requests + manage aria state
                 Script('''
                     document.body.addEventListener('htmx:beforeRequest', function(event) {

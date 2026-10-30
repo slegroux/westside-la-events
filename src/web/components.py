@@ -164,8 +164,12 @@ def _event_json_ld(event: Event) -> Optional[str]:
     return _safe_json_in_html(data)
 
 
-def page_head(title: str, description: Optional[str] = None):
-    """Shared page head component with meta tags."""
+def page_head(title: str, description: Optional[str] = None, canonical_path: Optional[str] = None):
+    """Shared page head component with meta tags.
+
+    canonical_path (e.g. '/') adds canonical and og:url links; leave it unset on
+    error pages so they aren't advertised as canonical.
+    """
     default_description = 'Discover the best events, activities, and experiences across LA\'s Westside'
     return Head(
         Title(title),
@@ -176,6 +180,14 @@ def page_head(title: str, description: Optional[str] = None):
         Meta(property='og:title', content=title),
         Meta(property='og:description', content=description or default_description),
         Meta(property='og:type', content='website'),
+        Meta(property='og:site_name', content='Westside LA Events'),
+        Meta(property='og:image', content=f'{config.SITE_URL}/static/images/hero-beach.jpg'),
+        Meta(name='twitter:card', content='summary_large_image'),
+        Meta(name='twitter:title', content=title),
+        Meta(name='twitter:description', content=description or default_description),
+        Meta(name='twitter:image', content=f'{config.SITE_URL}/static/images/hero-beach.jpg'),
+        Link(rel='canonical', href=f'{config.SITE_URL}{canonical_path}') if canonical_path else None,
+        Meta(property='og:url', content=f'{config.SITE_URL}{canonical_path}') if canonical_path else None,
         Meta(name='theme-color', content='#ffffff'),
         Link(rel='icon', href='/static/favicon.svg', type='image/svg+xml'),
         Link(rel='alternate icon', href='/static/favicon.ico'),
@@ -350,16 +362,21 @@ def page_header(total_count: Optional[int] = None, today_count: Optional[int] = 
     )
 
 
-def page_footer():
-    """Shared page footer component."""
+def page_footer(source_count: Optional[int] = None):
+    """Shared page footer component.
+
+    source_count is the number of distinct sources with upcoming events; the
+    footer names three and counts the rest. Without it the copy stays generic.
+    """
+    more = f'{source_count - 3} more sources' if source_count and source_count > 3 else 'many more sources'
     return Footer(
         Div(
             brand_lockup(cls='footer-brand'),
             P('Everything happening on LA\'s Westside, gathered daily from '
-              'Santa Monica, Timeout LA, KCRW, and 30+ more sources.', cls='footer-sources'),
+              f'Santa Monica, Timeout LA, KCRW, and {more}.', cls='footer-sources'),
             P(
                 'Made with \u2764 by ',
-                A('Sisyphe.ai', href='https://ccrma.stanford.edu/~slegroux/', target='_blank', rel='noopener noreferrer'),
+                A('Sisyphe.ai', href='https://slegroux.github.io/sisyphe/', target='_blank', rel='noopener noreferrer'),
                 cls='footer-credit'
             ),
             cls='container'
