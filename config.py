@@ -25,6 +25,13 @@ FACEBOOK_ACCESS_TOKEN = os.getenv('FACEBOOK_ACCESS_TOKEN', '')
 DATABASE_PATH = os.getenv('DATABASE_PATH', 'data/events.db')
 ANALYTICS_DB_PATH = os.getenv('ANALYTICS_DB_PATH', 'data/analytics.db')
 
+# When set, the web app serves events from a local-disk copy of DATABASE_PATH
+# kept in this directory, re-copied whenever the source file changes. Used in
+# production, where DATABASE_PATH is on a GCSFuse mount that SQLite cannot use
+# efficiently. Unset (the default) reads DATABASE_PATH directly.
+DATABASE_LOCAL_DIR = os.getenv('DATABASE_LOCAL_DIR', '')
+DATABASE_REFRESH_SECONDS = int(os.getenv('DATABASE_REFRESH_SECONDS', '300'))
+
 # Scraper Configuration
 SCRAPER_CONFIG = {
     'user_agent': os.getenv(

@@ -49,11 +49,68 @@ from src.web.components import (
 from src.web.services import _tally_cache, _TALLY_TTL, _get_filter_tallies, _fetch_events
 
 
+logger = logging.getLogger(__name__)
+
+
+def _open_events_db():
+    """
+    Open the events database, from a local copy when DATABASE_LOCAL_DIR is set.
+
+    Returns (database, mirror). mirror is None when reading DATABASE_PATH
+    directly, either by configuration or because the first copy failed.
+    """
+    if not config.DATABASE_LOCAL_DIR:
+        return Database(config.DATABASE_PATH), None
+
+    try:
+        from src.data.local_mirror import LocalDbMirror
+        # prepare=Database applies schema migrations to each copy before it is
+        # published, so a published copy is always ready to serve.
+        mirror = LocalDbMirror(
+            config.DATABASE_PATH, config.DATABASE_LOCAL_DIR, prepare=Database
+        )
+        local_path = mirror.refresh()
+    except Exception as e:
+        logger.error(
+            f"Could not copy {config.DATABASE_PATH} to local disk ({e}); "
+            f"reading it in place instead"
+        )
+        return Database(config.DATABASE_PATH), None
+    logger.info(f"Serving events from local copy {local_path}")
+    return Database(local_path), mirror
+
+
+async def _keep_events_db_fresh(db: Database, mirror, interval: int):
+    """Re-copy the events database when the source changes (e.g. daily scrape)."""
+    import asyncio
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            new_path = await asyncio.to_thread(mirror.refresh)
+        except Exception as e:
+            logger.warning(f"Events database refresh failed, keeping current copy: {e}")
+            continue
+        if new_path:
+            # Readers open a connection per request from db.db_path, so this
+            # moves every reader (search included) to the new copy. The mirror
+            # keeps the previous copy on disk for requests already reading it.
+            db.db_path = new_path
+            _tally_cache.clear()
+            logger.info(f"Switched to refreshed events database {new_path}")
+
+
 async def lifespan(app):
     """Manage application lifecycle - startup and shutdown."""
+    import asyncio
+    refresh_task = None
+
     # Startup: Initialize database and search (preserve injected test state)
     if state.db is None:
-        state.db = Database(config.DATABASE_PATH)
+        state.db, mirror = _open_events_db()
+        if mirror is not None and config.DATABASE_REFRESH_SECONDS > 0:
+            refresh_task = asyncio.create_task(
+                _keep_events_db_fresh(state.db, mirror, config.DATABASE_REFRESH_SECONDS)
+            )
     if state.search is None:
         state.search = EventSearch(state.db)
 
@@ -66,8 +123,13 @@ async def lifespan(app):
 
     yield
 
-    # Shutdown: Clean up resources (Database uses context managers, no explicit close needed)
-    pass
+    # Shutdown: Database uses context managers, so only the refresher needs stopping
+    if refresh_task is not None:
+        refresh_task.cancel()
+        try:
+            await refresh_task
+        except asyncio.CancelledError:
+            pass
 
 
 # Initialize FastHTML app with lifespan

@@ -246,6 +246,15 @@ def setup_routes(rt, state):
                     'size_bytes': db_size,
                     'size_mb': round(db_size / 1024 / 1024, 2) if db_size else None
                 },
+                # The copy actually being served, which differs from the file
+                # above when DATABASE_LOCAL_DIR mirrors it to local disk.
+                'serving': {
+                    'path': db.db_path,
+                    'copied_at': (
+                        datetime.fromtimestamp(os.path.getmtime(db.db_path), tz=timezone.utc).isoformat()
+                        if db.db_path != db_path and os.path.exists(db.db_path) else None
+                    ),
+                },
                 'warnings': warnings,
                 'timestamp': now.isoformat()
             })

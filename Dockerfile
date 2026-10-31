@@ -42,9 +42,12 @@ ENV PYTHONUNBUFFERED=1 \
     TZ=America/Los_Angeles \
     # Reduce Python startup time
     PYTHONHASHSEED=0 \
-    # The database is read live from the GCSFuse mount, so there is nothing to
-    # download at startup. This image has no gsutil to do it with either.
-    SKIP_DB_DOWNLOAD=true
+    # The app copies events.db off the GCSFuse mount itself (see below), so
+    # there is nothing to download here. This image has no gsutil either.
+    SKIP_DB_DOWNLOAD=true \
+    # Serve events from a local copy of the mounted database, re-copied when the
+    # bucket object changes. SQLite over GCSFuse cost ~1.5-2s per request.
+    DATABASE_LOCAL_DIR=/tmp/db
 
 EXPOSE 8080
 

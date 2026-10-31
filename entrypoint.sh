@@ -6,8 +6,8 @@ echo "🚀 Starting Westside Events application..."
 # Set SKIP_DB_DOWNLOAD=false to force download from Cloud Storage
 if [ "$SKIP_DB_DOWNLOAD" = "true" ]; then
     echo "⚡ Skipping database download (fast startup mode)"
-    echo "   /app/data is a GCSFuse mount of the events bucket, so the database"
-    echo "   is read live from there -- nothing to fetch at startup."
+    echo "   /app/data is a GCSFuse mount of the events bucket. With DATABASE_LOCAL_DIR"
+    echo "   set, the app copies events.db from there to local disk on startup."
 elif ! command -v gsutil >/dev/null 2>&1; then
     # The web image ships no gcloud SDK -- it reads the database from the
     # GCSFuse mount at /app/data instead. Say so plainly rather than letting
