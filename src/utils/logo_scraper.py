@@ -188,6 +188,9 @@ class LogoScraper:
         # header image from the city's Bynder CDN so the source has a picture.
         'Santa Monica Farmers Markets': 'https://cityofsantamonica.getbynder.com/m/3c685e9639708c15/Desktop_Header-Baskets-of-Multi-Colored-Cherry-Tomatoes.jpg',
         'Boulevard Music': 'https://www.boulevardmusic.com/wp-content/uploads/2016/08/BlvdLogoCrossroads.png',
+        # Absent from SOURCE_URLS on purpose: the venue's Google Sites page has
+        # no logo to scrape, so use the profile image from its DICE venue page.
+        '2220 Arts + Archives': 'https://dice-media.imgix.net/attachments/2021-10-08/0b55581e-d264-4ed9-9eef-1176cb32d0f4.jpg?rect=0%2C0%2C1238%2C1238&w=256',
         'The Culver Steps': 'https://theculversteps.com/wp-content/uploads/2022/04/cropped-TheCulverSteps-Favicon-270x270.png',
     }
 

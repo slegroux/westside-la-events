@@ -566,6 +566,26 @@ class TestMergeEventData:
         assert merged.price == 25.0
         assert merged.is_free is True  # Takes True from secondary
 
+    def test_sold_out_note_drops_stored_price(self):
+        """A re-scrape reporting 'Sold out' without a price clears the old price."""
+        primary = Event(id=1, title="Show", source="S",
+                        event_date=datetime(2026, 5, 30, 20, 0, 0), price=27.18)
+        secondary = Event(id=2, title="Show", source="S",
+                          event_date=datetime(2026, 5, 30, 20, 0, 0),
+                          price=None, price_note='Sold out')
+        merged = merge_event_data(primary, secondary)
+        assert merged.price is None
+        assert merged.price_note == 'Sold out'
+
+    def test_other_note_keeps_stored_price(self):
+        """Any other priceless note still falls back to the stored price."""
+        primary = Event(id=1, title="Show", source="S",
+                        event_date=datetime(2026, 5, 30, 20, 0, 0), price=27.18)
+        secondary = Event(id=2, title="Show", source="S",
+                          event_date=datetime(2026, 5, 30, 20, 0, 0),
+                          price=None, price_note='Members only')
+        assert merge_event_data(primary, secondary).price == 27.18
+
     def test_prefers_real_time_over_stale_midnight(self):
         """A re-scrape carrying a real start time overwrites a stored midnight."""
         primary = Event(id=1, title="Show", source="S",

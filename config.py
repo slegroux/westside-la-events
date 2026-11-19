@@ -669,6 +669,14 @@ EVENT_SOURCES = {
         'region': 'beyond',
         'note': 'Hollywood hotel; cabaret, magic, pool parties. Outside the Westside box, shown in the beyond tab'
     },
+    'arts_2220': {
+        'name': '2220 Arts + Archives',
+        'url': 'https://www.2220arts.org/events',
+        'enabled': True,
+        'uses_api': False,
+        'region': 'beyond',
+        'note': 'Historic Filipinotown arts space (2220 Beverly Blvd); concerts, screenings, readings. The site only embeds a DICE widget, so events are read from the JSON-LD on the public DICE venue page (dice.fm/venue/2220-arts--archives-bdyv). Outside the Westside box, shown in the beyond tab'
+    },
     'social_lingo_la': {
         'name': 'Social Lingo LA',
         'url': 'https://www.meetup.com/social-lingo-la/',

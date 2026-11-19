@@ -9,6 +9,7 @@ from .aero_theater import AeroTheaterScraper
 from .afdela import AFdelaScraper
 from .apero_francophone import AperoFrancophoneScraper
 from .arcana_books import ArcanaBooksScraper
+from .arts_2220 import Arts2220Scraper
 from .aviator_dreamland import AviatorDreamlandScraper
 from .aviator_nation import AviatorNationScraper
 from .bergamot_station import BergamotStationScraper
@@ -184,6 +185,7 @@ SCRAPER_MAP: Dict[str, Type] = {
     'hollywood_roosevelt': HollywoodRooseveltScraper,
     'bodega_wine_bar': BodegaWineBarScraper,
     'vino_y_vinyl': VinoYVinylScraper,
+    'arts_2220': Arts2220Scraper,
 }
 
 

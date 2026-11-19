@@ -392,6 +392,11 @@ def merge_event_data(primary: Event, secondary: Event) -> Event:
     Returns:
         Merged event
     """
+    # A re-scrape that reports "Sold out" with no price is replacing the price
+    # with that note; carrying the stored price over would hide it, since cards
+    # show a price in preference to the note.
+    sold_out = secondary.price is None and 'sold out' in (secondary.price_note or '').lower()
+
     # Keep primary's ID and source
     merged = Event(
         id=primary.id,
@@ -408,7 +413,7 @@ def merge_event_data(primary: Event, secondary: Event) -> Event:
         url=primary.url or secondary.url,
         image_url=primary.image_url or secondary.image_url,
         source_logo_url=primary.source_logo_url or secondary.source_logo_url,
-        price=secondary.price if secondary.price is not None else primary.price,
+        price=secondary.price if secondary.price is not None or sold_out else primary.price,
         is_free=secondary.is_free if secondary.is_free is not None else primary.is_free,
         price_note=secondary.price_note,  # Always use secondary's price_note (may be empty to clear old value)
         # Region follows the primary, whose source is the one being kept. Left
