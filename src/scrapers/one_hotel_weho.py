@@ -89,7 +89,9 @@ class OneHotelWeHoScraper(BaseScraper):
         if not link:
             return None
 
-        title_elem = card.find('h3')
+        # The title was an h3 until the card markup moved it to an h2, which
+        # silently dropped every card; accept either.
+        title_elem = card.find(['h2', 'h3'])
         title = self.clean_text(title_elem.get_text()) if title_elem else ''
         if not title:
             return None
