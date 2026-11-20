@@ -575,7 +575,7 @@ EVENT_SOURCES = {
         'url': 'https://app.grateful.gg/events',
         'enabled': True,
         'uses_api': True,
-        'note': "LA gratitude/wellness community (salons, sound baths, bootcamps, dinners), mostly Westside and Beverly Hills. base44 single-page app: /events renders no markup, so events are read from the public entity API (/api/apps/<id>/entities/Event) rather than a browser. The feed is the full history, so the scraper filters to active, public, non-hidden, in-person, future records; invite_only is private and skipped while giraffes_only is publicly listed and kept. Most events set address_hidden and publish only a neighbourhood, so ones that resolve no finer than 'Los Angeles' are dropped by the shared geo-filter rather than pinned at the city centre"
+        'note': "LA gratitude/wellness community (salons, sound baths, bootcamps, dinners), mostly Westside. Switched 2026-11-19 to the publisher's documented public feed https://app.grateful.gg/events.json (upcoming events only, no key): the old entity API now returns HTTP 410 'not available on staging'. The feed gives only a city per event (street addresses go to confirmed guests), so the scraper passes that city to the shared geo-filter, which keeps Westside cities (Culver City, Topanga) and drops the rest (Austin, bare 'Los Angeles'); online events are skipped"
     },
     'culver_steps': {
         'name': 'The Culver Steps',
