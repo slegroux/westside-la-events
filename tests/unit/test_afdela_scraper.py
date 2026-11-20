@@ -19,7 +19,7 @@ def _ics_dt(dt):
 
 
 def _vevent(slug, title, start, hours=1, location='Alliance Française de Los Angeles',
-            url=None, rrule=None, blurb='A lovely evening.'):
+            url=None, rrule=None, blurb='A lovely evening.', exdates=()):
     end = start + timedelta(hours=hours)
     url = url or f'{BASE}/events/{slug}'
     lines = [
@@ -30,6 +30,8 @@ def _vevent(slug, title, start, hours=1, location='Alliance Française de Los An
     ]
     if rrule:
         lines.append(f'RRULE:{rrule}')
+    # One EXDATE line per excluded start, as calendar exporters write them.
+    lines += [f'EXDATE;TZID=America/Los_Angeles:{_ics_dt(d)}' for d in exdates]
     lines += [
         f'SUMMARY:{title}',
         f'LOCATION:{location.replace(",", chr(92) + ",")}',
@@ -108,6 +110,22 @@ def test_recurring_event_yields_only_next_occurrence(mock_geocoding_service):
     assert nxt >= datetime.now() - timedelta(hours=1)
     assert nxt <= datetime.now() + timedelta(days=7)
     assert nxt.weekday() == first.weekday() and nxt.hour == first.hour
+
+
+@pytest.mark.unit
+def test_exdate_skips_excluded_occurrences(mock_geocoding_service):
+    first = _soon(days=-14)
+    rule = 'FREQ=WEEKLY;COUNT=20'
+    plain = _run(_feed(_vevent('series', 'Series', first, rrule=rule)))
+    nxt = plain[0].event_date
+
+    one = _run(_feed(_vevent('series', 'Series', first, rrule=rule, exdates=[nxt])))
+    assert one[0].event_date == nxt + timedelta(days=7)
+
+    # Several EXDATE lines must all count, not just the last one.
+    two = _run(_feed(_vevent('series', 'Series', first, rrule=rule,
+                             exdates=[nxt, nxt + timedelta(days=7)])))
+    assert two[0].event_date == nxt + timedelta(days=14)
 
 
 @pytest.mark.unit

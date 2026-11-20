@@ -106,7 +106,12 @@ class AFdelaScraper(BaseScraper):
             for line in block.split('\n'):
                 name, sep, value = line.partition(':')
                 if sep:
-                    comp[name.strip()] = value.strip()
+                    key = name.strip()
+                    # A series can list its exclusions on several EXDATE lines.
+                    if key.startswith('EXDATE') and key in comp:
+                        comp[key] += ',' + value.strip()
+                    else:
+                        comp[key] = value.strip()
             if comp:
                 components.append(comp)
         return components
@@ -134,6 +139,27 @@ class AFdelaScraper(BaseScraper):
         except ValueError:
             return None
 
+    def _exdates(self, comp: Dict[str, str], start: datetime) -> List[datetime]:
+        """Occurrence starts the feed excludes from a recurring entry.
+
+        Every time in the feed is America/Los_Angeles (all 108 TZID params are),
+        and DTSTART is read that way too, so a TZID on EXDATE is not converted;
+        revisit both together if the feed ever mixes zones. A date-only EXDATE
+        excludes the occurrence on that day.
+        """
+        found = []
+        for key, value in comp.items():
+            if key != 'EXDATE' and not key.startswith('EXDATE;'):
+                continue
+            for raw in value.split(','):
+                moment = self._parse_dt(raw)
+                if not moment:
+                    continue
+                if 'T' not in raw:
+                    moment = datetime.combine(moment.date(), start.time())
+                found.append(moment)
+        return found
+
     def _next_occurrence(self, comp: Dict[str, str], now: datetime):
         """Return (start, end) of the first occurrence not yet over, or (None, None)."""
         start = self._parse_dt(self._get(comp, 'DTSTART'))
@@ -146,7 +172,9 @@ class AFdelaScraper(BaseScraper):
         rule = comp.get('RRULE')
         if rule:
             try:
-                rr = rrule.rrulestr(rule, dtstart=start.replace(tzinfo=LA_TZ))
+                rr = rrule.rrulestr(rule, dtstart=start.replace(tzinfo=LA_TZ), forceset=True)
+                for skipped in self._exdates(comp, start):
+                    rr.exdate(skipped.replace(tzinfo=LA_TZ))
                 # An occurrence that started before `now` is still upcoming
                 # until its end, so look back by one duration.
                 cutoff = (now - (duration or timedelta(0))).replace(tzinfo=LA_TZ)
