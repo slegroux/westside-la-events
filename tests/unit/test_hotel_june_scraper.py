@@ -154,6 +154,7 @@ def test_schedule_end_date_bounds_series(mock_geocoding_service):
         "Trivia",
         startDate=_stamp(_at(-1, 19)),
         eventSchedule={
+            "repeatFrequency": "P1W",
             "byDay": ALL_DAYS,
             "startTime": "19:00:00",
             "endDate": stop.strftime("%Y-%m-%d"),
@@ -205,7 +206,7 @@ def test_correctly_labelled_page_has_no_skew(mock_geocoding_service, month):
 
 
 @pytest.mark.unit
-def test_unmeasurable_page_honours_stated_offset(mock_geocoding_service):
+def test_unmeasurable_page_reads_clock_as_local(mock_geocoding_service):
     gala = _on(7, 15)  # PDT: "-07:00"
     html = _page(_event("Gala", startDate=_true_stamp(gala)))
 
@@ -243,3 +244,49 @@ def test_unsupported_repeat_frequency_is_skipped(mock_geocoding_service, frequen
 @pytest.mark.unit
 def test_p7d_frequency_is_weekly(mock_geocoding_service):
     assert _run(_page(_weekly("Daily-ish", _at(-8, 15), repeatFrequency="P7D")))
+
+
+@pytest.mark.unit
+def test_series_without_repeat_frequency_is_skipped(mock_geocoding_service):
+    node = _weekly("Undated cadence", _at(-8, 15))
+    assert _run(_page(node)) == []
+
+
+@pytest.mark.unit
+def test_one_outlier_node_does_not_move_a_correctly_labelled_page(mock_geocoding_service):
+    anchors = []
+    for i in range(7):
+        a = _anchor(datetime(2026, 1, 12 + i, 15), stamp=_true_stamp)
+        a["name"] = a["@id"] = f"Anchor{i}"
+        anchors.append(a)
+    off = _anchor(datetime(2026, 1, 20, 15), stamp=_true_stamp)
+    off["name"] = off["@id"] = "Odd"
+    off["startDate"] = _true_stamp(datetime(2026, 1, 20, 14))  # first occurrence 1 h off
+    gala = _on(7, 15)
+
+    events = _one_off(_run(_page(*anchors, off, _event("Gala", startDate=_true_stamp(gala)))))
+
+    assert [e.event_date for e in events] == [gala]
+
+
+@pytest.mark.unit
+def test_date_only_node_is_not_measured(mock_geocoding_service):
+    date_only = _anchor(datetime(2026, 1, 12, 15))
+    date_only["startDate"] = "2026-01-12"  # would read as a 9 h skew from 00:00
+    gala = _on(1, 15)
+    html = _page(date_only, _event("Gala", startDate=_true_stamp(gala)))
+
+    assert [e.event_date for e in _one_off(_run(html))] == [gala]
+
+
+@pytest.mark.unit
+def test_fixed_label_with_corrected_clock_in_summer(mock_geocoding_service):
+    """Site fixed the clock but kept a '-08:00' label: July 15:00 stays 15:00."""
+    def stamp(dt):
+        return dt.strftime("%Y-%m-%dT%H:%M:%S") + "-08:00"
+
+    gala = _on(7, 15)
+    html = _page(_anchor(datetime(2026, 1, 12, 15), stamp=stamp),
+                 _event("Gala", startDate=stamp(gala)))
+
+    assert [e.event_date for e in _one_off(_run(html))] == [gala]

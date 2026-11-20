@@ -47,9 +47,9 @@ class HotelJuneScraper(BaseScraper):
         self.events_url = f'{self.base_url}/west-los-angeles/happenings/'
         self._graph = {}
         # How the page's timestamps relate to real LA time, measured per scrape
-        # from the scheduled nodes (see _measure_clock_skew).
-        self._skew = timedelta(0)
-        self._utc_clock = False
+        # from the scheduled nodes (see _measure_clock_skew): None (the clock
+        # digits are LA local time), 'utc' (a UTC clock), or a fixed timedelta.
+        self._clock_mode = None
 
     def scrape(self) -> List[Event]:
         """Read the page's JSON-LD events."""
@@ -173,9 +173,11 @@ class HotelJuneScraper(BaseScraper):
             finished = normalize_event_datetime(end) if end else moment
             return [moment] if finished >= now else []
 
-        frequency = str(schedule.get('repeatFrequency') or 'P1W').upper()
+        # Every live series states its frequency; one that doesn't is skipped
+        # rather than assumed weekly (never invent occurrences).
+        frequency = str(schedule.get('repeatFrequency') or '').upper()
         if frequency not in ('P1W', 'P7D'):
-            self.log(f"Skipping '{node.get('name')}': unsupported repeatFrequency {frequency}")
+            self.log(f"Skipping '{node.get('name')}': unsupported repeatFrequency {frequency or '(none)'}")
             return []
 
         hour, minute = self._schedule_time(schedule, start)
@@ -287,29 +289,35 @@ class HotelJuneScraper(BaseScraper):
         With nothing to measure the skew is 0, i.e. the stamps are taken at
         their word.
         """
-        skews = []
-        utc_clock = False
+        votes = Counter()
         for node in nodes:
             schedule = node.get('eventSchedule') or {}
             clock = self._clock(schedule.get('startTime'))
-            stamp = self._stamp(node.get('startDate'))
-            if not clock or not stamp:
+            raw = node.get('startDate')
+            stamp = self._stamp(raw)
+            # A date-only stamp has no clock reading to compare.
+            if not clock or not stamp or 'T' not in str(raw):
                 continue
             wall, _ = stamp
             local_start = timedelta(hours=clock[0], minutes=clock[1])
             seen = timedelta(hours=wall.hour, minutes=wall.minute)
             skew = (seen - local_start + timedelta(hours=12)) % timedelta(days=1) \
                 - timedelta(hours=12)
-            skews.append(skew)
             as_utc = normalize_event_datetime(wall.replace(tzinfo=timezone.utc))
             if skew and timedelta(hours=as_utc.hour, minutes=as_utc.minute) == local_start:
-                utc_clock = True
+                votes['utc'] += 1  # 8 h in PST and 7 h in PDT are one vote
+            else:
+                votes[skew] += 1
 
-        nonzero = [s for s in skews if s]
-        self._utc_clock = utc_clock
-        self._skew = Counter(nonzero).most_common(1)[0][0] if nonzero else timedelta(0)
-        if self._skew:
-            self.log(f"Page timestamps run {self._skew} ahead of local time; correcting")
+        self._clock_mode = None
+        if not votes:
+            return
+        winner, count = votes.most_common(1)[0]
+        # A lone odd node (a first occurrence the site mis-stamped) must not
+        # move the whole page: only a clear majority changes anything.
+        if winner and count * 2 > sum(votes.values()):
+            self._clock_mode = winner
+            self.log(f"Page timestamps measured as {winner if winner == 'utc' else f'{winner} ahead'}; correcting")
 
     @staticmethod
     def _stamp(value: Optional[str]):
@@ -325,17 +333,19 @@ class HotelJuneScraper(BaseScraper):
     def _parse_timestamp(self, value: Optional[str]) -> Optional[datetime]:
         """Parse an event's startDate/endDate into a naive LA-local datetime.
 
-        Corrects for the skew measured by _measure_clock_skew. A UTC clock
+        Corrects for the mode measured by _measure_clock_skew. A UTC clock
         reading is converted through the tz database, so a stamp in PDT lands
         7 h behind and one in PST 8 h. Any other measured skew is subtracted as
-        is. With no skew the stamp's own offset is honoured.
+        is. With no skew the clock digits already are LA local time: the stated
+        offset is ignored too, since a fixed "-08:00" label on a July stamp is
+        as unreliable as the clock it came with.
         """
         stamp = self._stamp(value)
         if not stamp:
             return None
-        wall, offset = stamp
-        if self._skew and self._utc_clock:
+        wall, _ = stamp
+        if self._clock_mode == 'utc':
             return normalize_event_datetime(wall.replace(tzinfo=timezone.utc))
-        if self._skew:
-            return wall - self._skew
-        return normalize_event_datetime(wall.replace(tzinfo=offset)) if offset else wall
+        if self._clock_mode:
+            return wall - self._clock_mode
+        return wall
