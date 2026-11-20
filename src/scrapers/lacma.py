@@ -36,6 +36,28 @@ from .base import BaseScraper
 from src.data.models import Event
 
 
+class _DeadlineSession:
+    """Clamps each request's timeout to what is left of the scraper's budget.
+
+    The runner discards everything at 120 s, and one request can otherwise run
+    for its full 30 s timeout (more when connect and read both stall) after the
+    budget check passed. Everything else is passed through to the real session.
+    """
+
+    def __init__(self, session, scraper):
+        self._session = session
+        self._scraper = scraper
+
+    def get(self, url, timeout=None, **kwargs):
+        remaining = self._scraper._deadline - time.monotonic()
+        if timeout is not None:
+            timeout = max(1.0, min(timeout, remaining))
+        return self._session.get(url, timeout=timeout, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._session, name)
+
+
 class LACMAScraper(BaseScraper):
     """Scraper for LACMA events."""
 
@@ -46,7 +68,7 @@ class LACMAScraper(BaseScraper):
     # The runner kills a scraper at 120 s and discards everything it collected.
     # A hanging site costs a full request timeout per fetch, so stop paging
     # (and title lookups) once this much time has passed and keep what we have.
-    SCRAPE_BUDGET_SECONDS = 90
+    SCRAPE_BUDGET_SECONDS = 80
 
     # LACMA's fixed location, so no geocoding is needed for in-person events.
     VENUE_LAT = 34.0639
@@ -58,6 +80,7 @@ class LACMAScraper(BaseScraper):
         self.events_url = f'{self.base_url}/events-calendar'
         self._title_lookups = 0
         self._deadline = float('inf')
+        self.session = _DeadlineSession(self.session, self)
 
     def _over_budget(self) -> bool:
         return time.monotonic() >= self._deadline
@@ -96,6 +119,10 @@ class LACMAScraper(BaseScraper):
                          f"keeping {len(events)} events")
                 break
             html = self.fetch_page(f'{self.events_url}?page={page}', retry=1)
+            if not html:
+                # A failed fetch (timeout, 5xx) is not the end of the calendar:
+                # skip the page and keep going while the budget allows.
+                continue
             page_events, n_cards = self._parse_listing(html, f'page {page}')
             if n_cards == 0:
                 break

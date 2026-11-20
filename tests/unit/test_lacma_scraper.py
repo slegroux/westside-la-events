@@ -157,3 +157,40 @@ def test_hung_site_skips_bare_page_fallback_once_over_budget(mock_geocoding_serv
 
     assert s.scrape() == []
     assert fetched == [1]  # page 0 only, with a single attempt; no fallback fetch
+
+
+@pytest.mark.unit
+def test_hanging_site_never_runs_past_the_budget(mock_geocoding_service, monkeypatch):
+    """Every request stalls for its whole timeout; the clamp keeps the total at the budget."""
+    import requests
+
+    clock = {"t": 0.0}
+    monkeypatch.setattr("src.scrapers.lacma.time.monotonic", lambda: clock["t"])
+    s = LACMAScraper()
+    timeouts = []
+
+    class HangingSession:
+        headers = {}
+        cookies = None
+
+        def get(self, url, timeout=None, **kw):
+            timeouts.append(timeout)
+            clock["t"] += timeout  # the request stalls until its timeout fires
+            raise requests.exceptions.ReadTimeout("hang")
+
+    s.session._session = HangingSession()
+
+    assert s.scrape() == []
+    assert clock["t"] <= LACMAScraper.SCRAPE_BUDGET_SECONDS
+    assert all(t <= 30 for t in timeouts)
+    assert timeouts[-1] < 30  # the last request was cut short to fit
+    assert len(timeouts) == 3  # 30 + 30 + 20, retry=1 each; no bare-page fallback
+
+
+@pytest.mark.unit
+def test_failed_page_is_skipped_and_paging_continues(mock_geocoding_service):
+    p0 = _paged_page((D1, [_card("a", "Talk A", D1)]))
+    p2 = _paged_page((D2, [_card("c", "Talk C", D2)]))
+    events = _run({"?page=0": p0, "?page=2": p2})  # page 1 fails
+
+    assert [e.title for e in events] == ["Talk A", "Talk C"]
