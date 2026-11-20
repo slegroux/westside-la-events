@@ -116,3 +116,44 @@ def test_unrecognised_page_logs_what_was_received(mock_geocoding_service, caplog
     assert events == []
     out = caplog.text
     assert "Access Denied" in out and "length=" in out
+
+
+@pytest.mark.unit
+def test_time_budget_stops_paging_and_keeps_collected_events(mock_geocoding_service, monkeypatch):
+    clock = {"t": 1000.0}
+    monkeypatch.setattr("src.scrapers.lacma.time.monotonic", lambda: clock["t"])
+    p0 = _paged_page((D1, [_card("a", "Talk A", D1)]))
+    p1 = _paged_page((D2, [_card("b", "Talk B", D2)]))
+    s = LACMAScraper()
+    fetched = []
+
+    def fake_fetch(url, retry=3):
+        fetched.append((url, retry))
+        if url.endswith("?page=0"):
+            clock["t"] += 95  # the site hung: page 0 alone spent the budget
+            return p0
+        return p1
+
+    s.fetch_page = fake_fetch
+    events = s.scrape()
+
+    assert [e.title for e in events] == ["Talk A"]
+    assert fetched == [("https://www.lacma.org/events-calendar?page=0", 1)]
+
+
+@pytest.mark.unit
+def test_hung_site_skips_bare_page_fallback_once_over_budget(mock_geocoding_service, monkeypatch):
+    clock = {"t": 0.0}
+    monkeypatch.setattr("src.scrapers.lacma.time.monotonic", lambda: clock["t"])
+    s = LACMAScraper()
+    fetched = []
+
+    def fake_fetch(url, retry=3):
+        fetched.append(retry)
+        clock["t"] += 100  # every fetch times out
+        return None
+
+    s.fetch_page = fake_fetch
+
+    assert s.scrape() == []
+    assert fetched == [1]  # page 0 only, with a single attempt; no fallback fetch

@@ -25,6 +25,7 @@ Titles in the paginated layout are cut to ~60 characters with a trailing
 """
 import json
 import re
+import time
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -42,6 +43,10 @@ class LACMAScraper(BaseScraper):
     MAX_PAGES = 14
     HORIZON_DAYS = 30
     MAX_TITLE_LOOKUPS = 25
+    # The runner kills a scraper at 120 s and discards everything it collected.
+    # A hanging site costs a full request timeout per fetch, so stop paging
+    # (and title lookups) once this much time has passed and keep what we have.
+    SCRAPE_BUDGET_SECONDS = 90
 
     # LACMA's fixed location, so no geocoding is needed for in-person events.
     VENUE_LAT = 34.0639
@@ -52,18 +57,25 @@ class LACMAScraper(BaseScraper):
         self.base_url = 'https://www.lacma.org'
         self.events_url = f'{self.base_url}/events-calendar'
         self._title_lookups = 0
+        self._deadline = float('inf')
+
+    def _over_budget(self) -> bool:
+        return time.monotonic() >= self._deadline
 
     def scrape(self) -> List[Event]:
         """Scrape upcoming events from the LACMA calendar."""
         self.log("Starting scrape...")
         events: List[Event] = []
         self._title_lookups = 0
+        self._deadline = time.monotonic() + self.SCRAPE_BUDGET_SECONDS
 
         try:
             events = self._scrape_paginated()
-            if not events:
+            if not events and self._over_budget():
+                self.log("Time budget spent; not trying the bare calendar page")
+            elif not events:
                 self.log("Paginated calendar yielded nothing; trying the bare calendar page")
-                html = self.fetch_page(self.events_url)
+                html = self.fetch_page(self.events_url, retry=1)
                 events = self._parse_listing(html, 'bare calendar page')[0]
             self.log(f"Successfully scraped {len(events)} events")
         except Exception as e:
@@ -79,7 +91,11 @@ class LACMAScraper(BaseScraper):
         horizon = datetime.now() + timedelta(days=self.HORIZON_DAYS)
 
         for page in range(self.MAX_PAGES):
-            html = self.fetch_page(f'{self.events_url}?page={page}')
+            if self._over_budget():
+                self.log(f"Time budget of {self.SCRAPE_BUDGET_SECONDS}s spent before page {page}; "
+                         f"keeping {len(events)} events")
+                break
+            html = self.fetch_page(f'{self.events_url}?page={page}', retry=1)
             page_events, n_cards = self._parse_listing(html, f'page {page}')
             if n_cards == 0:
                 break
@@ -149,10 +165,10 @@ class LACMAScraper(BaseScraper):
 
     def _full_title(self, url: str, truncated: str) -> str:
         """Replace a '...'-truncated card title with the JSON-LD name of its page."""
-        if not url or self._title_lookups >= self.MAX_TITLE_LOOKUPS:
+        if not url or self._title_lookups >= self.MAX_TITLE_LOOKUPS or self._over_budget():
             return truncated
         self._title_lookups += 1
-        html = self.fetch_page(url)
+        html = self.fetch_page(url, retry=1)
         if not html:
             return truncated
         for m in re.finditer(r'<script type="application/ld\+json">(.*?)</script>', html, re.S):
