@@ -65,6 +65,13 @@ class UCLADesignScraper(BaseScraper):
                     self.log(f"Error parsing event: {e}")
                     continue
 
+            if raw_events and not events:
+                dates = [i.get('date') for i in raw_events if i.get('date')]
+                self.log(
+                    f"All {len(raw_events)} listed events are in the past "
+                    f"(latest dated {max(dates) if dates else 'n/a'}); nothing upcoming is published"
+                )
+
             self.log(f"Successfully scraped {len(events)} events")
 
         except Exception as e:
@@ -125,6 +132,8 @@ class UCLADesignScraper(BaseScraper):
             price=None,
             is_free=False,
             price_note="",
+            latitude=34.0763,
+            longitude=-118.4415,
         )
 
     @staticmethod
