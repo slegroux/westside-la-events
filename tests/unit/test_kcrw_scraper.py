@@ -90,3 +90,54 @@ def test_non_candidate_cities_are_skipped_and_duplicates_collapsed(mock_geocodin
 @pytest.mark.unit
 def test_no_payload_and_no_cards_returns_empty(mock_geocoding_service):
     assert _run("<html><body><h1>Vercel Security Checkpoint</h1></body></html>") == []
+
+
+class CountingGeocoder:
+    """Stands in for GeocodingService: a persistent-style cache that grows on each real lookup."""
+
+    def __init__(self, cached=()):
+        self.cache = {a.lower(): {"result": {"lat": 34.02, "lng": -118.49}} for a in cached}
+        self.calls = []
+
+    def geocode_with_fallback(self, address, venue_name=None):
+        self.calls.append(address)
+        self.cache.setdefault(address.lower().strip(), {"result": {"lat": 34.02, "lng": -118.49}})
+        return (34.02, -118.49)
+
+
+def _venue_events(n_venues, per_venue=1):
+    when = (datetime.now() + timedelta(days=4)).replace(hour=20, minute=0, second=0, microsecond=0)
+    return [
+        _event(f"{v}-{i}", f"Show {v}-{i}", _iso(when), "Santa Monica", f"Venue {v}", f"show-{v}-{i}")
+        for v in range(n_venues) for i in range(per_venue)
+    ]
+
+
+def _run_with(geocoder, html):
+    s = KCRWScraper()
+    s.geocoding_service = geocoder
+    s.fetch_page_js = lambda url, **kw: html
+    return s.scrape()
+
+
+@pytest.mark.unit
+def test_each_venue_is_geocoded_once_per_scrape():
+    geocoder = CountingGeocoder()
+    events = _run_with(geocoder, _page(_venue_events(3, per_venue=4)))
+
+    assert len(events) == 12
+    assert len(geocoder.calls) == 3
+    assert all(e.latitude == 34.02 for e in events)
+
+
+@pytest.mark.unit
+def test_new_geocodes_are_capped_and_cached_venues_are_free(monkeypatch):
+    monkeypatch.setattr(KCRWScraper, "MAX_NEW_GEOCODES", 2)
+    cached = ["Venue 4, Santa Monica, California"]
+    geocoder = CountingGeocoder(cached=cached)
+
+    events = _run_with(geocoder, _page(_venue_events(6)))
+
+    # Venues 0-1 use the budget; 2-3 are skipped; 4 is cached so it still lands; 5 skipped.
+    assert sorted(e.title for e in events) == ["Show 0-0", "Show 1-0", "Show 4-0"]
+    assert len(geocoder.calls) == 3  # 2 new + the cached venue (served without growing the cache)

@@ -12,6 +12,9 @@ from .base import BaseScraper
 from src.data.models import Event
 
 
+_OVER_BUDGET = object()
+
+
 class KCRWScraper(BaseScraper):
     """Scraper for KCRW events."""
 
@@ -19,6 +22,18 @@ class KCRWScraper(BaseScraper):
         super().__init__('KCRW')
         self.base_url = 'https://www.kcrw.com'
         self.events_url = f'{self.base_url}/events'
+        self._reset_geocode_budget()
+
+    # Nominatim allows 1 request/s for the whole process, so geocoding is what
+    # makes this scraper slow, and in the concurrent run it queues behind every
+    # other scraper's lookups. Cap the network lookups per scrape; venues already
+    # in the persistent cache cost nothing and are never capped.
+    MAX_NEW_GEOCODES = 25
+
+    def _reset_geocode_budget(self):
+        self._venue_coords: Dict[str, Optional[tuple]] = {}
+        self._new_geocodes = 0
+        self._skipped_for_budget = 0
 
     def scrape(self) -> List[Event]:
         """
@@ -29,6 +44,7 @@ class KCRWScraper(BaseScraper):
         """
         self.log("Starting scrape...")
         events = []
+        self._reset_geocode_budget()
 
         try:
             # KCRW (kcrw.com) sits behind Vercel's bot challenge for plain
@@ -60,6 +76,10 @@ class KCRWScraper(BaseScraper):
                             events.append(event)
                     except Exception as e:
                         self.log(f"Error parsing payload event: {e}")
+                if self._skipped_for_budget:
+                    self.log(f"Skipped {self._skipped_for_budget} events: geocode budget of "
+                             f"{self.MAX_NEW_GEOCODES} new lookups used up (they will "
+                             f"resolve from the cache on later runs)")
                 self.log(f"Successfully scraped {len(events)} events")
                 return events
             self.log("No event payload found, falling back to rendered cards")
@@ -167,6 +187,12 @@ class KCRWScraper(BaseScraper):
 
         image_url = (((raw.get('image') or {}).get('asset')) or {}).get('url', '')
 
+        located = self._locate(venue_name, address)
+        if located is _OVER_BUDGET:
+            self._skipped_for_budget += 1
+            return None
+        latitude, longitude = located or (None, None)
+
         return self.create_event(
             title=title,
             description="",
@@ -177,7 +203,29 @@ class KCRWScraper(BaseScraper):
             url=f"{self.base_url}/events/{raw['slug']}",
             image_url=image_url,
             category=category,
+            latitude=latitude,
+            longitude=longitude,
         )
+
+    def _locate(self, venue_name: str, address: str):
+        """Coordinates for a venue, geocoded at most once per scrape.
+
+        Returns (lat, lng), None when the venue cannot be geocoded, or
+        _OVER_BUDGET when it is not cached and the lookup budget is spent.
+        """
+        key = address.lower().strip()
+        if key in self._venue_coords:
+            return self._venue_coords[key]
+        cache = getattr(self.geocoding_service, 'cache', None)
+        if cache is not None and key not in cache and self._new_geocodes >= self.MAX_NEW_GEOCODES:
+            return _OVER_BUDGET
+        size_before = len(cache) if cache is not None else 0
+        coords = self.geocoding_service.geocode_with_fallback(address, venue_name=venue_name)
+        # Each fresh lookup (hit or miss) adds a cache entry; cached ones do not.
+        if cache is not None:
+            self._new_geocodes += max(0, len(cache) - size_before)
+        self._venue_coords[key] = coords
+        return coords
 
     def _parse_event(self, item) -> Event:
         """
