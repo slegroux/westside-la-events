@@ -64,6 +64,10 @@ class VinoYVinylScraper(BaseScraper):
 
             urls = self._event_urls(html)
             self.log(f"Found {len(urls)} event links")
+            if not urls and "any upcoming events" in html:
+                # Universe's own empty state, so 0 here is the truth rather
+                # than a render or selector failure.
+                self.log("Host page says it has no upcoming events")
 
             for url in urls[:self.MAX_EVENTS]:
                 try:
