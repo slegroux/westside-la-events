@@ -10,6 +10,7 @@ single (long-expired) events.
 """
 import json
 import re
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -45,6 +46,10 @@ class HotelJuneScraper(BaseScraper):
         self.base_url = 'https://www.thehoteljune.com'
         self.events_url = f'{self.base_url}/west-los-angeles/happenings/'
         self._graph = {}
+        # How the page's timestamps relate to real LA time, measured per scrape
+        # from the scheduled nodes (see _measure_clock_skew).
+        self._skew = timedelta(0)
+        self._utc_clock = False
 
     def scrape(self) -> List[Event]:
         """Read the page's JSON-LD events."""
@@ -59,6 +64,7 @@ class HotelJuneScraper(BaseScraper):
 
             nodes = self._event_nodes(html)
             self.log(f"Found {len(nodes)} event objects")
+            self._measure_clock_skew(nodes)
 
             for node in nodes:
                 try:
@@ -167,14 +173,23 @@ class HotelJuneScraper(BaseScraper):
             finished = normalize_event_datetime(end) if end else moment
             return [moment] if finished >= now else []
 
+        frequency = str(schedule.get('repeatFrequency') or 'P1W').upper()
+        if frequency not in ('P1W', 'P7D'):
+            self.log(f"Skipping '{node.get('name')}': unsupported repeatFrequency {frequency}")
+            return []
+
         hour, minute = self._schedule_time(schedule, start)
         window_end = now + timedelta(days=self.LOOKAHEAD_DAYS)
         # The node's own endDate is just the first occurrence's end; only the
         # schedule's endDate bounds the series.
         series_end = self._schedule_end(schedule)
+        # The series does not exist before its own startDate (a local date).
+        day_cursor = now.date()
+        series_start = self._schedule_start(schedule)
+        if series_start and series_start > day_cursor:
+            day_cursor = series_start
 
         occurrences = []
-        day_cursor = now.date()
         while day_cursor <= window_end.date():
             if day_cursor.weekday() in weekdays:
                 moment = datetime.combine(day_cursor, datetime.min.time()).replace(
@@ -184,6 +199,17 @@ class HotelJuneScraper(BaseScraper):
                     occurrences.append(moment)
             day_cursor += timedelta(days=1)
         return occurrences
+
+    @staticmethod
+    def _schedule_start(schedule: dict):
+        """First day of the schedule (a local date), if it has one."""
+        raw = schedule.get('startDate')
+        if not raw:
+            return None
+        try:
+            return datetime.fromisoformat(str(raw)[:10]).date()
+        except ValueError:
+            return None
 
     def _schedule_end(self, schedule: dict) -> Optional[datetime]:
         """Last moment of the schedule's own endDate, if it has one."""
@@ -250,19 +276,66 @@ class HotelJuneScraper(BaseScraper):
             return name, ''
         return name, joined
 
-    def _parse_timestamp(self, value: Optional[str]) -> Optional[datetime]:
-        """Parse an event's startDate/endDate into an aware UTC datetime.
+    def _measure_clock_skew(self, nodes: List[dict]) -> None:
+        """Work out how this page's startDate stamps relate to real LA time.
 
-        The site stamps these with a "-08:00" offset but the clock reading is
-        UTC: a 3 PM Thanksgiving seating is "23:00:00-08:00" (the page says
-        3PM-8:45PM) and 10 AM weekend brunch is "18:00:00-08:00", always
-        exactly the Pacific offset ahead of the schedule's own startTime. So the
-        stated offset is discarded and the wall clock is read as UTC.
+        The site has stamped a UTC clock reading with a "-08:00" label (a 3 PM
+        seating is "23:00:00-08:00"). It may fix the label, so the stated offset
+        cannot be trusted either way. Scheduled nodes carry both the stamped
+        startDate and the schedule's own local startTime, which gives the skew
+        directly: 8 h (7 h in PDT) for the mislabelled page, 0 when they agree.
+        With nothing to measure the skew is 0, i.e. the stamps are taken at
+        their word.
         """
+        skews = []
+        utc_clock = False
+        for node in nodes:
+            schedule = node.get('eventSchedule') or {}
+            clock = self._clock(schedule.get('startTime'))
+            stamp = self._stamp(node.get('startDate'))
+            if not clock or not stamp:
+                continue
+            wall, _ = stamp
+            local_start = timedelta(hours=clock[0], minutes=clock[1])
+            seen = timedelta(hours=wall.hour, minutes=wall.minute)
+            skew = (seen - local_start + timedelta(hours=12)) % timedelta(days=1) \
+                - timedelta(hours=12)
+            skews.append(skew)
+            as_utc = normalize_event_datetime(wall.replace(tzinfo=timezone.utc))
+            if skew and timedelta(hours=as_utc.hour, minutes=as_utc.minute) == local_start:
+                utc_clock = True
+
+        nonzero = [s for s in skews if s]
+        self._utc_clock = utc_clock
+        self._skew = Counter(nonzero).most_common(1)[0][0] if nonzero else timedelta(0)
+        if self._skew:
+            self.log(f"Page timestamps run {self._skew} ahead of local time; correcting")
+
+    @staticmethod
+    def _stamp(value: Optional[str]):
+        """(naive wall-clock reading, stated offset or None) of an ISO stamp."""
         if not value:
             return None
         try:
             parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
         except ValueError:
             return None
-        return parsed.replace(tzinfo=timezone.utc)
+        return parsed.replace(tzinfo=None), parsed.tzinfo
+
+    def _parse_timestamp(self, value: Optional[str]) -> Optional[datetime]:
+        """Parse an event's startDate/endDate into a naive LA-local datetime.
+
+        Corrects for the skew measured by _measure_clock_skew. A UTC clock
+        reading is converted through the tz database, so a stamp in PDT lands
+        7 h behind and one in PST 8 h. Any other measured skew is subtracted as
+        is. With no skew the stamp's own offset is honoured.
+        """
+        stamp = self._stamp(value)
+        if not stamp:
+            return None
+        wall, offset = stamp
+        if self._skew and self._utc_clock:
+            return normalize_event_datetime(wall.replace(tzinfo=timezone.utc))
+        if self._skew:
+            return wall - self._skew
+        return normalize_event_datetime(wall.replace(tzinfo=offset)) if offset else wall

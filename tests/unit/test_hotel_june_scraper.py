@@ -7,7 +7,8 @@ startDate stamps whose clock reading is UTC despite a "-08:00" label). Dates
 are generated relative to today.
 """
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -40,10 +41,40 @@ def _page(*events, places=(CANTINA,)):
     return f'<html><head><script type="application/ld+json">{ld}</script></head></html>'
 
 
+LA = ZoneInfo("America/Los_Angeles")
+
+
 def _stamp(local_dt):
     """Stamp a LA-local clock the way the site does: UTC clock, '-08:00' label."""
-    utc = local_dt + timedelta(hours=8)  # PST is UTC-8; the code reads the clock as UTC
+    utc = local_dt.replace(tzinfo=LA).astimezone(timezone.utc)
     return utc.strftime("%Y-%m-%dT%H:%M:%S") + "-08:00"
+
+
+def _true_stamp(local_dt):
+    """Stamp a LA-local clock with its real offset ('-08:00' PST, '-07:00' PDT)."""
+    return local_dt.replace(tzinfo=LA).isoformat(timespec="seconds")
+
+
+def _anchor(local_first, stamp=_stamp):
+    """A scheduled node: its startDate stamp vs startTime lets the scraper
+    measure the page's skew. ``local_first`` is its first occurrence (15:00)."""
+    return _event(
+        "Anchor",
+        startDate=stamp(local_first),
+        eventSchedule={
+            "repeatFrequency": "P1W",
+            "byDay": ["https://schema.org/Monday"],
+            "startTime": "15:00:00",
+            "startDate": local_first.strftime("%Y-%m-%d"),
+        },
+    )
+
+
+def _on(month, day, hour=15):
+    """Next future occurrence of a calendar date (a known PST or PDT day)."""
+    now = datetime.now()
+    d = datetime(now.year, month, day, hour)
+    return d if d > now + timedelta(days=2) else d.replace(year=now.year + 1)
 
 
 def _event(name, **extra):
@@ -68,10 +99,11 @@ def _run(html):
 def test_one_off_resolves_venue_reference_and_reads_utc_clock(mock_geocoding_service):
     day = _at(20, 15)
     end = day.replace(hour=20, minute=45)
-    html = _page(_event("Thanksgiving", startDate=_stamp(day), endDate=_stamp(end),
+    html = _page(_anchor(_at(-3, 15)),
+                 _event("Thanksgiving", startDate=_stamp(day), endDate=_stamp(end),
                         image="https://example.com/i.jpg"))
 
-    events = _run(html)
+    events = [e for e in _run(html) if e.title == "Thanksgiving"]
 
     assert len(events) == 1
     e = events[0]
@@ -142,3 +174,72 @@ def test_listing_without_street_address_is_skipped(mock_geocoding_service):
     node["location"] = {"@id": f"{HOTEL}#city"}
 
     assert _run(_page(node, places=(CANTINA, place))) == []
+
+
+def _one_off(events):
+    return [e for e in events if e.title == "Gala"]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("anchor_month", [1, 7], ids=["anchor-in-PST", "anchor-in-PDT"])
+@pytest.mark.parametrize("gala_month", [1, 7], ids=["gala-in-PST", "gala-in-PDT"])
+def test_mislabelled_page_skew_is_measured_whatever_the_season(
+        mock_geocoding_service, anchor_month, gala_month):
+    gala = _on(gala_month, 15)
+    html = _page(_anchor(datetime(2026, anchor_month, 15, 15)),
+                 _event("Gala", startDate=_stamp(gala)))
+
+    events = _one_off(_run(html))
+
+    assert [e.event_date for e in events] == [gala]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("month", [1, 7], ids=["PST", "PDT"])
+def test_correctly_labelled_page_has_no_skew(mock_geocoding_service, month):
+    gala = _on(month, 15)
+    html = _page(_anchor(datetime(2026, month, 15, 15), stamp=_true_stamp),
+                 _event("Gala", startDate=_true_stamp(gala)))
+
+    assert [e.event_date for e in _one_off(_run(html))] == [gala]
+
+
+@pytest.mark.unit
+def test_unmeasurable_page_honours_stated_offset(mock_geocoding_service):
+    gala = _on(7, 15)  # PDT: "-07:00"
+    html = _page(_event("Gala", startDate=_true_stamp(gala)))
+
+    assert [e.event_date for e in _one_off(_run(html))] == [gala]
+
+
+def _weekly(name, start_date, **schedule):
+    return _event(
+        name,
+        startDate=_stamp(start_date),
+        eventSchedule={
+            "byDay": ALL_DAYS,
+            "startTime": "15:00:00",
+            "startDate": start_date.strftime("%Y-%m-%d"),
+            **schedule,
+        },
+    )
+
+
+@pytest.mark.unit
+def test_future_start_series_does_not_run_before_its_start_date(mock_geocoding_service):
+    start = _at(14, 15)
+    events = _run(_page(_weekly("Soon", start, repeatFrequency="P1W")))
+
+    assert events
+    assert min(e.event_date for e in events).date() == start.date()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("frequency", ["P2W", "P1M"])
+def test_unsupported_repeat_frequency_is_skipped(mock_geocoding_service, frequency):
+    assert _run(_page(_weekly("Biweekly", _at(-8, 15), repeatFrequency=frequency))) == []
+
+
+@pytest.mark.unit
+def test_p7d_frequency_is_weekly(mock_geocoding_service):
+    assert _run(_page(_weekly("Daily-ish", _at(-8, 15), repeatFrequency="P7D")))
