@@ -2,11 +2,13 @@
 Scraper for Laemmle Monica Film Center.
 Source: https://www.laemmle.com/theater/monica-film-center
 
-Scrapes movie showtimes and information from the Monica Film Center theater page.
+The site is a Next.js app: film pages (/film/<slug>) are server-rendered with the
+title, poster, runtime and rating, but the showtimes are filled in client-side
+from a JSON endpoint (/api/showtimes/<film uuid>). We read the film uuid from the
+page's embedded data and call that same endpoint, keeping only Monica showtimes.
 """
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Optional
-from dateutil import parser as date_parser
 import re
 
 from .base import BaseScraper
@@ -15,6 +17,11 @@ from src.data.models import Event
 
 class LaemmleMonicaScraper(BaseScraper):
     """Scraper for Laemmle Monica Film Center events."""
+
+    THEATER_SLUG = 'monica'
+    # 1332 2nd St, Santa Monica (fixed venue, so no geocoding needed)
+    LATITUDE = 34.0149
+    LONGITUDE = -118.4963
 
     def __init__(self):
         super().__init__('Laemmle Monica Film Center')
@@ -28,13 +35,12 @@ class LaemmleMonicaScraper(BaseScraper):
         Scrape movie showtimes from Laemmle Monica Film Center.
 
         Returns:
-            List of Event objects (one per movie, not per showtime)
+            List of Event objects (one per movie, dated at its next Monica showtime)
         """
         self.log("Starting scrape...")
         events = []
 
         try:
-            # Fetch the theater page
             html = self.fetch_page(self.theater_url)
             if not html:
                 self.log("Failed to fetch theater page")
@@ -42,40 +48,26 @@ class LaemmleMonicaScraper(BaseScraper):
 
             soup = self.parse_html(html)
 
-            # Find all movie containers - they're typically in divs with film info
-            # Look for links to /film/ pages which indicate movie cards
-            film_links = soup.find_all('a', href=re.compile(r'/film/'))
+            # Unique film pages linked from the theater page
+            film_urls = []
+            for link in soup.find_all('a', href=re.compile(r'^/film/|laemmle\.com/film/')):
+                clean_url = self.normalize_url(link['href'].split('?')[0], self.base_url)
+                if clean_url not in film_urls:
+                    film_urls.append(clean_url)
 
-            # Group by unique film URLs to avoid duplicates
-            # Normalize URLs by removing query strings and converting to absolute
-            unique_films = {}
-            for link in film_links:
-                film_url = link.get('href', '')
-                if film_url:
-                    # Remove query string for uniqueness
-                    clean_url = film_url.split('?')[0]
-                    # Normalize to absolute URL
-                    clean_url = self.normalize_url(clean_url, self.base_url)
+            self.log(f"Found {len(film_urls)} unique films")
 
-                    if clean_url not in unique_films:
-                        unique_films[clean_url] = link
+            if film_urls:
+                self.prefetch_pages(film_urls)
 
-            self.log(f"Found {len(unique_films)} unique films")
-
-            # Prefetch all film detail pages concurrently
-            if unique_films:
-                self.prefetch_pages(list(unique_films.keys()))
-
-            # Process each unique film once by fetching its detail page
-            for i, film_url in enumerate(unique_films.keys(), 1):
+            for i, film_url in enumerate(film_urls, 1):
                 try:
-                    event = self._parse_movie_from_theater_page(soup, film_url)
+                    event = self._parse_film(film_url)
                     if event:
                         events.append(event)
-                        self.log(f"Event {i}/{len(unique_films)}: {event.title}")
+                        self.log(f"Event {i}/{len(film_urls)}: {event.title}")
                 except Exception as e:
                     self.log(f"Error parsing movie at {film_url}: {e}")
-                    continue
 
             self.log(f"Successfully scraped {len(events)} movies")
 
@@ -84,224 +76,106 @@ class LaemmleMonicaScraper(BaseScraper):
 
         return events
 
-    def _parse_movie_from_theater_page(self, soup, film_url: str) -> Optional[Event]:
-        """
-        Parse a single movie by fetching its detail page.
+    def _upcoming_monica_showtimes(self, film_id: str) -> List[dict]:
+        """Monica showtimes that haven't started yet, earliest first."""
+        data = self.fetch_json(
+            f'{self.base_url}/api/showtimes/{film_id}', method='GET'
+        )
+        if not data:
+            return []
 
-        Args:
-            soup: BeautifulSoup object of theater page (not used, kept for compatibility)
-            film_url: Full URL to the film detail page
+        now = datetime.now()
+        showtimes = []
+        for st in data.get('showtimes', []):
+            if st.get('theaterSlug') != self.THEATER_SLUG:
+                continue
+            try:
+                # Naive LA-local, e.g. "2026-11-19T19:30:00"
+                starts_at = datetime.fromisoformat(st['startsAt'])
+            except (KeyError, ValueError):
+                continue
+            if starts_at.tzinfo is not None:
+                starts_at = starts_at.replace(tzinfo=None)
+            if starts_at >= now:
+                showtimes.append({**st, 'dt': starts_at})
+        return sorted(showtimes, key=lambda s: s['dt'])
 
-        Returns:
-            Event object or None
-        """
-        # Fetch the film detail page to get showtimes
+    def _parse_film(self, film_url: str) -> Optional[Event]:
+        """Build one event from a film page plus its Monica showtimes."""
         film_html = self.fetch_page(film_url)
         if not film_html:
             self.log(f"Failed to fetch film detail page: {film_url}")
             return None
 
-        film_soup = self.parse_html(film_html)
-
-        # Extract title from page header
-        title_elem = film_soup.find('h1', class_='page-header')
-        if not title_elem:
+        id_match = re.search(r'filmId\\?":\\?"([0-9a-fA-F-]{36})', film_html)
+        if not id_match:
+            self.log(f"No film id found on {film_url}")
             return None
 
-        title = self.clean_text(title_elem.get_text())
+        film_soup = self.parse_html(film_html)
+        title_elem = film_soup.find('h1', class_='film-title')
+        title = self.clean_text(title_elem.get_text()) if title_elem else ''
         if not title:
             return None
 
-        # Extract image URL - look for main film poster
+        showtimes = self._upcoming_monica_showtimes(id_match.group(1))
+        if not showtimes:
+            # Not playing at Monica (or nothing upcoming): nothing to list.
+            return None
+
+        # Poster
         image_url = ''
+        poster = film_soup.select_one('.film-poster img')
+        if poster:
+            image_url = self.normalize_url(poster.get('src', ''), self.base_url)
 
-        # Strategy 1: Look for images in /sites/default/files/images/ (most reliable)
-        # This avoids logos, tracking pixels, and other non-poster images
-        img = film_soup.find('img', src=re.compile(r'/sites/default/files/images/'))
+        # Rating and runtime, e.g. "Not Rated" and "88 min"
+        rating_elem = film_soup.select_one('.badge-rating')
+        rating = self.clean_text(rating_elem.get_text()) if rating_elem else ''
+        meta_elem = film_soup.select_one('.badge-meta')
+        runtime_match = re.search(r'(\d+)\s*min', meta_elem.get_text()) if meta_elem else None
+        runtime_rating = ' '.join(
+            p for p in [f"{runtime_match.group(1)} min." if runtime_match else '', rating] if p
+        )
 
-        if not img:
-            # Strategy 2: Look for the film poster - try matching alt text (case-insensitive partial match)
-            # This handles cases like "The Addiction of Hope" vs "Addiction of Hope"
-            for img_tag in film_soup.find_all('img'):
-                alt_text = img_tag.get('alt', '').lower()
-                if title.lower() in alt_text or alt_text in title.lower():
-                    img = img_tag
-                    break
+        synopsis_elem = film_soup.select_one('[data-synopsis-inner]')
+        synopsis = self.clean_text(synopsis_elem.get_text(' ')) if synopsis_elem else ''
+        if len(synopsis) > 400:
+            synopsis = synopsis[:399].rsplit(' ', 1)[0] + '…'
 
-        if not img:
-            # Strategy 3: Try to find poster by common patterns
-            img = film_soup.find('img', class_=re.compile(r'poster|film-image'))
+        # Showtimes grouped by day, e.g. "Thu Nov 19: 7:30pm, 9:45pm"
+        by_day = {}
+        for st in showtimes:
+            by_day.setdefault(st['dt'].date(), []).append(st['dt'])
+        day_parts = []
+        for day, times in list(by_day.items())[:7]:
+            clock = ', '.join(f"{t.hour % 12 or 12}:{t.minute:02d}{'am' if t.hour < 12 else 'pm'}" for t in times)
+            day_parts.append(f"{day.strftime('%a %b')} {day.day}: {clock}")
 
-        if not img:
-            # Strategy 4: Fallback to any img in the main content that's not the logo
-            img = film_soup.find('div', class_='field--name-field-poster-image')
-            if img:
-                img = img.find('img')
-
-        if img:
-            image_url = img.get('src', '')
-            # Prefer the original image URL over thumbnails
-            if 'styles/' in image_url:
-                # Try to find the original image from the src attribute
-                original_img = film_soup.find('img', src=re.compile(r'/sites/default/files/images/'))
-                if original_img:
-                    original_src = original_img.get('src', '')
-                    if original_src and '/images/' in original_src:
-                        image_url = original_src
-            if image_url and not image_url.startswith('http'):
-                image_url = self.normalize_url(image_url, self.base_url)
-
-        # Extract runtime and rating (e.g., "118 min. R")
-        runtime_rating = ''
-        # Look for film details section
-        details_section = film_soup.find('div', class_=re.compile(r'film-details|movie-info'))
-        if details_section:
-            text_content = details_section.get_text()
-        else:
-            text_content = film_soup.get_text()
-
-        runtime_match = re.search(r'(\d+)\s*min\.?\s*([A-Z\-]+)?', text_content)
-        if runtime_match:
-            runtime = runtime_match.group(1)
-            rating = runtime_match.group(2) if runtime_match.group(2) else 'Not Rated'
-            runtime_rating = f"{runtime} min. {rating}"
-
-        # Find the Monica Film Center section with showtimes
-        # Look for the div.movie container that contains theater info for Monica
-        showtimes = []
-        earliest_date = None
-
-        # Find all movie divs (each represents a theater)
-        movie_divs = film_soup.find_all('div', class_='movie')
-
-        for movie_div in movie_divs:
-            # Check if this is the Monica Film Center
-            theater_link = movie_div.find('a', href='/theater/monica-film-center')
-            if not theater_link:
-                continue
-
-            # Found Monica Film Center section, now extract showtimes
-            showtimes_div = movie_div.find('div', class_='showtimes')
-            if not showtimes_div:
-                continue
-
-            # Find all showtime spans (both past and future)
-            showtime_spans = showtimes_div.find_all('span', class_=re.compile(r'showtime'))
-
-            for showtime_span in showtime_spans:
-                # Look for time text in nested spans
-                time_span = showtime_span.find('span', class_=re.compile(r'showtime-'))
-                if not time_span:
-                    # Try direct link
-                    time_link = showtime_span.find('a')
-                    if time_link:
-                        showtime_text = self.clean_text(time_link.get_text())
-                        ticket_url = time_link.get('href', '')
-                    else:
-                        continue
-                else:
-                    showtime_text = self.clean_text(time_span.get_text())
-                    # Look for ticket link at span level
-                    time_link = showtime_span.find('a')
-                    ticket_url = time_link.get('href', '') if time_link else ''
-
-                if showtime_text:
-                    # Parse showtime text (e.g., "1:10pm", "7:30pm")
-                    try:
-                        # Try to parse the time
-                        time_match = re.match(r'(\d{1,2}):(\d{2})\s*(am|pm)', showtime_text.lower())
-                        if time_match:
-                            hour = int(time_match.group(1))
-                            minute = int(time_match.group(2))
-                            period = time_match.group(3)
-
-                            # Convert to 24-hour format
-                            if period == 'pm' and hour != 12:
-                                hour += 12
-                            elif period == 'am' and hour == 12:
-                                hour = 0
-
-                            # Create datetime for today at this showtime
-                            # Laemmle only shows current/future showtimes
-                            now = datetime.now()
-                            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-                            showtime_dt = today_start.replace(hour=hour, minute=minute, second=0, microsecond=0)
-
-                            # Store showtime info (we'll determine if it's today or future later)
-                            showtimes.append({
-                                'time': showtime_text,
-                                'hour': hour,
-                                'minute': minute,
-                                'url': ticket_url
-                            })
-                    except Exception as e:
-                        self.log(f"Error parsing showtime '{showtime_text}': {e}")
-
-            # Break after finding Monica Film Center section
-            break
-
-        # Calculate event_date from showtimes
-        # Use the earliest showtime for today/tomorrow as the event date
-        if showtimes:
-            now = datetime.now()
-            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-            # Find earliest showtime and determine if it's today or tomorrow
-            earliest_showtime = min(showtimes, key=lambda x: (x['hour'], x['minute']))
-            earliest_dt = today_start.replace(hour=earliest_showtime['hour'], minute=earliest_showtime['minute'])
-
-            # If the earliest showtime has passed, assume all showtimes are for tomorrow
-            if earliest_dt < now:
-                earliest_date = earliest_dt + timedelta(days=1)
-            else:
-                earliest_date = earliest_dt
-
-        # Build full movie URL
-        full_url = self.normalize_url(film_url, self.base_url)
-
-        # Build description
         description_parts = []
-
-        # Add runtime and rating first
         if runtime_rating:
             description_parts.append(runtime_rating)
-
-        # Add showtimes prominently (will appear right after the calendar icon date/time)
-        if showtimes:
-            # List showtimes in description
-            showtime_list = ', '.join([st['time'] for st in showtimes[:10]])  # Show up to 10 showtimes
-            if len(showtimes) > 10:
-                showtime_list += f' and {len(showtimes) - 10} more'
-            description_parts.append(f"Showtimes: {showtime_list}")
-
-        # Add venue context
+        if synopsis:
+            description_parts.append(synopsis)
+        description_parts.append("Showtimes - " + "; ".join(day_parts))
+        if any(st.get('hasQandA') for st in showtimes):
+            description_parts.append("Includes a Q&A screening")
         description_parts.append(f"Film screening at {self.venue_name}")
-        description_parts.append("Independent and art house cinema in Santa Monica")
+        description = ". ".join(p.rstrip('.') for p in description_parts) + "."
 
-        # Add call to action
-        if not showtimes:
-            description_parts.append("Check website for current showtimes")
-        else:
-            description_parts.append("Visit the website to purchase tickets")
-
-        description = ". ".join(description_parts) + "."
-
-        # Pricing info - Laemmle typically has standard ticket pricing
-        # We can't extract exact prices without visiting ticketing pages
-        # Leave price_note empty so it displays as $TBD
-        price_note = None
-
+        # Price unknown here: leave price_note empty (CLAUDE.md pricing convention)
         return self.create_event(
             title=title,
             description=description,
             venue_name=self.venue_name,
             address=self.venue_address,
-            event_date=earliest_date,
-            end_date=None,
-            url=full_url,
+            latitude=self.LATITUDE,
+            longitude=self.LONGITUDE,
+            event_date=showtimes[0]['dt'],
+            url=film_url,
             image_url=image_url,
-            category='Film',  # Use 'Film' category for movies
-            price=None,  # Price varies by showtime/day
+            category='Film',
+            price=None,
             is_free=False,
-            price_note=price_note
+            price_note='',
         )
