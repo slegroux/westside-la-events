@@ -35,7 +35,7 @@ class RaymondKabbazScraper(BaseScraper):
 
     # "Nov 19 - 8:00 PM", "mar 18-21", "Jan 22/23"
     _DATE_RE = re.compile(
-        r'^([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:[-/–](\d{1,2}))?'
+        r'^([A-Za-z]{3,9})\.?\s+(\d{1,2})(?!\d)(?:[-/–](\d{1,2})(?!\d))?'
         r'(?:\s*-\s*(\d{1,2})(?::(\d{2}))?\s*([AP]M))?',
         re.I,
     )

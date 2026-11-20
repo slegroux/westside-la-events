@@ -111,6 +111,20 @@ def test_date_range_and_missing_date(mock_geocoding_service):
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize('line', ['June 2026 Gala', 'Mar 2027', 'Dec 123 - 8:00 PM'])
+def test_year_after_month_is_not_a_day(line):
+    assert RaymondKabbazScraper()._parse_date_line(line, None) is None
+
+
+@pytest.mark.unit
+def test_two_digit_days_and_ranges_still_parse():
+    start, end = RaymondKabbazScraper()._parse_date_line('mar 18-21', 2026)
+    assert (start.month, start.day, end.day) == (3, 18, 21)
+    start, _ = RaymondKabbazScraper()._parse_date_line('Nov 19 - 8:00 PM', 2026)
+    assert (start.day, start.hour) == (19, 20)
+
+
+@pytest.mark.unit
 def test_empty_listing_returns_nothing(mock_geocoding_service):
     now = datetime.now()
     assert _run({f'{BASE}/upcoming-events': _listing(now)}) == []
