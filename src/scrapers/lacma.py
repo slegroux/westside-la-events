@@ -1,9 +1,34 @@
 """
 Scraper for LACMA (Los Angeles County Museum of Art) events.
-Source: https://www.lacma.org/events
+Source: https://www.lacma.org/events-calendar  (``/events`` redirects here)
+
+LACMA publishes no JSON API, iCal or RSS feed (``/rss.xml`` errors, ``.ics``
+404s, ``?_format=json`` is refused) and its robots.txt disallows the sitemap, so
+the listing HTML is the only source. That HTML comes in two layouts, which is
+why this scraper stopped finding events in production:
+
+* ``/events-calendar`` renders ``div.views-calendar-results`` blocks, one per
+  day, each headed by ``<h3>Today, November 19, 2026</h3>`` -- but only the first
+  two days (about 8 events), then an infinite-scroll "Load More" link.
+* ``/events-calendar?page=N`` renders ``h4.event-calendar-date-group`` headings
+  ("Thursday, November 19", no year) over the same ``.card-event`` cards, 12
+  cards per page, and paginates through the whole calendar.
+
+Both are parsed by one walk over ``h3``/``h4`` day headers and ``.card-event``
+cards. The paginated layout is tried first because it is the complete listing;
+the bare page is the fallback. When neither yields a card, the page's title,
+length and text excerpt are logged so the next log shows what we received
+(for example a bot-protection page served to a datacenter IP).
+
+Titles in the paginated layout are cut to ~60 characters with a trailing
+"..."; the full title is read from the event page's JSON-LD.
 """
-from datetime import datetime
-from typing import List
+import json
+import re
+from datetime import datetime, timedelta
+from typing import List, Optional
+
+from bs4 import Tag
 from dateutil import parser as date_parser
 
 from .base import BaseScraper
@@ -13,72 +38,135 @@ from src.data.models import Event
 class LACMAScraper(BaseScraper):
     """Scraper for LACMA events."""
 
+    # Paginated calendar: ~12 cards per page, ~8 events/day.
+    MAX_PAGES = 14
+    HORIZON_DAYS = 30
+    MAX_TITLE_LOOKUPS = 25
+
+    # LACMA's fixed location, so no geocoding is needed for in-person events.
+    VENUE_LAT = 34.0639
+    VENUE_LNG = -118.3592
+
     def __init__(self):
         super().__init__('LACMA')
         self.base_url = 'https://www.lacma.org'
-        self.events_url = f'{self.base_url}/events'
+        self.events_url = f'{self.base_url}/events-calendar'
+        self._title_lookups = 0
 
     def scrape(self) -> List[Event]:
-        """
-        Scrape events from LACMA website.
-
-        LACMA uses a Drupal Views system with AJAX loading capabilities.
-
-        Returns:
-            List of Event objects
-        """
+        """Scrape upcoming events from the LACMA calendar."""
         self.log("Starting scrape...")
-        events = []
+        events: List[Event] = []
+        self._title_lookups = 0
 
         try:
-            # Fetch the events page
-            html = self.fetch_page(self.events_url)
-            if not html:
-                self.log("Failed to fetch events page")
-                return events
-
-            soup = self.parse_html(html)
-
-            # Restrict to the calendar sections. The /events page also contains a
-            # second listing of static category links (Exhibitions, Film, etc.)
-            # that have no dates and would otherwise be returned as undated rows.
-            # LACMA renders one .views-calendar-results block PER DAY, so every
-            # block has to be walked -- taking only the first silently drops
-            # every day but the nearest one.
-            calendars = soup.find_all('div', class_='views-calendar-results')
-            if calendars:
-                # Within each calendar, events are grouped under <h3> day headers
-                # like "Today, May 29, 2026" or "Saturday, May 30, 2026" and each
-                # event card sits inside a div.views-row with a .card-event block.
-                from bs4 import Tag
-                for calendar in calendars:
-                    current_day_text = None
-                    # Walk the descendants in order so each event is associated
-                    # with the most recently seen day header.
-                    for el in calendar.descendants:
-                        if not isinstance(el, Tag):
-                            continue
-                        if el.name == 'h3':
-                            current_day_text = self.clean_text(el.get_text())
-                        elif el.name == 'div' and el.get('class') and 'views-row' in el.get('class') and el.find(class_='card-event'):
-                            try:
-                                event = self._parse_event(el, current_day_text)
-                                if event:
-                                    events.append(event)
-                            except Exception as e:
-                                self.log(f"Error parsing event: {e}")
-                                continue
-            else:
-                self.log("No calendar section found on LACMA events page")
-
+            events = self._scrape_paginated()
+            if not events:
+                self.log("Paginated calendar yielded nothing; trying the bare calendar page")
+                html = self.fetch_page(self.events_url)
+                events = self._parse_listing(html, 'bare calendar page')[0]
             self.log(f"Successfully scraped {len(events)} events")
-
         except Exception as e:
             self.log(f"Error during scrape: {e}")
             import traceback
             traceback.print_exc()
 
         return events
+
+    def _scrape_paginated(self) -> List[Event]:
+        events: List[Event] = []
+        seen = set()
+        horizon = datetime.now() + timedelta(days=self.HORIZON_DAYS)
+
+        for page in range(self.MAX_PAGES):
+            html = self.fetch_page(f'{self.events_url}?page={page}')
+            page_events, n_cards = self._parse_listing(html, f'page {page}')
+            if n_cards == 0:
+                break
+            added = 0
+            for event in page_events:
+                key = (event.url, event.event_date)
+                if key in seen:
+                    continue
+                seen.add(key)
+                events.append(event)
+                added += 1
+            if added == 0:
+                break
+            dated = [e.event_date for e in page_events if e.event_date]
+            if dated and max(dated) > horizon:
+                break
+        return events
+
+    def _parse_listing(self, html: Optional[str], label: str):
+        """Parse one listing page. Returns (events, number_of_cards_found)."""
+        if not html:
+            self.log(f"Failed to fetch LACMA {label}")
+            return [], 0
+
+        soup = self.parse_html(html)
+        events: List[Event] = []
+        n_cards = 0
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        current_day_text = None
+
+        # Walk in document order so each card is associated with the day header
+        # above it. Two layouts: <h3> in div.views-calendar-results, or
+        # <h4 class="event-calendar-date-group">.
+        for el in soup.descendants:
+            if not isinstance(el, Tag):
+                continue
+            classes = el.get('class') or []
+            if el.name == 'h3' or (el.name == 'h4' and 'event-calendar-date-group' in classes):
+                current_day_text = self.clean_text(el.get_text())
+            elif el.name == 'div' and 'views-row' in classes and el.find(class_='card-event'):
+                n_cards += 1
+                try:
+                    event = self._parse_event(el, current_day_text)
+                except Exception as e:
+                    self.log(f"Error parsing event: {e}")
+                    continue
+                if not event:
+                    continue
+                if event.event_date and event.event_date < today:
+                    continue
+                events.append(event)
+
+        if n_cards == 0:
+            self._log_unrecognised_page(html, label)
+        return events, n_cards
+
+    def _log_unrecognised_page(self, html: str, label: str):
+        """Say what we got when no event card is found (e.g. a block page)."""
+        soup = self.parse_html(html)
+        title = self.clean_text(soup.title.get_text()) if soup.title else ''
+        text = self.clean_text(soup.get_text(' '))[:200]
+        self.log(
+            f"No event cards on LACMA {label}: title={title!r}, "
+            f"length={len(html)}, calendar_blocks={len(soup.find_all(class_='views-calendar-results'))}, "
+            f"text={text!r}"
+        )
+
+    def _full_title(self, url: str, truncated: str) -> str:
+        """Replace a '...'-truncated card title with the JSON-LD name of its page."""
+        if not url or self._title_lookups >= self.MAX_TITLE_LOOKUPS:
+            return truncated
+        self._title_lookups += 1
+        html = self.fetch_page(url)
+        if not html:
+            return truncated
+        for m in re.finditer(r'<script type="application/ld\+json">(.*?)</script>', html, re.S):
+            try:
+                data = json.loads(m.group(1))
+            except ValueError:
+                continue
+            nodes = data.get('@graph', [data]) if isinstance(data, dict) else data
+            for node in nodes:
+                if isinstance(node, dict) and node.get('@type') == 'Event' and node.get('name'):
+                    full = self.clean_text(node['name'])
+                    if full.startswith(truncated.rstrip('. ')):
+                        return full
+        return truncated
 
     def _parse_event(self, item, day_header_text: str = None) -> Event:
         """
@@ -95,7 +183,7 @@ class LACMAScraper(BaseScraper):
         Returns:
             Event object or None
         """
-        import re as _re
+        _re = re
 
         # Extract title from card-event__name
         title_elem = item.find(class_='card-event__name') or item.find(['h2', 'h3', 'h4'])
@@ -106,6 +194,11 @@ class LACMAScraper(BaseScraper):
 
         if not title or title == "Untitled Event":
             return None
+
+        link_elem = item.find('a', href=True)
+        url = self.normalize_url(link_elem['href'], self.base_url) if link_elem else ""
+        if title.endswith('...'):
+            title = self._full_title(url, title)
 
         # Extract description (cards typically have none; fall back to type label)
         desc_elem = item.find('p') or item.find(class_='card-event__type')
@@ -131,6 +224,8 @@ class LACMAScraper(BaseScraper):
 
             # date_part looks like "Fri May 29"; strip the leading weekday
             cleaned = _re.sub(r'^[A-Za-z]{3,9}\s+', '', date_part).strip()
+            # "11 am PT": drop the zone label (dateutil would warn/ignore it)
+            time_part = _re.sub(r'\s*\b(?:PT|PST|PDT)\b', '', time_part).strip()
             candidate = f"{cleaned} {year}"
             if time_part:
                 candidate += f" {time_part}"
@@ -142,6 +237,8 @@ class LACMAScraper(BaseScraper):
                     now = datetime.now()
                     if (now - parsed).days > 30:
                         parsed = parsed.replace(year=now.year + 1)
+                    elif (parsed - now).days > 335:
+                        parsed = parsed.replace(year=now.year - 1)
                 event_date = parsed
             except Exception as e:
                 self.log(f"Error parsing date '{candidate}': {e}")
@@ -173,13 +270,8 @@ class LACMAScraper(BaseScraper):
                 # Show the specific gallery, but keep LACMA's real address.
                 # The source sometimes appends a redundant "| LACMA" suffix.
                 gallery = _re.sub(r'\s*\|\s*LACMA\s*$', '', location_text).strip()
-                venue_name = f"LACMA — {gallery}"
-
-        # Extract URL
-        link_elem = item if item.name == 'a' else item.find('a', href=True)
-        url = ""
-        if link_elem and link_elem.has_attr('href'):
-            url = self.normalize_url(link_elem['href'], self.base_url)
+                if gallery and gallery.lower() != 'lacma':
+                    venue_name = f"LACMA — {gallery}"
 
         # Extract image
         image_url = ""
@@ -212,5 +304,7 @@ class LACMAScraper(BaseScraper):
             image_url=image_url,
             price=price,
             is_free=is_free,
-            price_note=price_note
+            price_note=price_note,
+            latitude=None if address == "Online" else self.VENUE_LAT,
+            longitude=None if address == "Online" else self.VENUE_LNG,
         )
