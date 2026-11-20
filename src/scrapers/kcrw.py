@@ -4,6 +4,7 @@ Source: https://www.kcrw.com/events
 """
 from datetime import datetime
 from typing import List, Dict, Optional
+import json
 import re
 from dateutil import parser as date_parser
 
@@ -45,6 +46,24 @@ class KCRWScraper(BaseScraper):
 
             soup = self.parse_html(html)
 
+            # Preferred source: the Next.js (RSC) payload embedded in the page
+            # carries every upcoming event as structured data (ISO start with
+            # timezone, venue, tags, image, slug), independent of CSS class
+            # names, and lists far more events than the 16 rendered cards.
+            payload_events = self._extract_payload_events(soup)
+            if payload_events:
+                self.log(f"Found {len(payload_events)} events in page payload")
+                for raw in payload_events:
+                    try:
+                        event = self._parse_payload_event(raw)
+                        if event:
+                            events.append(event)
+                    except Exception as e:
+                        self.log(f"Error parsing payload event: {e}")
+                self.log(f"Successfully scraped {len(events)} events")
+                return events
+            self.log("No event payload found, falling back to rendered cards")
+
             # KCRW uses CSS modules with unique class names
             # Event cards have class starting with EventCard_cardContainer__
             event_items = soup.find_all('div', class_=lambda x: x and 'EventCard_cardContainer__' in x)
@@ -84,6 +103,81 @@ class KCRWScraper(BaseScraper):
             self.log(f"Error during scrape: {e}")
 
         return events
+
+    # Cities that can contain Westside venues. The geo filter in create_event is
+    # the authority; this only avoids a (rate-limited, ~1 s) geocode per venue
+    # for events plainly elsewhere (Pasadena, Burbank, Kyoto, ...).
+    WESTSIDE_CANDIDATE_CITIES = {
+        'los angeles', 'santa monica', 'culver city', 'west hollywood',
+        'beverly hills', 'venice', 'malibu', 'marina del rey',
+        'pacific palisades', 'brentwood', 'westwood', 'playa vista',
+        'playa del rey', 'topanga',
+    }
+
+    def _extract_payload_events(self, soup) -> List[Dict]:
+        """Collect event dicts from the page's Next.js flight data (deduped by id)."""
+        chunks = []
+        for script in soup.find_all('script'):
+            text = script.string or ''
+            match = re.match(r'\s*self\.__next_f\.push\((\[.*\])\)\s*;?\s*$', text, re.DOTALL)
+            if not match:
+                continue
+            try:
+                part = json.loads(match.group(1))
+            except ValueError:
+                continue
+            if len(part) > 1 and isinstance(part[1], str):
+                chunks.append(part[1])
+        flight = ''.join(chunks)
+
+        decoder = json.JSONDecoder()
+        found = {}
+        for match in re.finditer(r'"events":\[', flight):
+            try:
+                arr, _ = decoder.raw_decode(flight, match.end() - 1)
+            except ValueError:
+                continue
+            for raw in arr:
+                if isinstance(raw, dict) and raw.get('title') and raw.get('start') and raw.get('slug'):
+                    found[(raw.get('sys') or {}).get('id') or raw['slug']] = raw
+        return list(found.values())
+
+    def _parse_payload_event(self, raw: Dict) -> Optional[Event]:
+        """Convert one payload event dict into an Event (None if outside the area)."""
+        venue = raw.get('venue') or {}
+        city = (venue.get('city') or '').strip()
+        if city.lower() not in self.WESTSIDE_CANDIDATE_CITIES:
+            return None
+
+        title = self.clean_text(raw['title'])
+        try:
+            start = datetime.fromisoformat(raw['start'].replace('Z', '+00:00'))
+            end = datetime.fromisoformat(raw['end'].replace('Z', '+00:00')) if raw.get('end') else None
+        except ValueError:
+            self.log(f"Skipping '{title}': unparseable start '{raw.get('start')}'")
+            return None
+
+        venue_name = self.clean_text(venue.get('name') or '')
+        address = ', '.join(p for p in (venue_name, city, venue.get('state')) if p)
+
+        categories = [
+            c.get('title', '') for c in ((raw.get('categoriesCollection') or {}).get('items') or [])
+        ]
+        category = next((c for c in categories if c and c.lower() not in ('featured', 'kcrw presents')), None)
+
+        image_url = (((raw.get('image') or {}).get('asset')) or {}).get('url', '')
+
+        return self.create_event(
+            title=title,
+            description="",
+            venue_name=venue_name,
+            address=address,
+            event_date=start,
+            end_date=end,
+            url=f"{self.base_url}/events/{raw['slug']}",
+            image_url=image_url,
+            category=category,
+        )
 
     def _parse_event(self, item) -> Event:
         """
