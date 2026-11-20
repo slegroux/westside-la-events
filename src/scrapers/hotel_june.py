@@ -286,8 +286,8 @@ class HotelJuneScraper(BaseScraper):
         cannot be trusted either way. Scheduled nodes carry both the stamped
         startDate and the schedule's own local startTime, which gives the skew
         directly: 8 h (7 h in PDT) for the mislabelled page, 0 when they agree.
-        With nothing to measure the skew is 0, i.e. the stamps are taken at
-        their word.
+        With nothing to measure, the stamps are taken at their word (stated
+        offset honoured); a measured skew of 0 reads their clock as LA local.
         """
         votes = Counter()
         for node in nodes:
@@ -311,6 +311,7 @@ class HotelJuneScraper(BaseScraper):
 
         self._clock_mode = None
         if not votes:
+            self._clock_mode = 'stated'
             return
         winner, count = votes.most_common(1)[0]
         # A lone odd node (a first occurrence the site mis-stamped) must not
@@ -338,12 +339,16 @@ class HotelJuneScraper(BaseScraper):
         7 h behind and one in PST 8 h. Any other measured skew is subtracted as
         is. With no skew the clock digits already are LA local time: the stated
         offset is ignored too, since a fixed "-08:00" label on a July stamp is
-        as unreliable as the clock it came with.
+        as unreliable as the clock it came with. With nothing measured
+        ('stated'), the stamp is taken at its stated offset.
         """
         stamp = self._stamp(value)
         if not stamp:
             return None
-        wall, _ = stamp
+        wall, offset = stamp
+        if self._clock_mode == 'stated':
+            # Nothing on the page to measure against: trust the stated offset.
+            return normalize_event_datetime(wall.replace(tzinfo=offset)) if offset else wall
         if self._clock_mode == 'utc':
             return normalize_event_datetime(wall.replace(tzinfo=timezone.utc))
         if self._clock_mode:

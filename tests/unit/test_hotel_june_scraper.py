@@ -290,3 +290,13 @@ def test_fixed_label_with_corrected_clock_in_summer(mock_geocoding_service):
                  _event("Gala", startDate=stamp(gala)))
 
     assert [e.event_date for e in _one_off(_run(html))] == [gala]
+
+
+@pytest.mark.unit
+def test_page_without_scheduled_nodes_honours_stated_offset(mock_geocoding_service):
+    """Nothing to measure against: a 'Z' stamp is real UTC, not LA wall-clock."""
+    gala = _on(11, 26)  # 15:00 PST
+    utc = gala.replace(tzinfo=LA).astimezone(timezone.utc)
+    html = _page(_event("Gala", startDate=utc.strftime("%Y-%m-%dT%H:%M:%SZ")))
+
+    assert [e.event_date for e in _one_off(_run(html))] == [gala]

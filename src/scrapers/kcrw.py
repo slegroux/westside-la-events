@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 import json
 import re
+import threading
 import time
 from dateutil import parser as date_parser
 
@@ -42,6 +43,8 @@ class KCRWScraper(BaseScraper):
     # the scraper at 120 s, so also stop starting new lookups after this long
     # (measured from the start of the scrape).
     GEOCODE_BUDGET_SECONDS = 70
+    # ...and never wait on a lookup past this point, whatever it is doing.
+    GEOCODE_DEADLINE_SECONDS = 100
 
     def _reset_geocode_budget(self):
         self._venue_coords: Dict[str, Optional[tuple]] = {}
@@ -255,12 +258,39 @@ class KCRWScraper(BaseScraper):
         if key in self._venue_coords:
             return self._venue_coords[key]
         cache = getattr(self.geocoding_service, 'cache', None)
-        if cache is None or not self._is_cached(cache, key):
-            if (self._new_geocodes >= self.MAX_NEW_GEOCODES
-                    or time.monotonic() - self._started >= self.GEOCODE_BUDGET_SECONDS):
-                return _OVER_BUDGET
-            self._new_geocodes += 1
-        coords = self.geocoding_service.geocode_with_fallback(address, venue_name=venue_name)
+        if cache is not None and self._is_cached(cache, key):
+            coords = self.geocoding_service.geocode_with_fallback(address, venue_name=venue_name)
+            self._venue_coords[key] = coords
+            return coords
+
+        if (self._new_geocodes >= self.MAX_NEW_GEOCODES
+                or time.monotonic() - self._started >= self.GEOCODE_BUDGET_SECONDS):
+            return _OVER_BUDGET
+        self._new_geocodes += 1
+
+        # One fallback lookup makes up to four Nominatim calls, each of which can
+        # sit through 3 x 30 s timeouts, so gating only its start cannot keep the
+        # scraper under the runner's 120 s kill. Run it on a daemon thread and
+        # wait no later than the hard deadline. A lookup still running then is
+        # abandoned (it finishes in the background and fills the shared cache
+        # for the next run) and no further lookups are started this scrape.
+        remaining = self.GEOCODE_DEADLINE_SECONDS - (time.monotonic() - self._started)
+        result: Dict[str, Optional[tuple]] = {}
+
+        def lookup():
+            result['coords'] = self.geocoding_service.geocode_with_fallback(
+                address, venue_name=venue_name)
+
+        worker = threading.Thread(target=lookup, name='kcrw-geocode', daemon=True)
+        worker.start()
+        worker.join(max(1.0, remaining))
+        if worker.is_alive():
+            self.log(f"Geocoding '{venue_name or address}' still running at the "
+                     f"{self.GEOCODE_DEADLINE_SECONDS} s deadline; abandoning lookups this run")
+            self._new_geocodes = self.MAX_NEW_GEOCODES
+            return _OVER_BUDGET
+
+        coords = result.get('coords')
         self._venue_coords[key] = coords
         return coords
 

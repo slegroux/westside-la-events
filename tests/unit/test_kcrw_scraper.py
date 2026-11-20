@@ -186,3 +186,37 @@ def test_failed_lookups_count_against_lookup_cap(monkeypatch):
     _run_with(geocoder, _page(_venue_events(5)))
 
     assert geocoder.calls == 2
+
+
+@pytest.mark.unit
+def test_hung_lookup_is_abandoned_at_the_deadline(monkeypatch):
+    """A lookup that never returns must not hold the scrape past the hard deadline."""
+    import threading
+    import time as real_time
+
+    monkeypatch.setattr(KCRWScraper, "GEOCODE_DEADLINE_SECONDS", 0.5)
+    release = threading.Event()
+
+    class HangingGeocoder:
+        cache = {}
+
+        def __init__(self):
+            self.calls = 0
+
+        def geocode_with_fallback(self, address, venue_name=None):
+            self.calls += 1
+            release.wait(5)  # stands in for Nominatim sitting through timeouts
+            return None
+
+    geocoder = HangingGeocoder()
+    started = real_time.monotonic()
+    try:
+        events = _run_with(geocoder, _page(_venue_events(4)))
+    finally:
+        release.set()
+    elapsed = real_time.monotonic() - started
+
+    # Waits at most ~max(1 s, remaining) on the first lookup, then starts no more.
+    assert elapsed < 3
+    assert geocoder.calls == 1
+    assert events == []
