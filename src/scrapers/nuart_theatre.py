@@ -136,7 +136,13 @@ class NuartTheatreScraper(BaseScraper):
         description = '. '.join(p.rstrip('.') for p in description_parts) + '.'
 
         slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')
-        url = f"{self.base_url}/movies/{movie['id']}-{slug}/?theater={self.THEATER_ID}"
+        # One film page serves every day, so a bare URL makes consecutive days
+        # look like one event to Database.insert_event (same URL within 24 h).
+        # The fragment is ignored by the site and keeps each day distinct.
+        url = (
+            f"{self.base_url}/movies/{movie['id']}-{slug}/?theater={self.THEATER_ID}"
+            f"#{times[0].strftime('%Y-%m-%d')}"
+        )
 
         # Price unknown here: leave price_note empty (CLAUDE.md pricing convention)
         return self.create_event(

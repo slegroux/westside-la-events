@@ -72,6 +72,7 @@ def test_one_event_per_film_per_day_with_upcoming_times_only(mock_geocoding_serv
     assert e.venue_name == "Nuart Theatre"
     assert e.url == (
         "https://www.landmarktheatres.com/movies/313-the-rocky-horror-picture-show/?theater=X00CW"
+        f"#{d1.strftime('%Y-%m-%d')}"
     )
     assert e.image_url == "https://img.example/313.jpg"
     assert not e.price_note
@@ -87,3 +88,34 @@ def test_one_event_per_film_per_day_with_upcoming_times_only(mock_geocoding_serv
 @pytest.mark.unit
 def test_empty_schedule_returns_no_events(mock_geocoding_service):
     assert _scraper({}, []).scrape() == []
+
+
+@pytest.mark.unit
+def test_consecutive_days_stay_separate_in_db_and_rescrape_is_idempotent(
+    mock_geocoding_service, db
+):
+    """Same film on consecutive days must not merge (shared film-page URL)."""
+    base = (datetime.now() + timedelta(days=3)).replace(
+        hour=19, minute=10, second=0, microsecond=0
+    )
+    fri = base
+    sat = (base + timedelta(days=1)).replace(hour=13, minute=30)
+    sun = (base + timedelta(days=2)).replace(hour=13, minute=30)
+    schedule = {
+        "313": {d.strftime("%Y-%m-%d"): [_st(d)] for d in (fri, sat, sun)},
+    }
+    movies = [_movie("313", "The Rocky Horror Picture Show")]
+
+    events = _scraper(schedule, movies).scrape()
+    assert len(events) == 3
+    assert len({e.url for e in events}) == 3
+    for e in events:
+        db.insert_event(e)
+    stored = sorted(ev.event_date for ev in db.get_all_events())
+    assert stored == [fri, sat, sun]
+
+    # Re-scraping the same schedule dedupes against what is stored.
+    for e in _scraper(schedule, movies).scrape():
+        _, was_duplicate = db.insert_event(e)
+        assert was_duplicate
+    assert len(db.get_all_events()) == 3
