@@ -1,10 +1,18 @@
 """
 Scraper for McCabe's Guitar Shop concerts.
 Source: https://www.mccabes.com/concerts-landing/
+
+Two requests in total, no per-event detail fetches (the site 503s a burst of
+detail-page requests):
+  1. The concerts landing page lists every upcoming concert with title, full
+     date (including year), time, image and link.
+  2. The WooCommerce Store API (one call) supplies the ticket price and stock
+     status for each concert product, matched by permalink.
+If the price call fails the events are still emitted, just without a price.
 """
-from datetime import datetime
-from typing import List
+from typing import Dict, List
 from dateutil import parser as date_parser
+import html as html_lib
 import re
 
 from .base import BaseScraper
@@ -14,66 +22,40 @@ from src.data.models import Event
 class McCabesScraper(BaseScraper):
     """Scraper for McCabe's Guitar Shop concerts."""
 
+    VENUE_NAME = "McCabe's Guitar Shop"
+    ADDRESS = "3101 Pico Blvd, Santa Monica, CA 90405"
+    VENUE_LAT = 34.0260256
+    VENUE_LNG = -118.4576079
+
     def __init__(self):
         super().__init__("McCabe's Guitar Shop")
         self.base_url = 'https://www.mccabes.com'
         self.events_url = f'{self.base_url}/concerts-landing/'
+        self.products_url = (
+            f'{self.base_url}/wp-json/wc/store/v1/products'
+            '?per_page=100&category=concert-tickets'
+        )
 
     def scrape(self) -> List[Event]:
-        """
-        Scrape concerts from McCabe's Guitar Shop website.
-
-        Returns:
-            List of Event objects
-        """
+        """Scrape upcoming concerts from McCabe's Guitar Shop."""
         self.log("Starting scrape...")
         events = []
 
         try:
-            # Fetch the concerts page
             html = self.fetch_page(self.events_url)
             if not html:
                 self.log("Failed to fetch concerts page")
                 return events
 
             soup = self.parse_html(html)
+            items = soup.find_all('div', class_='fooevents-calendar-list-item')
+            self.log(f"Found {len(items)} concert items")
 
-            # Find all concert items using FooEvents classes
-            concert_container = soup.find('div', class_='fooevents-event-listing-list-container')
+            products = self._fetch_products()
 
-            if concert_container:
-                concert_items = concert_container.find_all('div', class_=re.compile(r'fooevents-event-listing-list-item'))
-            else:
-                # Alternative selector: require event-class node to contain a date marker
-                # (time element or month abbreviation) to avoid matching menus/headers/footers
-                candidates = soup.find_all(['div', 'article'], class_=re.compile(r'event', re.IGNORECASE))
-                concert_items = [
-                    d for d in candidates
-                    if d.find('time') or re.search(
-                        r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b',
-                        d.get_text()
-                    )
-                ]
-
-            self.log(f"Found {len(concert_items)} concert items")
-
-            # Collect detail URLs and prefetch them concurrently
-            # Cap detail pages to avoid timeout when site returns 503s
-            MAX_DETAIL_PAGES = 30
-            detail_urls = []
-            for item in concert_items:
-                link = item.find('a', href=True)
-                if link:
-                    detail_urls.append(self.normalize_url(link['href'], self.base_url))
-            if len(detail_urls) > MAX_DETAIL_PAGES:
-                self.log(f"Capping detail page fetches from {len(detail_urls)} to {MAX_DETAIL_PAGES}")
-                detail_urls = detail_urls[:MAX_DETAIL_PAGES]
-            if detail_urls:
-                self.prefetch_pages(detail_urls, max_concurrent=5)
-
-            for item in concert_items[:MAX_DETAIL_PAGES]:
+            for item in items:
                 try:
-                    event = self._parse_event(item)
+                    event = self._parse_event(item, products)
                     if event:
                         events.append(event)
                 except Exception as e:
@@ -89,198 +71,83 @@ class McCabesScraper(BaseScraper):
 
         return events
 
-    def _parse_event(self, item) -> Event:
-        """
-        Parse a single concert item.
+    def _fetch_products(self) -> Dict[str, dict]:
+        """Fetch concert products from the Store API, keyed by permalink."""
+        data = self.fetch_json(self.products_url, method="GET")
+        if not isinstance(data, list):
+            self.log("Store API unavailable; events will have no price")
+            return {}
+        return {
+            p['permalink'].rstrip('/'): p
+            for p in data if isinstance(p, dict) and p.get('permalink')
+        }
 
-        Args:
-            item: BeautifulSoup element containing concert data
-
-        Returns:
-            Event object or None
-        """
-        # Extract title from h3 element
+    def _parse_event(self, item, products: Dict[str, dict]) -> Event:
+        """Parse one landing-page concert card, enriched with Store API data."""
         title_elem = item.find('h3')
         if not title_elem:
-            title_elem = item.find(['h2', 'h4'])
-
-        if not title_elem:
             return None
-
         title = self.clean_text(title_elem.get_text())
 
-        # Extract URL from link
-        url = self.events_url
-        link = item.find('a', href=True)
-        if link:
-            url = self.normalize_url(link['href'], self.base_url)
+        link = title_elem.find('a', href=True) or item.find('a', href=True)
+        url = self.normalize_url(link['href'], self.base_url) if link else self.events_url
 
-        # Extract description
-        description = ""
-        desc_elem = item.find('p') or item.find('div', class_=re.compile(r'desc|content', re.IGNORECASE))
-        if desc_elem:
-            description = self.clean_text(desc_elem.get_text())
-
-        # Extract date/time from fooevents-shortcode-date
-        event_date = None
         date_elem = item.find('p', class_='fooevents-shortcode-date')
-        if not date_elem:
-            date_elem = item.find('div', class_='fooevents-event-listing-list-datetime')
-        if not date_elem:
-            date_elem = item.find(['time', 'span'], class_=re.compile(r'date|time', re.IGNORECASE))
+        date_str = self.clean_text(date_elem.get_text()) if date_elem else ''
+        # Format is like "Fri Nov 14 2025 | 8pm"
+        date_str = date_str.replace('|', ' ')
+        date_str = date_str.replace('Tues ', 'Tue ').replace('Thurs ', 'Thu ')
+        try:
+            event_date = date_parser.parse(date_str)
+        except (ValueError, OverflowError):
+            self.log(f"Skipping '{title}': unparseable date '{date_str}'")
+            return None
 
-        if date_elem:
-            date_str = date_elem.get('datetime', '') or date_elem.get_text()
-            # Format is like "Fri Nov 14 2025 | 8pm"
-            # Remove icon elements and clean up
-            date_str = re.sub(r'<[^>]+>', '', str(date_str))  # Remove HTML tags
-            date_str = date_str.replace('|', '').strip()
-            # Fix non-standard day abbreviations
-            date_str = date_str.replace('Tues ', 'Tue ')
-            date_str = date_str.replace('Thurs ', 'Thu ')
-            try:
-                event_date = date_parser.parse(date_str)
-            except Exception as e:
-                self.log(f"Error parsing date '{date_str}': {e}")
-
-        # Check if sold out
-        is_sold_out = False
-        if item.find(text=re.compile(r'sold out', re.IGNORECASE)):
-            is_sold_out = True
-
-        # Venue info - McCabe's in Santa Monica
-        venue_name = "McCabe's Guitar Shop"
-        address = "3101 Pico Blvd, Santa Monica, CA 90405"
-
-        # Extract image - check both img tags and CSS background-image
         image_url = ""
-        img_elem = item.find('img')
-        if img_elem:
-            image_url = img_elem.get('data-src', '') or img_elem.get('src', '')
+        bg_div = item.find('div', style=re.compile(r'background-image'))
+        if bg_div:
+            match = re.search(r'background-image:\s*url\((.*?)\)', bg_div.get('style', ''))
+            if match:
+                image_url = self.normalize_url(match.group(1).strip('\'"'), self.base_url)
 
-        # If no img tag, check for background-image in style attribute
-        if not image_url:
-            bg_div = item.find('div', style=re.compile(r'background-image'))
-            if bg_div:
-                style = bg_div.get('style', '')
-                match = re.search(r'background-image:\s*url\((.*?)\)', style)
-                if match:
-                    image_url = match.group(1).strip('\'"')
-
-        if image_url:
-            image_url = self.normalize_url(image_url, self.base_url)
-
-        # Category - music only (McCabe's is a music venue)
-        category = "Music"
-
-        # Price info - fetch from detail page
-        is_free = False
+        # Price and availability come from the Store API product, if matched.
+        product = products.get(url.rstrip('/'))
         price = None
-        price_note = "Sold out" if is_sold_out else None
-
-        if not is_sold_out and url and url != self.events_url:
-            # Fetch the detail page to get pricing
-            price_info = self._extract_price_from_detail_page(url)
-            if price_info:
-                price = price_info.get('price')
-                price_note = price_info.get('price_note')
-                is_free = price_info.get('is_free', False)
-
-        if price_note is None:
-            price_note = "TBD"
+        price_note = ""
+        sold_out = bool(item.find(string=re.compile(r'sold out', re.IGNORECASE)))
+        description = ""
+        if product:
+            if product.get('is_in_stock') is False:
+                sold_out = True
+            prices = product.get('prices') or {}
+            raw = prices.get('price')
+            if raw not in (None, ''):
+                amount = int(raw) / (10 ** prices.get('currency_minor_unit', 2))
+                if amount > 0:
+                    price = amount
+                    price_note = f"${amount:.2f}"
+            description = self._description(product)
+        if sold_out:
+            price_note = "Sold out"
 
         return self.create_event(
             title=title,
             description=description,
-            venue_name=venue_name,
-            address=address,
+            venue_name=self.VENUE_NAME,
+            address=self.ADDRESS,
             event_date=event_date,
             url=url,
             image_url=image_url,
-            category=category,
+            category="Music",
             price=price,
-            is_free=is_free,
-            price_note=price_note
+            price_note=price_note,
+            latitude=self.VENUE_LAT,
+            longitude=self.VENUE_LNG,
         )
 
-    def _extract_price_from_detail_page(self, url: str) -> dict:
-        """
-        Extract pricing information from an event detail page.
-
-        Args:
-            url: URL of the event detail page
-
-        Returns:
-            Dictionary with price, price_note, and is_free keys
-        """
-        try:
-            # Use only 1 retry with short timeout to avoid burning time on 503s
-            html = self.fetch_page(url, retry=1)
-            if not html:
-                return None
-
-            soup = self.parse_html(html)
-
-            # Look for WooCommerce price elements
-            price_elem = soup.find('span', class_='woocommerce-Price-amount')
-            if not price_elem:
-                # Try alternative price selectors
-                price_elem = soup.find('p', class_='price')
-
-            if price_elem:
-                # Extract price text
-                price_text = self.clean_text(price_elem.get_text())
-                # Parse price (e.g., "$25.00" or "$25")
-                price_match = re.search(r'\$(\d+(?:\.\d{2})?)', price_text)
-                if price_match:
-                    price = float(price_match.group(1))
-
-                    # Look for ticketing fee and total amount
-                    # Search for patterns like "Ticketing Fee" followed by a price
-                    fee_match = None
-                    total_match = None
-
-                    # Find fee amount in the page
-                    page_text = soup.get_text()
-                    fee_pattern = re.search(r'Ticketing Fee.*?\$(\d+(?:\.\d{2})?)', page_text, re.DOTALL | re.IGNORECASE)
-                    if fee_pattern:
-                        fee_match = float(fee_pattern.group(1))
-
-                    # Find total amount
-                    total_pattern = re.search(r'Total Payable Amount.*?\$(\d+(?:\.\d{2})?)', page_text, re.DOTALL | re.IGNORECASE)
-                    if total_pattern:
-                        total_match = float(total_pattern.group(1))
-
-                    # Build price note with fee information if available
-                    if fee_match and total_match:
-                        return {
-                            'price': price,
-                            'price_note': f"${price:.2f} + ${fee_match:.2f} fee = ${total_match:.2f} total",
-                            'is_free': False
-                        }
-                    elif fee_match:
-                        total_calc = price + fee_match
-                        return {
-                            'price': price,
-                            'price_note': f"${price:.2f} + ${fee_match:.2f} fee = ${total_calc:.2f} total",
-                            'is_free': False
-                        }
-                    else:
-                        return {
-                            'price': price,
-                            'price_note': f"${price:.2f}",
-                            'is_free': False
-                        }
-
-            # Check for "free" indicators
-            if soup.find(text=re.compile(r'\bfree\b', re.IGNORECASE)):
-                return {
-                    'price': 0.0,
-                    'price_note': "Free",
-                    'is_free': True
-                }
-
-        except Exception as e:
-            self.log(f"Error extracting price from {url}: {e}")
-
-        return None
+    def _description(self, product: dict) -> str:
+        """Blurb from the product's short description, minus the date heading."""
+        short = product.get('short_description') or ''
+        short = re.sub(r'<h3>.*?</h3>', '', short, flags=re.DOTALL)
+        text = re.sub(r'<[^>]+>', ' ', short)
+        return self.clean_text(html_lib.unescape(text))
