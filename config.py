@@ -448,7 +448,7 @@ EVENT_SOURCES = {
     'fowler_museum': {
         'name': 'UCLA Fowler Museum',
         'url': 'https://fowler.ucla.edu/events/',
-        'enabled': True,
+        'enabled': False,  # Disabled 2026-11-20: fowler.ucla.edu resets every automated connection (even /robots.txt, HTTP/2 and HTTP/1.1, locally and from Cloud Run); nothing scraped since 2026-10-29. Re-enable if the site starts answering
         'uses_api': False,
         'note': 'UCLA museum featuring global arts and cultures with lectures, screenings, and workshops'
     },

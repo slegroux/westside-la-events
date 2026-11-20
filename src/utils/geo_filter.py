@@ -20,7 +20,9 @@ WESTSIDE_BOUNDS = {
 }
 
 MALIBU_BOUNDS = {
-    'north': 34.0800,  # Malibu hills
+    # Takes in Malibu Creek State Park (~34.097) and Topanga; stops short of
+    # Calabasas / Agoura Hills (~34.14).
+    'north': 34.1100,  # Malibu hills
     'south': 34.0000,  # Malibu coast
     'east': -118.5500,  # Eastern Malibu (borders Westside)
     'west': -118.9500   # Western Malibu (Ventura County line)
