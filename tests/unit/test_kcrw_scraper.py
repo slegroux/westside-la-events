@@ -141,3 +141,48 @@ def test_new_geocodes_are_capped_and_cached_venues_are_free(monkeypatch):
     # Venues 0-1 use the budget; 2-3 are skipped; 4 is cached so it still lands; 5 skipped.
     assert sorted(e.title for e in events) == ["Show 0-0", "Show 1-0", "Show 4-0"]
     assert len(geocoder.calls) == 3  # 2 new + the cached venue (served without growing the cache)
+
+
+@pytest.mark.unit
+def test_failed_lookups_count_against_cap_and_time_budget(monkeypatch):
+    """A geocoder that times out (30 s a call, no cache entry) must stop at the time budget."""
+    clock = {"t": 0.0}
+    monkeypatch.setattr("src.scrapers.kcrw.time.monotonic", lambda: clock["t"])
+
+    class TimingOutGeocoder:
+        def __init__(self):
+            self.cache = {}  # failures never reach the cache, as with a real timeout
+            self.calls = []
+
+        def geocode_with_fallback(self, address, venue_name=None):
+            self.calls.append(address)
+            clock["t"] += 30
+            return None
+
+    geocoder = TimingOutGeocoder()
+    events = _run_with(geocoder, _page(_venue_events(6)))
+
+    # Lookups start at t=0, 30, 60 (<70); the 4th would start at 90. Each failed
+    # venue is looked up once, not again inside create_event.
+    assert len(geocoder.calls) == 3
+    assert len(events) == 3
+
+
+@pytest.mark.unit
+def test_failed_lookups_count_against_lookup_cap(monkeypatch):
+    monkeypatch.setattr(KCRWScraper, "MAX_NEW_GEOCODES", 2)
+
+    class FailingGeocoder:
+        cache = {}
+
+        def __init__(self):
+            self.calls = 0
+
+        def geocode_with_fallback(self, address, venue_name=None):
+            self.calls += 1
+            return None
+
+    geocoder = FailingGeocoder()
+    _run_with(geocoder, _page(_venue_events(5)))
+
+    assert geocoder.calls == 2

@@ -6,13 +6,22 @@ from datetime import datetime
 from typing import List, Dict, Optional
 import json
 import re
+import time
 from dateutil import parser as date_parser
 
 from .base import BaseScraper
 from src.data.models import Event
+from src.utils.geocoding import NEGATIVE_TTL_SECONDS, POSITIVE_TTL_SECONDS
 
 
 _OVER_BUDGET = object()
+
+
+class _NoGeocoder:
+    """Stands in for the geocoder when a venue has already failed this scrape."""
+
+    def geocode_with_fallback(self, address, venue_name=None):
+        return None
 
 
 class KCRWScraper(BaseScraper):
@@ -29,11 +38,16 @@ class KCRWScraper(BaseScraper):
     # other scraper's lookups. Cap the network lookups per scrape; venues already
     # in the persistent cache cost nothing and are never capped.
     MAX_NEW_GEOCODES = 25
+    # A lookup can itself take 30 s+ when Nominatim hangs, and the runner kills
+    # the scraper at 120 s, so also stop starting new lookups after this long
+    # (measured from the start of the scrape).
+    GEOCODE_BUDGET_SECONDS = 70
 
     def _reset_geocode_budget(self):
         self._venue_coords: Dict[str, Optional[tuple]] = {}
         self._new_geocodes = 0
         self._skipped_for_budget = 0
+        self._started = time.monotonic()
 
     def scrape(self) -> List[Event]:
         """
@@ -193,37 +207,60 @@ class KCRWScraper(BaseScraper):
             return None
         latitude, longitude = located or (None, None)
 
-        return self.create_event(
-            title=title,
-            description="",
-            venue_name=venue_name,
-            address=address,
-            event_date=start,
-            end_date=end,
-            url=f"{self.base_url}/events/{raw['slug']}",
-            image_url=image_url,
-            category=category,
-            latitude=latitude,
-            longitude=longitude,
-        )
+        # create_event geocodes again when it gets no coordinates; for a venue
+        # that just failed, that would repeat the slow lookup.
+        real_geocoder = self.geocoding_service
+        if located is None:
+            self.geocoding_service = _NoGeocoder()
+        try:
+            return self.create_event(
+                title=title,
+                description="",
+                venue_name=venue_name,
+                address=address,
+                event_date=start,
+                end_date=end,
+                url=f"{self.base_url}/events/{raw['slug']}",
+                image_url=image_url,
+                category=category,
+                latitude=latitude,
+                longitude=longitude,
+            )
+        finally:
+            self.geocoding_service = real_geocoder
+
+    @staticmethod
+    def _is_cached(cache, key: str) -> bool:
+        """Whether the persistent cache has a fresh entry for this address."""
+        entry = cache.get(key)
+        if not isinstance(entry, dict):
+            return False
+        if 'lat' in entry:  # legacy positive entry
+            return True
+        cached_at = entry.get('cached_at', 0)
+        if not cached_at:  # the service stamps these lazily on first read
+            return True
+        ttl = NEGATIVE_TTL_SECONDS if entry.get('result') is None else POSITIVE_TTL_SECONDS
+        return time.time() - cached_at < ttl
 
     def _locate(self, venue_name: str, address: str):
         """Coordinates for a venue, geocoded at most once per scrape.
 
         Returns (lat, lng), None when the venue cannot be geocoded, or
-        _OVER_BUDGET when it is not cached and the lookup budget is spent.
+        _OVER_BUDGET when the venue is not cached and either the lookup count
+        or the time budget is spent. Every lookup that is not served from the
+        per-scrape or persistent cache counts, whether it succeeds or not.
         """
         key = address.lower().strip()
         if key in self._venue_coords:
             return self._venue_coords[key]
         cache = getattr(self.geocoding_service, 'cache', None)
-        if cache is not None and key not in cache and self._new_geocodes >= self.MAX_NEW_GEOCODES:
-            return _OVER_BUDGET
-        size_before = len(cache) if cache is not None else 0
+        if cache is None or not self._is_cached(cache, key):
+            if (self._new_geocodes >= self.MAX_NEW_GEOCODES
+                    or time.monotonic() - self._started >= self.GEOCODE_BUDGET_SECONDS):
+                return _OVER_BUDGET
+            self._new_geocodes += 1
         coords = self.geocoding_service.geocode_with_fallback(address, venue_name=venue_name)
-        # Each fresh lookup (hit or miss) adds a cache entry; cached ones do not.
-        if cache is not None:
-            self._new_geocodes += max(0, len(cache) - size_before)
         self._venue_coords[key] = coords
         return coords
 
