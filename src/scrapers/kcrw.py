@@ -246,6 +246,14 @@ class KCRWScraper(BaseScraper):
         ttl = NEGATIVE_TTL_SECONDS if entry.get('result') is None else POSITIVE_TTL_SECONDS
         return time.time() - cached_at < ttl
 
+    @classmethod
+    def _is_cached_hit(cls, cache, key: str) -> bool:
+        """A fresh cache entry that holds coordinates (not a cached miss)."""
+        if not cls._is_cached(cache, key):
+            return False
+        entry = cache[key]
+        return 'lat' in entry or entry.get('result') is not None
+
     def _locate(self, venue_name: str, address: str):
         """Coordinates for a venue, geocoded at most once per scrape.
 
@@ -258,7 +266,10 @@ class KCRWScraper(BaseScraper):
         if key in self._venue_coords:
             return self._venue_coords[key]
         cache = getattr(self.geocoding_service, 'cache', None)
-        if cache is not None and self._is_cached(cache, key):
+        # Only a fresh cached hit is free: geocode_with_fallback returns it at
+        # once. A cached miss makes it try the normalized/override/venue forms,
+        # which hit the network, so that goes through the counted, deadlined path.
+        if cache is not None and self._is_cached_hit(cache, key):
             coords = self.geocoding_service.geocode_with_fallback(address, venue_name=venue_name)
             self._venue_coords[key] = coords
             return coords

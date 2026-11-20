@@ -220,3 +220,27 @@ def test_hung_lookup_is_abandoned_at_the_deadline(monkeypatch):
     assert elapsed < 3
     assert geocoder.calls == 1
     assert events == []
+
+
+@pytest.mark.unit
+def test_cached_miss_is_not_free(monkeypatch):
+    """A cached negative entry still sends geocode_with_fallback to the network,
+    so it must count against the cap and run under the deadline."""
+    monkeypatch.setattr(KCRWScraper, "MAX_NEW_GEOCODES", 1)
+    import time as real_time
+    misses = {f"venue {v}, santa monica, california": {"result": None, "cached_at": real_time.time()}
+              for v in range(3)}
+
+    class FallbackGeocoder:
+        def __init__(self):
+            self.cache = dict(misses)
+            self.calls = 0
+
+        def geocode_with_fallback(self, address, venue_name=None):
+            self.calls += 1  # would try normalized / venue forms over the network
+            return None
+
+    geocoder = FallbackGeocoder()
+    _run_with(geocoder, _page(_venue_events(3)))
+
+    assert geocoder.calls == 1
