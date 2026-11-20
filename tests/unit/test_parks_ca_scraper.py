@@ -70,7 +70,7 @@ def test_builds_one_event_per_upcoming_occurrence(mock_geocoding_service):
     assert e.venue_name == 'Malibu Lagoon State Beach'
     assert e.end_date == soon + timedelta(hours=1)
     assert e.is_free is True
-    assert e.url == 'https://example.org/walk'
+    assert e.url == f"https://example.org/walk#{soon:%Y-%m-%dT%H:%M}"
     assert not e.price_note
 
 
@@ -98,7 +98,7 @@ def test_skips_cancelled_past_and_non_target(mock_geocoding_service):
 
 @pytest.mark.unit
 def test_paid_event_price_and_parking_note(mock_geocoding_service):
-    soon = datetime.now() + timedelta(days=3)
+    soon = (datetime.now() + timedelta(days=3)).replace(second=0, microsecond=0)
     events = _run(
         [_series('aaa', 'Guided Hike', event_costType='Cost', event_cost=15,
                  parking_yes_no='yes', parking_cost=12, event_signup_link=None)],
@@ -108,7 +108,37 @@ def test_paid_event_price_and_parking_note(mock_geocoding_service):
     e = events[0]
     assert e.price == 15.0 and not e.is_free
     assert e.price_note == 'Parking: $12'
-    assert e.url == 'https://events.parks.ca.gov/'
+    assert e.url == f"https://events.parks.ca.gov/#{soon:%Y-%m-%dT%H:%M}"
+
+
+@pytest.mark.unit
+def test_same_day_sessions_without_signup_link_stay_separate_in_db(mock_geocoding_service, db):
+    morning = (datetime.now() + timedelta(days=3)).replace(hour=9, minute=0, second=0, microsecond=0)
+    afternoon = morning.replace(hour=15)
+    events = _run(
+        [_series('aaa', 'Tide Pool Tour', event_signup_link=None)],
+        [_occ('aaa', morning), _occ('aaa', afternoon)],
+    )
+
+    assert len({e.url for e in events}) == 2
+    for e in events:
+        db.insert_event(e)
+    assert sorted(ev.event_date for ev in db.get_all_events()) == [morning, afternoon]
+    for e in events:  # re-scrape is idempotent
+        assert db.insert_event(e)[1] is True
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('cost,expected', [('$5', 5.0), ('12.50 per person', 12.5), ('see site', None), (15, 15.0)])
+def test_cost_is_parsed_leniently(mock_geocoding_service, cost, expected):
+    soon = datetime.now() + timedelta(days=3)
+    events = _run(
+        [_series('aaa', 'Guided Hike', event_costType='Cost', event_cost=cost)],
+        [_occ('aaa', soon)],
+    )
+
+    assert len(events) == 1
+    assert events[0].price == expected
 
 
 @pytest.mark.unit

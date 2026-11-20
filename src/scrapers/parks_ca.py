@@ -14,6 +14,7 @@ requests the page makes):
 
 Filters to LA/Westside parks (Angeles District parks matching ``target_parks``).
 """
+import re
 from datetime import datetime
 from typing import Dict, List, Optional
 from zoneinfo import ZoneInfo
@@ -148,6 +149,7 @@ class ParksCaliforniaScraper(BaseScraper):
         description = self.clean_text(parent.get('event_description') or '')
 
         price, is_free, price_note = self._pricing(parent)
+        base_url = (parent.get('event_signup_link') or '').strip() or self.events_url
 
         lat = parent.get('y_add_coordinates') or parent.get('park_y')
         lng = parent.get('x_add_coordinates') or parent.get('park_x')
@@ -159,7 +161,10 @@ class ParksCaliforniaScraper(BaseScraper):
             address=self.clean_text(parent.get('park_address') or ''),
             event_date=start,
             end_date=end,
-            url=(parent.get('event_signup_link') or '').strip() or self.events_url,
+            # Occurrences of a series share one page (the sign-up link, or the
+            # events home), so key each URL on its start to keep same-day
+            # sessions apart in Database.insert_event's URL dedup.
+            url=f"{base_url.split('#')[0]}#{start.strftime('%Y-%m-%dT%H:%M')}",
             price=price,
             is_free=is_free,
             price_note=price_note,
@@ -174,7 +179,10 @@ class ParksCaliforniaScraper(BaseScraper):
         is_free = (parent.get('event_costType') or '').strip().lower() == 'free'
         cost = parent.get('event_cost')
         if not is_free and cost:
-            price = float(cost)
+            # Costs arrive as numbers or free text ("$5", "5.00 per person");
+            # take the first number, and leave the price unset if there is none.
+            match = re.search(r'\d+(?:\.\d+)?', str(cost).replace(',', ''))
+            price = float(match.group()) if match else None
 
         price_note = ''
         parking_cost = parent.get('parking_cost')
