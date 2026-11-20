@@ -635,7 +635,7 @@ EVENT_SOURCES = {
     'carlson_park': {
         'name': 'Dr Paul Carlson Park',
         'url': 'https://momentsapp.no/events/los-angeles/venue/dr-paul-carlson-park',
-        'enabled': True,
+        'enabled': False,  # Disabled 2026-11-19: every request (local and Cloud Run) gets a 429 "Vercel Security Checkpoint" bot challenge; nothing scraped since 2026-10-18
         'uses_api': False,
         'note': 'Culver City park; free recurring community classes listed via Moments JSON-LD'
     },
