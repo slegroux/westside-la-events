@@ -10,7 +10,7 @@ single (long-expired) events.
 """
 import json
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from .base import BaseScraper, normalize_event_datetime
@@ -29,6 +29,10 @@ class HotelJuneScraper(BaseScraper):
     DEFAULT_VENUE = 'Hotel June West LA'
     DEFAULT_ADDRESS = '8639 Lincoln Blvd, Los Angeles, CA 90045'
 
+    # The hotel's own coordinates (from its JSON-LD); every happening is on site.
+    LATITUDE = 33.9587527
+    LONGITUDE = -118.4187291
+
     # How far ahead standing weekly programming is expanded.
     LOOKAHEAD_DAYS = 60
 
@@ -40,6 +44,7 @@ class HotelJuneScraper(BaseScraper):
         super().__init__('Hotel June')
         self.base_url = 'https://www.thehoteljune.com'
         self.events_url = f'{self.base_url}/west-los-angeles/happenings/'
+        self._graph = {}
 
     def scrape(self) -> List[Event]:
         """Read the page's JSON-LD events."""
@@ -70,8 +75,13 @@ class HotelJuneScraper(BaseScraper):
         return events
 
     def _event_nodes(self, html: str) -> List[dict]:
-        """Collect Event objects from every JSON-LD block on the page."""
+        """Collect Event objects from every JSON-LD block on the page.
+
+        Also indexes every node by @id: events refer to their venue by
+        ``{"@id": ...}`` and the address lives on the referenced node.
+        """
         nodes = []
+        self._graph = {}
         for block in self._LD_RE.findall(html):
             try:
                 data = json.loads(block)
@@ -81,7 +91,11 @@ class HotelJuneScraper(BaseScraper):
             if candidates is None:
                 candidates = data if isinstance(data, list) else [data]
             for node in candidates:
-                if isinstance(node, dict) and node.get('@type') == 'Event':
+                if not isinstance(node, dict):
+                    continue
+                if node.get('@id'):
+                    self._graph.setdefault(node['@id'], node)
+                if node.get('@type') == 'Event':
                     nodes.append(node)
         return nodes
 
@@ -103,19 +117,23 @@ class HotelJuneScraper(BaseScraper):
             return []
         description = self.clean_text(node.get('description', ''))
 
+        image = node.get('image')
         starts = self._schedule_starts(node, start, end)
+        duration = self._duration(node, start, end)
 
         events = []
         for moment in starts:
-            duration = (end - start) if (end and start and end > start) else None
             event = self.create_event(
                 title=title,
                 description=description,
                 venue_name=venue_name,
                 address=address,
                 event_date=moment,
-                end_date=(moment + duration) if duration and len(starts) == 1 else None,
+                end_date=(moment + duration) if duration else None,
                 url=node.get('@id') or self.events_url,
+                image_url=image if isinstance(image, str) else '',
+                latitude=self.LATITUDE,
+                longitude=self.LONGITUDE,
                 price_note='',
             )
             if event:
@@ -151,7 +169,9 @@ class HotelJuneScraper(BaseScraper):
 
         hour, minute = self._schedule_time(schedule, start)
         window_end = now + timedelta(days=self.LOOKAHEAD_DAYS)
-        series_end = normalize_event_datetime(end) if end else None
+        # The node's own endDate is just the first occurrence's end; only the
+        # schedule's endDate bounds the series.
+        series_end = self._schedule_end(schedule)
 
         occurrences = []
         day_cursor = now.date()
@@ -165,21 +185,51 @@ class HotelJuneScraper(BaseScraper):
             day_cursor += timedelta(days=1)
         return occurrences
 
+    def _schedule_end(self, schedule: dict) -> Optional[datetime]:
+        """Last moment of the schedule's own endDate, if it has one."""
+        raw = schedule.get('endDate')
+        if not raw:
+            return None
+        try:
+            last_day = datetime.fromisoformat(str(raw)[:10])
+        except ValueError:
+            return None
+        return last_day + timedelta(days=1)
+
+    def _duration(self, node: dict, start: datetime,
+                  end: Optional[datetime]) -> Optional[timedelta]:
+        """How long one occurrence runs, if the source says."""
+        schedule = node.get('eventSchedule') or {}
+        begin = self._clock(schedule.get('startTime'))
+        finish = self._clock(schedule.get('endTime'))
+        if schedule and begin and finish and finish > begin:
+            return timedelta(hours=finish[0] - begin[0], minutes=finish[1] - begin[1])
+        if not schedule and end and end > start:
+            return end - start
+        return None
+
+    @staticmethod
+    def _clock(raw: Optional[str]):
+        """Parse 'HH:MM[:SS]' into (hour, minute), or None."""
+        try:
+            hour, _, rest = str(raw).partition(':')
+            return int(hour), int(rest.partition(':')[0] or 0)
+        except ValueError:
+            return None
+
     def _schedule_time(self, schedule: dict, start: datetime):
         """Start time for a recurring occurrence, preferring the schedule's."""
-        raw = schedule.get('startTime')
-        if raw:
-            try:
-                hour, _, minute = raw.partition(':')
-                return int(hour), int(minute or 0)
-            except ValueError:
-                pass
+        clock = self._clock(schedule.get('startTime'))
+        if clock:
+            return clock
         local = normalize_event_datetime(start)
         return local.hour, local.minute
 
     def _location(self, node: dict):
         """Venue name and address, falling back to the hotel itself."""
         location = node.get('location') or {}
+        if isinstance(location, dict) and len(location) == 1 and '@id' in location:
+            location = self._graph.get(location['@id'], {})
         name = self.clean_text(location.get('name', '')) or self.DEFAULT_VENUE
 
         address = location.get('address') or {}
@@ -201,9 +251,18 @@ class HotelJuneScraper(BaseScraper):
         return name, joined
 
     def _parse_timestamp(self, value: Optional[str]) -> Optional[datetime]:
+        """Parse an event's startDate/endDate into an aware UTC datetime.
+
+        The site stamps these with a "-08:00" offset but the clock reading is
+        UTC: a 3 PM Thanksgiving seating is "23:00:00-08:00" (the page says
+        3PM-8:45PM) and 10 AM weekend brunch is "18:00:00-08:00", always
+        exactly the Pacific offset ahead of the schedule's own startTime. So the
+        stated offset is discarded and the wall clock is read as UTC.
+        """
         if not value:
             return None
         try:
-            return datetime.fromisoformat(value.replace('Z', '+00:00'))
+            parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
         except ValueError:
             return None
+        return parsed.replace(tzinfo=timezone.utc)
