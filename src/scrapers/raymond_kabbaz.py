@@ -1,18 +1,45 @@
 """
 Scraper for Théâtre Raymond Kabbaz events.
-Source: https://www.theatreraymondkabbaz.com/upcoming-events
+Source: https://www.theatreraymondkabbaz.com/season-2026-2027
+
+The site (Squarespace) no longer has an events collection: ``/upcoming-events``
+redirects to a hand-built season page ("Season 2026-2027") whose only content
+is a grid of image links, one per show. Each show is an ordinary page with:
+
+    <h1> Walter Smith III            # title
+    <h1> mar 6 - 8:00 PM             # "<month> <day>[-<day>|/<day>] [- <time>]", no year
+    <p>  Genre: Jazz Music
+    <p>  Duration: 75 minutes
+    <p>  🇺🇸 English description ...  # then a 🇫🇷 French copy, which we drop
+
+Dates carry no year. We resolve it from the "Season YYYY-YYYY" label in the
+season page title (August-December belong to the first year, January-July to
+the second). Ticketing (ludus.com) blocks automated access, so the event URL
+is the show's own page and the price is left unknown.
 """
-from datetime import datetime
-from typing import List, Optional
-from dateutil import parser as date_parser
 import re
+from datetime import datetime, timedelta
+from typing import List, Optional, Tuple
 
 from .base import BaseScraper
 from src.data.models import Event
 
+_MONTHS = {
+    'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+    'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+}
+
 
 class RaymondKabbazScraper(BaseScraper):
     """Scraper for Théâtre Raymond Kabbaz events."""
+
+    # "Nov 19 - 8:00 PM", "mar 18-21", "Jan 22/23"
+    _DATE_RE = re.compile(
+        r'^([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:[-/–](\d{1,2}))?'
+        r'(?:\s*-\s*(\d{1,2})(?::(\d{2}))?\s*([AP]M))?',
+        re.I,
+    )
+    _SEASON_RE = re.compile(r'Season\s+(\d{4})\s*-\s*(\d{4})', re.I)
 
     def __init__(self):
         super().__init__('Théâtre Raymond Kabbaz')
@@ -21,345 +48,179 @@ class RaymondKabbazScraper(BaseScraper):
         # Fixed venue information
         self.venue_name = 'Théâtre Raymond Kabbaz'
         self.venue_address = '10361 West Pico Boulevard, Los Angeles, CA 90064'
+        self.venue_lat = 34.0470845
+        self.venue_lng = -118.4158768
 
     def scrape(self) -> List[Event]:
-        """
-        Scrape events from Théâtre Raymond Kabbaz website.
-
-        Returns:
-            List of Event objects
-        """
+        """Scrape the season page, then each show page it links to."""
         self.log("Starting scrape...")
-        events = []
+        events: List[Event] = []
 
-        try:
-            html = self.fetch_page(self.events_url)
-            if not html:
-                self.log("Failed to fetch events page")
-                return events
+        html = self.fetch_page(self.events_url)
+        if not html:
+            self.log("Failed to fetch events page")
+            return events
 
-            soup = self.parse_html(html)
+        soup = self.parse_html(html)
+        title_tag = soup.find('title')
+        page_title = title_tag.get_text() if title_tag else ''
+        season_start = self._season_start_year(page_title)
 
-            # First check for the main events container
-            main_container = soup.find('div', class_='eventlist--upcoming')
-            if main_container:
-                # Squarespace uses article tags with eventlist-event class for individual event cards
-                event_containers = main_container.find_all('article', class_='eventlist-event')
-            else:
-                # Fallback: search entire page
-                event_containers = soup.find_all('article', class_='eventlist-event')
+        show_urls = self._show_urls(soup)
+        self.log(f"Page title: {page_title!r}; found {len(show_urls)} show link(s)")
+        if not show_urls:
+            return events
+        self.prefetch_pages(show_urls)
 
-            if not event_containers:
-                self.log("No event containers found")
-                # Debug: print some of the page structure
-                self.log(f"Page title: {soup.find('title').get_text() if soup.find('title') else 'No title'}")
-                return events
+        now = datetime.now()
+        seen = set()
+        for url in show_urls:
+            try:
+                event = self._scrape_show(url, season_start)
+            except Exception as e:
+                self.log(f"Error parsing {url}: {e}")
+                continue
+            if not event:
+                continue
+            if (event.end_date or event.event_date) < now:
+                continue
+            key = (event.title.lower(), event.event_date)
+            if key in seen:
+                continue
+            seen.add(key)
+            events.append(event)
 
-            self.log(f"Found {len(event_containers)} event containers")
-
-            # Collect detail URLs and prefetch them concurrently
-            detail_urls = []
-            for item in event_containers:
-                title_elem = item.find(class_='eventlist-title')
-                if title_elem:
-                    link = title_elem.find('a', class_='eventlist-title-link')
-                    if link and link.get('href'):
-                        detail_urls.append(self.normalize_url(link['href'], self.base_url))
-            if detail_urls:
-                self.prefetch_pages(detail_urls)
-
-            for item in event_containers:
-                try:
-                    event = self._parse_event_card(item)
-                    if event:
-                        events.append(event)
-                except Exception as e:
-                    self.log(f"Error parsing event card: {e}")
-                    continue
-
-            self.log(f"Successfully scraped {len(events)} events")
-
-        except Exception as e:
-            self.log(f"Error during scrape: {e}")
-
+        self.log(f"Successfully scraped {len(events)} events")
         return events
 
-    def _parse_event_card(self, item) -> Optional[Event]:
-        """
-        Parse a single event card from the main listing page.
+    def _season_start_year(self, page_title: str) -> Optional[int]:
+        m = self._SEASON_RE.search(page_title or '')
+        return int(m.group(1)) if m else None
 
-        Args:
-            item: BeautifulSoup element (article) containing event data
+    def _show_urls(self, soup) -> List[str]:
+        """Show pages linked from the season page's main content, in order."""
+        main = soup.find('main') or soup
+        urls: List[str] = []
+        for a in main.find_all('a', href=True):
+            href = a['href'].strip()
+            # Same-site, single-segment page paths only (shows live at /<slug>).
+            if not re.fullmatch(r'/[a-z0-9][a-z0-9-]*', href, re.I):
+                continue
+            url = self.normalize_url(href, self.base_url)
+            if url not in urls:
+                urls.append(url)
+        return urls
 
-        Returns:
-            Event object or None if parsing fails
-        """
-        try:
-            # Extract title from eventlist-title (h1 element)
-            title_elem = item.find(class_='eventlist-title')
-            if not title_elem:
-                return None
+    def _scrape_show(self, url: str, season_start: Optional[int]) -> Optional[Event]:
+        html = self.fetch_page(url)
+        if not html:
+            return None
+        soup = self.parse_html(html)
+        main = soup.find('main') or soup
+        for tag in main.find_all(['style', 'script']):
+            tag.decompose()
 
-            title_link = title_elem.find('a', class_='eventlist-title-link')
-            title = self.clean_text(title_link.get_text()) if title_link else self.clean_text(title_elem.get_text())
-
-            # Squarespace event lists frequently include a placeholder card such
-            # as "MORE EVENTS to be announced SOON" that has no real date or
-            # ticketing - skip these so they don't pollute the calendar.
-            if re.search(r'(more events|to be announced|coming soon|tba)', title, re.IGNORECASE):
-                return None
-
-            # Extract URL
-            url = ""
-            if title_link and title_link.get('href'):
-                url = self.normalize_url(title_link['href'], self.base_url)
-
-            # Extract image
-            image_url = ""
-            img_tag = item.find('img')
-            if img_tag:
-                # Squarespace can use data-src for lazy loading
-                img_src = img_tag.get('data-src') or img_tag.get('src')
-                if img_src:
-                    # Remove URL parameters and get clean image URL
-                    img_src = img_src.split('?')[0] if '?' in img_src else img_src
-                    # Handle protocol-relative URLs
-                    if img_src.startswith('//'):
-                        img_src = 'https:' + img_src
-                    image_url = self.normalize_url(img_src, self.base_url)
-
-            # Extract date and time from eventlist-meta (ul element)
-            event_date = None
-            time_text = ""
-            meta_elem = item.find('ul', class_='eventlist-meta')
-            if meta_elem:
-                # Look for the date in a <time> element with datetime attribute
-                date_time_elem = meta_elem.find('time', class_='event-date')
-                if date_time_elem:
-                    datetime_str = date_time_elem.get('datetime')
-                    if datetime_str:
-                        try:
-                            event_date = date_parser.parse(datetime_str)
-                        except Exception as e:
-                            self.log(f"Error parsing datetime '{datetime_str}': {e}")
-
-                # Look for start time
-                time_elem = meta_elem.find('time', class_='event-time-localized-start')
-                if time_elem:
-                    time_text = self.clean_text(time_elem.get_text())
-                    # Combine date and time
-                    if event_date and time_text:
-                        event_date = self._parse_datetime(event_date, time_text)
-
-            # Extract description
-            description = ""
-            desc_elem = item.find('div', class_='eventlist-description')
-            if desc_elem:
-                description = self.clean_text(desc_elem.get_text())
-
-            # Extract category from category link
-            category = self._extract_category(item, title, description)
-
-            # If we have a URL and need more details, scrape the detail page
-            if url and (not description or len(description) < 50):
-                return self._scrape_event_detail(url, title, event_date, image_url)
-
-            return self.create_event(
-                title=title,
-                description=description,
-                venue_name=self.venue_name,
-                address=self.venue_address,
-                event_date=event_date,
-                url=url,
-                image_url=image_url,
-                category=category
-            )
-
-        except Exception as e:
-            self.log(f"Error in _parse_event_card: {e}")
-            import traceback
-            self.log(traceback.format_exc())
+        h1s = [self.clean_text(h.get_text(' ')) for h in main.find_all('h1')]
+        title = h1s[0] if h1s else ''
+        if not title:
             return None
 
-    def _scrape_event_detail(
-        self,
-        url: str,
-        title: str = None,
-        event_date: datetime = None,
-        image_url: str = None
-    ) -> Optional[Event]:
-        """
-        Scrape detailed information from an individual event page.
+        parsed = None
+        for text in h1s[1:]:
+            parsed = self._parse_date_line(text, season_start)
+            if parsed:
+                break
+        if not parsed:
+            self.log(f"Skipping '{title}': no parseable date on {url}")
+            return None
+        event_date, end_date = parsed
 
-        Args:
-            url: URL of the event detail page
-            title: Pre-parsed title (optional)
-            event_date: Pre-parsed event date (optional)
-            image_url: Pre-parsed image URL (optional)
-
-        Returns:
-            Event object or None if scraping fails
-        """
-        try:
-            html = self.fetch_page(url)
-            if not html:
-                return None
-
-            soup = self.parse_html(html)
-
-            # Extract title if not provided
-            if not title:
-                title_elem = soup.find('h1', class_='eventitem-title') or soup.find('h1')
-                title = self.clean_text(title_elem.get_text()) if title_elem else "Untitled Event"
-
-            # Extract description from event content
-            description = ""
-            # Look for Squarespace content blocks
-            content_elem = soup.find('div', class_='eventitem-column-content') or \
-                          soup.find('div', class_='sqs-block-content')
-
-            if content_elem:
-                # Remove unwanted elements
-                for unwanted in content_elem.find_all(['nav', 'header', 'footer', 'script', 'style']):
-                    unwanted.decompose()
-
-                # Get all paragraphs
-                paragraphs = content_elem.find_all('p')
-                description = ' '.join([self.clean_text(p.get_text()) for p in paragraphs])
-
-            # Fallback: get all paragraphs from the page
-            if not description:
-                paragraphs = soup.find_all('p')
-                description = ' '.join([self.clean_text(p.get_text()) for p in paragraphs[:3]])
-
-            # Extract date if not provided
-            if not event_date:
-                date_elem = soup.find('time', class_='event-date') or \
-                           soup.find('div', class_='eventitem-meta-date')
-
-                if date_elem:
-                    date_str = date_elem.get('datetime') or self.clean_text(date_elem.get_text())
-                    try:
-                        event_date = date_parser.parse(date_str, fuzzy=True)
-                    except Exception as e:
-                        self.log(f"Error parsing date from detail page: {e}")
-
-            # Extract image if not provided
-            if not image_url:
-                img_elem = soup.find('img', class_='eventitem-column-thumbnail') or \
-                          soup.find('img', {'data-src': True}) or \
-                          soup.find('img', src=True)
-
-                if img_elem:
-                    # Squarespace uses data-src for lazy loading
-                    img_src = img_elem.get('data-src') or img_elem.get('src')
-                    if img_src:
-                        image_url = self.normalize_url(img_src, self.base_url)
-
-            # Extract price information
-            is_free = False
-            price = None
-            price_text = f"{title} {description}".lower()
-
-            if any(word in price_text for word in ['free', 'no cost', 'no admission', 'complimentary']):
-                is_free = True
+        genre = ''
+        description_parts: List[str] = []
+        for p in main.find_all('p'):
+            text = self.clean_text(p.get_text(' '))
+            if not text:
+                continue
+            if text.startswith('\U0001F1EB\U0001F1F7'):  # 🇫🇷 French copy starts
+                break
+            if text.lower().startswith('genre:'):
+                genre = text.split(':', 1)[1].strip()
+            elif text.lower().startswith('duration:'):
+                continue
             else:
-                # Try to extract price
-                price_match = re.search(r'\$(\d+(?:\.\d{2})?)', price_text)
-                if price_match:
-                    try:
-                        price = float(price_match.group(1))
-                    except ValueError:
-                        pass
+                description_parts.append(text.replace('\U0001F1FA\U0001F1F8', '').strip())
+        description = ' '.join(p for p in description_parts if p)
 
-            # Extract category
-            category = self._extract_category(soup, title, description)
+        image_url = ''
+        for img in main.find_all('img'):
+            src = img.get('data-src') or img.get('src')
+            if src:
+                image_url = src.split('?')[0]
+                break
 
-            return self.create_event(
-                title=title,
-                description=description,
-                venue_name=self.venue_name,
-                address=self.venue_address,
-                event_date=event_date,
-                url=url,
-                image_url=image_url,
-                category=category,
-                price=price,
-                is_free=is_free
-            )
+        return self.create_event(
+            title=title,
+            description=description,
+            venue_name=self.venue_name,
+            address=self.venue_address,
+            event_date=event_date,
+            end_date=end_date,
+            url=url,
+            image_url=image_url,
+            category=self._category(genre, title, description),
+            latitude=self.venue_lat,
+            longitude=self.venue_lng,
+        )
 
-        except Exception as e:
-            self.log(f"Error scraping detail page {url}: {e}")
+    def _parse_date_line(
+        self, text: str, season_start: Optional[int]
+    ) -> Optional[Tuple[datetime, Optional[datetime]]]:
+        """Parse "Dec 1 - 7:30 PM" / "mar 18-21" into (start, end-or-None)."""
+        m = self._DATE_RE.match(text.strip())
+        if not m:
             return None
+        month = _MONTHS.get(m.group(1)[:3].lower())
+        if not month:
+            return None
+        day, day2 = int(m.group(2)), m.group(3)
+        hour, minute, ampm = m.group(4), m.group(5), m.group(6)
 
-    def _parse_datetime(self, event_date: datetime, time_text: str) -> datetime:
-        """
-        Combine date with time text to create full datetime.
-
-        Args:
-            event_date: Base date
-            time_text: Time string (e.g., "7:00 PM 10:00 PM" or "7:00 PM - 10:00 PM")
-
-        Returns:
-            datetime with time information
-        """
+        year = self._resolve_year(month, day, season_start)
         try:
-            # Extract first time (start time)
-            # Patterns: "7:00 PM", "19:00"
-            time_match = re.search(r'(\d{1,2}:\d{2}\s*(?:AM|PM)?)', time_text, re.IGNORECASE)
-            if time_match:
-                time_str = time_match.group(1)
-                # Parse time
-                parsed_time = date_parser.parse(time_str, fuzzy=True)
-                # Combine date with time
-                event_date = event_date.replace(
-                    hour=parsed_time.hour,
-                    minute=parsed_time.minute,
-                    second=0,
-                    microsecond=0
-                )
-        except Exception as e:
-            self.log(f"Error parsing time '{time_text}': {e}")
+            start = datetime(year, month, day)
+            end = datetime(year, month, int(day2)) if day2 and int(day2) > day else None
+        except ValueError:
+            return None
+        if hour:
+            h = int(hour) % 12 + (12 if ampm.upper() == 'PM' else 0)
+            start = start.replace(hour=h, minute=int(minute or 0))
+        if end:
+            end = end.replace(hour=23, minute=59)
+        return start, end
 
-        return event_date
+    @staticmethod
+    def _resolve_year(month: int, day: int, season_start: Optional[int]) -> int:
+        """Season label gives the year; without one, take the next occurrence."""
+        if season_start:
+            return season_start if month >= 8 else season_start + 1
+        today = datetime.now()
+        year = today.year
+        try:
+            if datetime(year, month, day) < today - timedelta(days=30):
+                year += 1
+        except ValueError:
+            pass
+        return year
 
-    def _extract_category(self, element, title: str, description: str) -> str:
-        """
-        Extract or infer category from event data.
-
-        Args:
-            element: BeautifulSoup element (could be card or detail page)
-            title: Event title
-            description: Event description
-
-        Returns:
-            Category string
-        """
-        # Look for explicit category tags/links
-        category_elem = element.find('a', href=re.compile(r'\?category=')) if element else None
-        if category_elem:
-            category_match = re.search(r'category=([^&]+)', category_elem.get('href', ''))
-            if category_match:
-                return category_match.group(1).replace('-', ' ').replace('+', ' ').title()
-
-        # Infer from content
-        content = f"{title} {description}".lower()
-
-        # Category keywords
-        if any(word in content for word in ['concert', 'music', 'orchestra', 'jazz', 'festival', 'performance']):
-            return 'Music'
-        elif any(word in content for word in ['film', 'movie', 'cinema', 'screening']):
-            return 'Film'
-        elif any(word in content for word in ['dance', 'ballet', 'choreograph']):
+    @staticmethod
+    def _category(genre: str, title: str, description: str) -> str:
+        g = genre.lower()
+        if 'dance' in g:
             return 'Dance'
-        elif any(word in content for word in ['theater', 'theatre', 'play', 'drama']):
+        if 'film' in g or 'animat' in g:
+            return 'Film'
+        if 'theater' in g or 'theatre' in g:
             return 'Theater'
-        elif any(word in content for word in ['exhibition', 'gallery', 'art', 'artist']):
-            return 'Art'
-        elif any(word in content for word in ['lecture', 'talk', 'discussion', 'seminar']):
-            return 'Talk'
-        elif any(word in content for word in ['workshop', 'class', 'lesson']):
-            return 'Workshop'
-
-        # Default for cultural venue
+        if 'music' in g or 'jazz' in g or 'concert' in g:
+            return 'Music'
         return 'Cultural'

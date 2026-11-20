@@ -165,6 +165,12 @@ class BaseScraper(ABC):
                 # DNS resolution failures are not transient here; fail fast.
                 if 'NameResolutionError' in error_text or 'Failed to resolve' in error_text:
                     return None
+                # Bot-protection / rate-limit responses won't clear in 2 s, and
+                # hammering them only makes the block worse; give up at once.
+                status = getattr(getattr(e, 'response', None), 'status_code', None)
+                if status in (403, 405, 429):
+                    self.log(f"HTTP {status} from {url}: blocked or rate limited; not retrying")
+                    return None
                 if attempt < retry - 1:
                     time.sleep(2)
                     continue

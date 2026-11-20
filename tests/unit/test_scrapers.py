@@ -160,6 +160,40 @@ class TestBaseScraper:
 
         assert html is None
 
+    @pytest.mark.parametrize("status", [403, 405, 429])
+    @patch('time.sleep')
+    @patch('requests.Session.get')
+    def test_fetch_page_does_not_retry_block_responses(self, mock_get, mock_sleep, status):
+        """403/405/429 are bot-protection or rate limits: one request, no backoff sleep."""
+        class TestScraper(BaseScraper):
+            def scrape(self):
+                return []
+
+        response = Mock(status_code=status)
+        response.raise_for_status.side_effect = requests.HTTPError(
+            f"{status} Error", response=response
+        )
+        mock_get.return_value = response
+
+        assert TestScraper("Test").fetch_page("https://example.com") is None
+        assert mock_get.call_count == 1
+        mock_sleep.assert_not_called()
+
+    @patch('time.sleep')
+    @patch('requests.Session.get')
+    def test_fetch_page_still_retries_server_errors(self, mock_get, mock_sleep):
+        """5xx responses keep the existing retry behaviour."""
+        class TestScraper(BaseScraper):
+            def scrape(self):
+                return []
+
+        response = Mock(status_code=503)
+        response.raise_for_status.side_effect = requests.HTTPError("503", response=response)
+        mock_get.return_value = response
+
+        assert TestScraper("Test").fetch_page("https://example.com") is None
+        assert mock_get.call_count == 3
+
 
 @pytest.mark.unit
 class TestTimeoutScraper:

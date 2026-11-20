@@ -313,9 +313,9 @@ EVENT_SOURCES = {
     },
     'parks_ca': {
         'name': 'California State Parks',
-        'url': 'https://www.parks.ca.gov/Events',
+        'url': 'https://events.parks.ca.gov/',
         'enabled': True,
-        'uses_api': False,
+        'uses_api': True,
         'note': 'California State Parks events in Angeles District (Malibu Creek SP, Malibu Lagoon SB, Santa Monica Mountains, etc.)'
     },
     'kinn': {

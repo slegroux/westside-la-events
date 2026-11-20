@@ -32,6 +32,13 @@ class EventbriteScraper(BaseScraper):
         super().__init__('Eventbrite')
         self.base_url = 'https://www.eventbrite.com'
         self.events_url = f'{self.base_url}/d/ca--los-angeles/events/'
+        # Search pages scraped for event URLs. Eventbrite answers some network
+        # ranges (e.g. cloud datacenters) with 405/403 on these; fetch_page makes
+        # one attempt in that case and we carry on with the collection pages.
+        self.listing_urls = [
+            self.events_url,
+            f'{self.base_url}/d/ca--santa-monica/events/',
+        ]
 
         # Specific organizer/collection pages to scrape
         self.collection_urls = [
@@ -50,19 +57,30 @@ class EventbriteScraper(BaseScraper):
         self.log("Starting scrape...")
         events = []
 
-        # Scrape general LA events page (JSON-LD format)
-        events.extend(self._scrape_general_page())
+        # Scrape the search pages (JSON-LD format)
+        for listing_url in self.listing_urls:
+            events.extend(self._scrape_general_page(listing_url))
 
         # Scrape specific organizer collection pages (SERVER_DATA format)
         for collection_url in self.collection_urls:
             events.extend(self._scrape_collection_page(collection_url))
 
-        self.log(f"Successfully scraped {len(events)} total events")
-        return events
+        # Search pages overlap (and recurring expansion shares one URL), so
+        # dedup on (url, start).
+        seen = set()
+        unique = []
+        for event in events:
+            key = (event.url, event.event_date)
+            if key not in seen:
+                seen.add(key)
+                unique.append(event)
 
-    def _scrape_general_page(self) -> List[Event]:
+        self.log(f"Successfully scraped {len(unique)} total events")
+        return unique
+
+    def _scrape_general_page(self, listing_url: Optional[str] = None) -> List[Event]:
         """
-        Scrape the general LA events page by extracting event URLs and fetching
+        Scrape a search page (default: the LA one) by extracting event URLs and fetching
         individual event pages for accurate time data.
 
         Note: The list page JSON-LD only contains dates (2025-11-16) without times,
@@ -71,13 +89,14 @@ class EventbriteScraper(BaseScraper):
         Returns:
             List of Event objects
         """
-        self.log("Scraping general LA events page...")
+        listing_url = listing_url or self.events_url
+        self.log(f"Scraping events search page {listing_url} ...")
         events = []
 
         try:
-            html = self.fetch_page(self.events_url)
+            html = self.fetch_page(listing_url)
             if not html:
-                self.log("Failed to fetch events page")
+                self.log(f"Failed to fetch events page {listing_url}")
                 return events
 
             soup = self.parse_html(html)

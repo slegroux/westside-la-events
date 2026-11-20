@@ -8,6 +8,13 @@ guessing and no geocoding round trip.
 
 Currently used for Dr Paul Carlson Park in Culver City, which hosts recurring
 free classes that no city calendar lists.
+
+Status (2026-11-19): momentsapp.no sits behind a Vercel Security Checkpoint
+(HTTP 429, ``x-vercel-mitigated: challenge``) for every automated request, so
+this scraper currently returns nothing. That is a bot challenge, not a
+transient rate limit; we do not try to solve or evade it. ``fetch_page`` makes
+a single attempt on 429/403/405, so a blocked run costs one request. The code
+works unchanged if the venue is ever served without the challenge.
 """
 import json
 import re
