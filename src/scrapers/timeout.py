@@ -325,7 +325,12 @@ class TimeoutScraper(BaseScraper):
                     venue_name=venue_name,
                     address=address,
                     event_date=occ_date,
-                    url=url,
+                    # Occurrences share one page; the fragment keeps
+                    # Database.insert_event from merging two that fall
+                    # within 24 h of each other (similar titles pass
+                    # titles_compatible). Same-source Phase 2 still
+                    # collapses true duplicates (same title/venue < 1 h).
+                    url=f"{url}#{occ_date.strftime('%Y-%m-%dT%H:%M')}",
                     image_url=image_url,
                     price=price,
                     is_free=is_free

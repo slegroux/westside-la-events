@@ -88,6 +88,35 @@ def test_named_occurrences_become_separate_dated_events():
 
 
 @pytest.mark.unit
+def test_same_day_named_occurrences_survive_the_database(db):
+    """Two screenings under one page URL, <24 h apart, must both be stored."""
+    d1 = _today(3, 14, 0)
+    d2 = _today(3, 19, 30)
+    listing = f"<html><body>{_card('series', 'Free screenings at the Hammer', _today(30))}</body></html>"
+    detail = _detail(
+        "Hammer Museum",
+        ["10899 Wilshire Blvd", "Los Angeles", "90024"],
+        [_row(d1, "The Invite"), _row(d2, "Paris, Texas")],
+    )
+
+    events = _run(listing, {"series": detail})
+    assert len(events) == 2
+    assert events[0].url != events[1].url
+    for e in events:
+        db.insert_event(e)
+    assert sorted(ev.event_date for ev in db.get_all_events()) == [d1, d2]
+
+    # A re-scrape matches itself (idempotent), and a true duplicate under a
+    # different URL (same source/title/venue/time) is still collapsed.
+    for e in _run(listing, {"series": detail}):
+        assert db.insert_event(e)[1] is True
+    twin = _run(listing, {"series": detail})[0]
+    twin.url = "https://www.timeout.com/los-angeles/other-page"
+    assert db.insert_event(twin)[1] is True
+    assert len(db.get_all_events()) == 2
+
+
+@pytest.mark.unit
 def test_unnamed_rows_stay_a_single_run_event():
     until = _today(60)
     listing = f"<html><body>{_card('run', 'Big Exhibition', until)}</body></html>"
