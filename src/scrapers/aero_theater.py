@@ -1,10 +1,16 @@
 """
-Scraper for Aero Theater (American Cinematheque) events.
+Scrapers for the American Cinematheque's repertory cinemas.
 Source: https://www.americancinematheque.com/wp-json/wp/v2/event
 
 Note: This site uses WordPress REST API. We fetch events directly from the
 event API (not the product API) which includes images via _embed parameter.
+
+One WordPress site serves all three theatres, told apart by the `event_location`
+taxonomy term (each event carries exactly one). AeroTheaterScraper holds the
+parser; the Egyptian Theatre and Los Feliz 3 (both outside the Westside box,
+so REGION = 'beyond') only override the venue constants.
 """
+import time
 from datetime import datetime
 from typing import List, Optional
 from dateutil import parser as date_parser
@@ -15,10 +21,29 @@ from src.data.models import Event
 
 
 class AeroTheaterScraper(BaseScraper):
-    """Scraper for Aero Theater events."""
+    """Scraper for Aero Theater events (also the base for the sibling theatres)."""
+
+    SOURCE_NAME = 'Aero Theater'
+    LOCATION_ID = 54  # `event_location` term for the Aero on the event API
+    VENUE_NAME = 'Aero Theatre'
+    VENUE_ADDRESS = '1328 Montana Ave, Santa Monica, CA 90403'
+    # Fixed venue coordinates skip geocoding. The Aero leaves them unset and is
+    # geocoded from its address as it always was.
+    LATITUDE = None
+    LONGITUDE = None
+    # The Aero has always stored "TBD" when no price is listed; the beyond
+    # theatres follow the empty-note convention (see CLAUDE.md).
+    UNKNOWN_PRICE_NOTE = 'TBD'
+    MAX_PAGES = 3  # Cap pages to avoid timeout
+    # `_embed` makes the API ~15x slower (a 50-item page takes ~20 s instead of
+    # ~1.5 s) and only adds a featured-media image that the ACF fields already
+    # cover on every item sampled. The Aero keeps it as it always has; the
+    # sibling theatres ask for just the fields the parser reads.
+    EMBED_MEDIA = True
+    SCRAPE_BUDGET_SECONDS = 80  # the runner kills a scraper at 120 s
 
     def __init__(self):
-        super().__init__('Aero Theater')
+        super().__init__(self.SOURCE_NAME)
         self.base_url = 'https://www.americancinematheque.com'
         self.api_url = f'{self.base_url}/wp-json/wp/v2/event'
 
@@ -40,19 +65,30 @@ class AeroTheaterScraper(BaseScraper):
 
             # Fetch events from API (paginated)
             page = 1
-            max_pages = 3  # Cap pages to avoid timeout
+            max_pages = self.MAX_PAGES
             per_page = 50  # Use smaller page size since _embed is slower
+            deadline = time.monotonic() + self.SCRAPE_BUDGET_SECONDS
 
             while page <= max_pages:
+                remaining = deadline - time.monotonic()
+                if remaining <= 1:
+                    self.log(f"Time budget spent before page {page}; stopping")
+                    break
+
                 params = {
                     'per_page': per_page,
                     'page': page,
-                    'event_location': 54,  # Aero Theatre location ID for event API
-                    '_embed': 1  # Include embedded media data (images)
+                    'event_location': self.LOCATION_ID,
                 }
+                if self.EMBED_MEDIA:
+                    params['_embed'] = 1  # Include embedded media data (images)
+                else:
+                    params['_fields'] = 'title,link,content,acf'
 
                 self.log(f"Fetching page {page} from API...")
-                response = self.session.get(self.api_url, params=params, timeout=30)
+                response = self.session.get(
+                    self.api_url, params=params, timeout=min(30, remaining)
+                )
 
                 if response.status_code != 200:
                     self.log(f"API returned status {response.status_code}")
@@ -204,17 +240,15 @@ class AeroTheaterScraper(BaseScraper):
                 if amounts:
                     price = min(amounts)
             if price is None and not is_free:
-                price_note = "TBD"
-
-            # Venue details
-            venue_name = "Aero Theatre"
-            address = "1328 Montana Ave, Santa Monica, CA 90403"
+                price_note = self.UNKNOWN_PRICE_NOTE
 
             return self.create_event(
                 title=title,
                 description=description,
-                venue_name=venue_name,
-                address=address,
+                venue_name=self.VENUE_NAME,
+                address=self.VENUE_ADDRESS,
+                latitude=self.LATITUDE,
+                longitude=self.LONGITUDE,
                 event_date=event_date,
                 end_date=None,
                 url=url,
@@ -228,3 +262,32 @@ class AeroTheaterScraper(BaseScraper):
         except Exception as e:
             self.log(f"Error parsing event: {e}")
             return None
+
+
+class EgyptianTheatreScraper(AeroTheaterScraper):
+    """Egyptian Theatre (Hollywood), American Cinematheque's flagship."""
+
+    REGION = 'beyond'
+    SOURCE_NAME = 'Egyptian Theatre'
+    LOCATION_ID = 55
+    VENUE_NAME = 'Egyptian Theatre'
+    VENUE_ADDRESS = '6712 Hollywood Blvd, Los Angeles, CA 90028'
+    LATITUDE = 34.1016
+    LONGITUDE = -118.3409
+    UNKNOWN_PRICE_NOTE = ''
+    EMBED_MEDIA = False
+
+
+class LosFeliz3Scraper(AeroTheaterScraper):
+    """Los Feliz 3 Cinema, American Cinematheque's Los Feliz house."""
+
+    REGION = 'beyond'
+    SOURCE_NAME = 'Los Feliz 3'
+    LOCATION_ID = 102
+    VENUE_NAME = 'Los Feliz 3 Cinema'
+    VENUE_ADDRESS = '1822 N Vermont Ave, Los Angeles, CA 90027'
+    LATITUDE = 34.1068
+    LONGITUDE = -118.2915
+    UNKNOWN_PRICE_NOTE = ''
+    EMBED_MEDIA = False
+    MAX_PAGES = 4  # busiest calendar: ~60 upcoming, nearly all in the newest 3 pages

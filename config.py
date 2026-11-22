@@ -370,6 +370,44 @@ EVENT_SOURCES = {
         'uses_api': False,
         'note': 'American Cinematheque venue in Santa Monica showing classic, independent, and international films'
     },
+    'egyptian_theatre': {
+        'name': 'Egyptian Theatre',
+        'url': 'https://www.americancinematheque.com/now-showing/?event_location=55',
+        'enabled': True,
+        'uses_api': True,
+        'region': 'beyond',
+        'note': 'American Cinematheque flagship repertory cinema on Hollywood Blvd; read from the same WordPress REST event API as the Aero (event_location=55). Outside the Westside box, shown in the beyond tab'
+    },
+    'los_feliz_3': {
+        'name': 'Los Feliz 3',
+        'url': 'https://www.americancinematheque.com/now-showing/?event_location=102',
+        'enabled': True,
+        'uses_api': True,
+        'region': 'beyond',
+        'note': 'American Cinematheque repertory cinema on Vermont Ave; read from the same WordPress REST event API as the Aero (event_location=102). Outside the Westside box, shown in the beyond tab'
+    },
+    'vidiots': {
+        'name': 'Vidiots',
+        'url': 'https://vidiotsfoundation.org/coming-soon/',
+        'enabled': True,
+        'uses_api': False,
+        'region': 'beyond',
+        'note': 'Eagle Rock nonprofit repertory cinema; showtimes read from the ScreeningEvent JSON-LD on the Filmbot /coming-soon/ page, one event per film per day. Outside the Westside box, shown in the beyond tab'
+    },
+    'brain_dead_studios': {
+        'name': 'Brain Dead Studios',
+        'url': 'https://studios.wearebraindead.com/coming-soon/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Fairfax repertory and cult cinema (inside the Westside box, so the default region); showtimes read from the ScreeningEvent JSON-LD on the Filmbot /coming-soon/ page and homepage, one event per film per day'
+    },
+    'new_beverly': {
+        'name': 'New Beverly Cinema',
+        'url': 'https://thenewbev.com/schedule/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Fairfax 35mm repertory house (inside the Westside box, so the default region); the monthly schedule is plain server-rendered HTML with a card per program, scraped with BeautifulSoup'
+    },
     'laemmle_monica': {
         'name': 'Laemmle Monica Film Center',
         'url': 'https://www.laemmle.com/theater/monica-film-center',
