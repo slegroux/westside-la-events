@@ -28,7 +28,7 @@ JSON-LD path) fall back to the venue's fixed location.
 """
 import json
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from .base import BaseScraper
