@@ -88,7 +88,8 @@ class PepperdineArtsScraper(BaseScraper):
             self.log("Failed to fetch the events page")
             return []
 
-        today = datetime.now().date()
+        now = datetime.now()
+        today = now.date()
         shows = [s for s in self._parse_listing(html) if self._is_upcoming(s, today)]
         self.log(f"Found {len(shows)} upcoming show(s) on the events page")
         shows = shows[:self.MAX_DETAIL_PAGES]
@@ -97,7 +98,7 @@ class PepperdineArtsScraper(BaseScraper):
         events: List[Event] = []
         for show in shows:
             try:
-                events.extend(self._events_for_show(show, today))
+                events.extend(self._events_for_show(show, now))
             except Exception as e:
                 self.log(f"Error parsing {show['url']}: {e}")
         self.log(f"Scraped {len(events)} upcoming event(s)")
@@ -194,7 +195,7 @@ class PepperdineArtsScraper(BaseScraper):
 
     # -- show pages ----------------------------------------------------------
 
-    def _events_for_show(self, show: dict, today: date) -> List[Event]:
+    def _events_for_show(self, show: dict, now: datetime) -> List[Event]:
         schedule = self._parse_schedule(show['date_line'])
         if not schedule:
             self.log(f"No dated performances for {show['title'] or show['url']}")
@@ -221,9 +222,10 @@ class PepperdineArtsScraper(BaseScraper):
 
         events = []
         for day, shows in sorted(schedule.items()):
-            if day < today:
+            # Drop showtimes that have already started, not just past days.
+            shows = sorted({s for s in shows if s >= now})
+            if not shows:
                 continue
-            shows = sorted(set(shows))
             times = ', '.join(s.strftime('%-I:%M %p') for s in shows)
             suffix = f" Showtimes: {times}." if len(shows) > 1 else ''
             event = self.create_event(

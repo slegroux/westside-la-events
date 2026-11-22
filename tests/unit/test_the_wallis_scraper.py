@@ -170,3 +170,26 @@ def test_season_slug_follows_the_home_page_nav(mock_geocoding_service):
     events = _run(pages)
 
     assert [e.title for e in events] == ['NEXT YEAR SHOW']
+
+
+@pytest.mark.unit
+def test_showtimes_that_already_started_today_are_dropped(mock_geocoding_service, monkeypatch):
+    real_now = datetime.now()
+    fixed = real_now.replace(hour=15, minute=0, second=0, microsecond=0)
+
+    class FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed
+
+    monkeypatch.setattr('src.scrapers.the_wallis.datetime', FixedClock)
+    matinee, evening = fixed.replace(hour=13), fixed.replace(hour=20)
+    pages = {
+        SEASON: _season(_card('today', 'TODAY SHOW', _at(-1), _at(1))),
+        _url('today'): _show_page(matinee, evening),
+    }
+
+    (event,) = _run(pages)
+
+    assert event.event_date == evening
+    assert 'Showtimes: 8:00 PM.' in event.description

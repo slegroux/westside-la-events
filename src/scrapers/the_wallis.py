@@ -20,7 +20,7 @@ Like Broad Stage, the season slug rolls over every year (/season2627 ->
 """
 import json
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from dateutil import parser as date_parser
@@ -74,10 +74,10 @@ class TheWallisScraper(BaseScraper):
         self.prefetch_pages([c['url'] for c in cards])
 
         events: List[Event] = []
-        today = datetime.now().date()
+        now = datetime.now()
         for card in cards:
             try:
-                events.extend(self._events_for_show(card, today))
+                events.extend(self._events_for_show(card, now))
             except Exception as e:
                 self.log(f"Error parsing show {card['url']}: {e}")
         self.log(f"Scraped {len(events)} upcoming event(s)")
@@ -146,16 +146,21 @@ class TheWallisScraper(BaseScraper):
 
     # -- show pages ----------------------------------------------------------
 
-    def _events_for_show(self, card: dict, today) -> List[Event]:
+    def _events_for_show(self, card: dict, now: datetime) -> List[Event]:
         page = self.fetch_page(card['url'])
         description, performances = self._read_show_page(page) if page else ('', {})
 
+        today = now.date()
         if performances:
-            return [e for e in (
-                self._performance_day_event(card, description, day, shows)
-                for day, shows in sorted(performances.items())
-                if day >= today
-            ) if e]
+            events = []
+            for day, shows in sorted(performances.items()):
+                # Drop showtimes that have already started, not just past days.
+                upcoming = [s for s in shows if s[0] >= now]
+                if upcoming:
+                    event = self._performance_day_event(card, description, day, upcoming)
+                    if event:
+                        events.append(event)
+            return events
 
         # No performance list: use the card's own range, as Broad Stage does.
         if card['end'].date() < today or card['start'].date() < today:

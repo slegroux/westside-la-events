@@ -146,7 +146,7 @@ def test_past_shows_are_not_fetched_or_returned(mock_geocoding_service):
 @pytest.mark.unit
 def test_a_run_already_under_way_keeps_only_remaining_days(mock_geocoding_service):
     start, end = _at(-2), _at(2)
-    line = f"{_day(start)}–{_day(end)}, {end.year} • 7 PM"
+    line = f"{_day(start)}–{_day(end)}, {end.year} • 11:59 PM"
     pages = {LISTING: _listing(_row('run', 'Long Run', line, end)), _url('run'): _show('Long Run')}
 
     events = _run(pages)
@@ -194,3 +194,26 @@ def test_dateless_rows_and_unrecognised_pages_yield_nothing(mock_geocoding_servi
     assert _run(pages) == []
     assert _run({}) == []
     assert _run({LISTING: '<html><body>Nothing here</body></html>'}) == []
+
+
+@pytest.mark.unit
+def test_showtimes_that_already_started_today_are_dropped(mock_geocoding_service, monkeypatch):
+    real_now = datetime.now()
+    fixed = real_now.replace(hour=15, minute=0, second=0, microsecond=0)
+
+    class FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed
+
+    monkeypatch.setattr('src.scrapers.pepperdine_arts.datetime', FixedClock)
+    line = f"{_day(real_now)}, {real_now.year} • 1 PM & 8 PM"
+    pages = {
+        LISTING: _listing(_row('today', 'Matinee Show', line, real_now)),
+        _url('today'): _show('Matinee Show'),
+    }
+
+    (event,) = _run(pages)
+
+    assert event.event_date == fixed.replace(hour=20)
+    assert 'Showtimes' not in event.description  # only the 8 PM show is left
