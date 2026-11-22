@@ -43,6 +43,7 @@ from .losangelesfunevents import LosAngelesFunEventsScraper
 from .latechevents import LATechEventsScraper
 from .mccabes import McCabesScraper
 from .meetup import MeetupScraper
+from .monday_evening_concerts import MondayEveningConcertsScraper
 from .mudwtr import MudWtrScraper
 from .nerd_nite import NerdNiteScraper
 from .nuart_theatre import NuartTheatreScraper
@@ -60,6 +61,7 @@ from .skirball import SkirballScraper
 from .sm_farmers_market import SantaMonicaFarmersMarketScraper
 from .sounds_like_la import SoundsLikeLAScraper
 from .timeout import TimeoutScraper
+from .tockify import PhilosophicalResearchSocietyScraper, WorldStageScraper
 from .tripp import TrippScraper
 from .ucla import UCLAScraper
 from .ucla_botanical import UCLABotanicalScraper
@@ -145,6 +147,9 @@ SCRAPER_MAP: Dict[str, Type] = {
     'broad_stage': BroadStageScraper,
     'nuart_theatre': NuartTheatreScraper,
     'mccabes': McCabesScraper,
+    'prs_la': PhilosophicalResearchSocietyScraper,
+    'world_stage': WorldStageScraper,
+    'monday_evening_concerts': MondayEveningConcertsScraper,
     'bergamot_station': BergamotStationScraper,
     'fowler_museum': FowlerMuseumScraper,
     'sm_farmers_market': SantaMonicaFarmersMarketScraper,

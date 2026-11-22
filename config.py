@@ -438,6 +438,29 @@ EVENT_SOURCES = {
         'uses_api': False,
         'note': 'Legendary folk music venue in Santa Monica featuring intimate concerts'
     },
+    'prs_la': {
+        'name': 'Philosophical Research Society',
+        'url': 'https://tockify.com/eventbrite',
+        'enabled': True,
+        'uses_api': True,
+        'region': 'beyond',
+        'note': 'Talks, screenings, salons and workshops in Los Feliz; Tockify JSON API, 60-day window, online-only sessions skipped'
+    },
+    'world_stage': {
+        'name': 'The World Stage',
+        'url': 'https://tockify.com/the.world.stage',
+        'enabled': True,
+        'uses_api': True,
+        'note': "Leimert Park jazz venue: concerts, jam sessions and workshops; Tockify JSON API, 60-day window, children's workshops skipped"
+    },
+    'monday_evening_concerts': {
+        'name': 'Monday Evening Concerts',
+        'url': 'https://www.mondayeveningconcerts.org',
+        'enabled': True,
+        'uses_api': False,
+        'region': 'beyond',
+        'note': 'New-music series (Colburn, Marciano, LACMA); Squarespace home page lists concerts, each detail page gives date, time and venue'
+    },
     'bergamot_station': {
         'name': 'Bergamot Station Arts Center',
         'url': 'https://bergamotstation.com/exhibitions',
