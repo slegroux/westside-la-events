@@ -105,9 +105,6 @@ class LogoScraper:
         'Downtown Santa Monica': 'https://downtownsm.com',
         'The Bungalow Santa Monica': 'https://thebungalow.com',
         "McCabe's Guitar Shop": 'https://www.mccabes.com',
-        'Philosophical Research Society': 'https://www.prs.org',
-        'The World Stage': 'https://www.theworldstage.org',
-        'Monday Evening Concerts': 'https://www.mondayeveningconcerts.org',
         'Bergamot Station Arts Center': 'https://www.bergamotstation.com',
         'William Turner Gallery': 'https://www.williamturnergallery.com',
         'Aviator Nation Dreamland': 'https://www.aviatornation.com',
@@ -120,6 +117,10 @@ class LogoScraper:
         'Santa Monica Farmers Markets': 'https://www.smgov.net/portals/farmersmarket/',
         'Unlikely Collaborators': 'https://www.salons.unlikelycollaborators.com',
         'Boulevard Music': 'https://www.boulevardmusic.com',
+        # Philosophical Research Society, The World Stage and Monday Evening
+        # Concerts are deliberately absent: a header scrape would run first and
+        # pick the wrong image, so each is pinned to its curated logo in
+        # FALLBACK_LOGOS instead.
         # The Culver Steps is deliberately absent: its header wordmark is white
         # on transparent (it sits over a dark hero) and renders invisible on the
         # cards, so it is pinned to its gold "C" mark in FALLBACK_LOGOS instead.
@@ -198,7 +199,7 @@ class LogoScraper:
         "McCabe's Guitar Shop": 'https://www.mccabes.com/wp-content/uploads/McCabes-Logo-web.jpg',
         'Philosophical Research Society': 'https://www.prs.org/uploads/1/0/8/6/108601435/published/prsoriginals.png',
         'The World Stage': 'https://www.theworldstage.org/images/mainlogo.png',
-        'Monday Evening Concerts': 'https://images.squarespace-cdn.com/content/v1/687ddc46f867b30c9dae6233/1088d7ad-e940-4206-8d9c-82494921ab9d/favicon.ico?format=256w',
+        'Monday Evening Concerts': 'https://images.squarespace-cdn.com/content/v1/687ddc46f867b30c9dae6233/1088d7ad-e940-4206-8d9c-82494921ab9d/favicon.ico?format=original',
         'Bergamot Station Arts Center': 'https://bergamotstation.com/wp-content/uploads/2021/01/bergamot-logo.png',
         'William Turner Gallery': 'https://www.williamturnergallery.com/wp-content/uploads/wtg-logo.png',
         'Aviator Nation Dreamland': 'https://cdn.shopify.com/s/files/1/1149/5724/files/AVN_VIP_V5.png',
