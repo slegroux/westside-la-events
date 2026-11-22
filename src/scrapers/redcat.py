@@ -44,6 +44,9 @@ _TIME_RANGE = re.compile(
 _CLAUSE_SPLIT = re.compile(r'[;/]|,(?=\s*(?:MON|TUE|WED|THU|FRI|SAT|SUN))')
 # A date range with no weekday in TIME is only expanded nightly up to a week.
 _MAX_NIGHTLY_DAYS = 7
+# Longest run believed as stated, and longest gap a year rollover may jump.
+_MAX_RUN_DAYS = 120
+_MAX_ROLLOVER_GAP_DAYS = 92
 
 # REDCAT's own genre labels -> site categories (first listed genre wins).
 _GENRE_CATEGORIES = {
@@ -217,6 +220,7 @@ class RedcatScraper(BaseScraper):
 
         found = set()
         prev_end = None
+        prev_last = None
         for (sm, sd), (em, ed) in segments:
             if prev_end is not None and (sm, sd) < prev_end:
                 year += 1  # "DEC 30 AND JAN 2": the later segment is next year
@@ -225,7 +229,15 @@ class RedcatScraper(BaseScraper):
                 last = date(year if (em, ed) >= (sm, sd) else year + 1, em + 1, ed)
             except ValueError:
                 return []
-            year, prev_end = last.year, (em, ed)
+            # A year rollover is only believable across a short gap (DEC 30 ->
+            # JAN 2). Out-of-order dates ("DEC 31 AND 2", "DEC 3 & NOV 28") or a
+            # range that wraps most of a year ("DEC 3 - NOV 28") are ambiguous:
+            # skip rather than push a date a year out or expand ~50 weeks.
+            if prev_last is not None and (first - prev_last).days > _MAX_ROLLOVER_GAP_DAYS:
+                return []
+            if (last - first).days > _MAX_RUN_DAYS:
+                return []
+            year, prev_end, prev_last = last.year, (em, ed), last
             span = (last - first).days + 1
             if span > _MAX_NIGHTLY_DAYS and any(days is None for days, _ in slots):
                 return []  # open-ended nightly run: never invent every night

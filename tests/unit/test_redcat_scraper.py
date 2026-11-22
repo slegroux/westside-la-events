@@ -263,3 +263,17 @@ def test_ambiguous_clauses_are_skipped(text):
 ])
 def test_time_range_without_start_meridiem(text, expected):
     assert RedcatScraper._time_slots(text) == expected
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('dates', ['DEC 31 AND 2', 'DEC 3 & NOV 28', 'DEC 3 - NOV 28'])
+def test_out_of_order_or_year_wrapping_dates_are_skipped(dates):
+    """Never push a date a year out or expand a near-year run from a garbled line."""
+    assert RedcatScraper._performances(dates, 'FRI 8 PM', date(2026, 11, 20)) == []
+
+
+@pytest.mark.unit
+def test_real_year_end_rollovers_still_parse():
+    got = RedcatScraper._performances('DEC 30 - JAN 2', 'WED-SAT, 8 PM', date(2026, 12, 1))
+    assert [d.date() for d in got] == [date(2026, 12, 30), date(2026, 12, 31),
+                                       date(2027, 1, 1), date(2027, 1, 2)]
