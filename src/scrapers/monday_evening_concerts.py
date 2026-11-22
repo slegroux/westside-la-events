@@ -58,6 +58,7 @@ class MondayEveningConcertsScraper(BaseScraper):
             return []
 
         now = datetime.now()
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         events: List[Event] = []
         for href, listing in concerts.items():
             page = self.fetch_page(f'{self.HOME_URL}{href}')
@@ -65,7 +66,9 @@ class MondayEveningConcertsScraper(BaseScraper):
                 self.log(f"  ✗ could not fetch {href}")
                 continue
             for event in self._concert_events(href, listing, page):
-                if (event.end_date or event.event_date) >= now:
+                when = event.end_date or event.event_date
+                # A date with no time is stored at midnight: upcoming all day.
+                if when >= (today if when == when.replace(hour=0, minute=0) else now):
                     events.append(event)
 
         self.log(f"Scraped {len(events)} upcoming event(s)")

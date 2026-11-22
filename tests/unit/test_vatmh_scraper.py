@@ -170,3 +170,16 @@ def test_empty_or_unrecognised_page_yields_nothing(mock_geocoding_service):
     scraper = VATMHScraper()
     scraper.fetch_page = lambda url, retry=3: None
     assert scraper.scrape() == []
+
+
+@pytest.mark.unit
+def test_date_only_event_today_is_not_dropped(mock_geocoding_service):
+    """No time is stored as midnight; it must stay listed for its own day."""
+    today = _future(0)
+    events = _run(_page(
+        _card('open-today', 'Open House', 'Thomas Mann House', today),
+        _card('yesterday', 'Old Open House', 'Thomas Mann House', _future(-1)),
+    ))
+
+    assert [e.title for e in events] == ['Open House']
+    assert events[0].event_date == today

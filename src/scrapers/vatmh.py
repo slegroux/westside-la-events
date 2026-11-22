@@ -77,7 +77,14 @@ class VATMHScraper(BaseScraper):
             url_counts[item['url']] = url_counts.get(item['url'], 0) + 1
 
         now = datetime.now()
-        upcoming = [i for i in parsed if (i['end'] or i['start']) >= now]
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        def is_upcoming(item) -> bool:
+            when = item['end'] or item['start']
+            # A date with no time is stored at midnight: upcoming all day.
+            return when >= (today if when == when.replace(hour=0, minute=0) else now)
+
+        upcoming = [i for i in parsed if is_upcoming(i)]
         self.prefetch_pages([item['url'] for item in upcoming])
 
         for item in upcoming:

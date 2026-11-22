@@ -200,3 +200,16 @@ def test_title_with_inline_italic_stays_on_one_line(mock_geocoding_service):
         HOME: home, f'{HOME}/t': _detail([f'{_fmt(when)} | 8 PM']),
     })
     assert events[0].title == 'Steven Takasugi: Piano Concerto (Sinfonietta Version)'
+
+
+@pytest.mark.unit
+def test_date_without_time_today_is_not_dropped(mock_geocoding_service):
+    today = datetime.now()
+    home = _home(_home_entry(
+        '/t', _fmt(today), 'Zipper Concert Hall', _title_html('A COMPOSER', 'TODAY WORK'),
+    ))
+    events, _ = _run(MondayEveningConcertsScraper(), {
+        HOME: home, f'{HOME}/t': _detail([_fmt(today)]),
+    })
+    assert len(events) == 1
+    assert events[0].event_date == today.replace(hour=0, minute=0, second=0, microsecond=0)
