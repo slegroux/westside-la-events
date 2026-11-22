@@ -122,8 +122,10 @@ CATEGORIES = [
 EVENT_SOURCES = {
     'santa_monica': {
         'name': 'Santa Monica',
-        'url': 'https://www.smgov.net/events',
-        'enabled': False,  # smgov.net/events redirects to permit info; replaced by santamonica_events
+        'url': 'https://www.santamonica.gov/events',
+        'enabled': False,  # santamonica.gov's bot protection blocked live checks; see note
+        'uses_api': False,
+        'note': 'City of Santa Monica calendar (library programs, Annenberg Community Beach House, city programs). HTML cards paged via ?pagenum=N; start time comes from the card link stamp, venue from a capped number of detail pages (the site rate-limits with an interstitial, so we stop at the first one). Offline-tested and the grid parser was verified live on 3 pages, but after ~15 dev requests the site served its challenge page for 25+ min, so it is disabled until it is checked from the production IP. Replaces the dead smgov.net/events URL, now a permit page'
     },
     'santamonica_events': {
         'name': 'Visit Santa Monica',
@@ -269,6 +271,35 @@ EVENT_SOURCES = {
         'enabled': True,
         'uses_api': False,  # Uses WordPress WFEA plugin for event display
         'note': 'Comedy shows on Santa Monica 3rd Street Promenade'
+    },
+    'townhouse_venice': {
+        'name': 'Townhouse & Del Monte',
+        'url': 'https://www.townhousevenice.com',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Historic Venice bar (52 Windward Ave) with live jazz, DJ nights and comedy. The calendar is ticketed through DICE, so events are read from the JSON-LD on the public DICE venue page (dice.fm/venue/townhouse-venice-d8ve)'
+    },
+    'zebulon': {
+        'name': 'Zebulon',
+        'url': 'https://zebulon.la',
+        'enabled': True,
+        'uses_api': False,
+        'region': 'beyond',
+        'note': 'Frogtown adventurous-music club (2478 Fletcher Dr). Events are read from the JSON-LD on the public DICE venue page (dice.fm/venue/zebulon-y8bv). Outside the Westside box, shown in the beyond tab'
+    },
+    'harvelles': {
+        'name': "Harvelle's",
+        'url': 'https://santamonica.harvelles.com/',
+        'enabled': True,
+        'uses_api': False,
+        'note': "Harvelle's Santa Monica blues, jazz and funk club (1432 4th St). SeatEngine JSON-LD on santamonica.harvelles.com (falls back to harvelles.com); Long Beach events are dropped"
+    },
+    'vatmh': {
+        'name': 'Villa Aurora & Thomas Mann House',
+        'url': 'https://www.vatmh.org/en/program/current.html',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Pacific Palisades German-exile residences: talks, screenings, open houses. HTML program list; only events at the two houses or other California venues are kept (Germany and invitation-only events dropped)'
     },
     'aviator_nation': {
         'name': 'Aviator Nation (Eventbrite)',
