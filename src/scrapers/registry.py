@@ -30,6 +30,7 @@ from .getty_center import GettyCenterScraper
 from .getty_villa import GettyVillaScraper
 from .gnarwhal import GnarwhalScraper
 from .hammer import HammerScraper
+from .harvelles import HarvellesScraper
 from .iic_la import IICLAScraper
 from .itk_la import ITKLAScraper
 from .jamesons_pub import JamesonsPubScraper
@@ -120,6 +121,7 @@ SCRAPER_MAP: Dict[str, Type] = {
     'westside_comedy': WestsideComedyScraper,
     'townhouse_venice': TownhouseVeniceScraper,
     'zebulon': ZebulonScraper,
+    'harvelles': HarvellesScraper,
     'aviator_nation': AviatorNationScraper,
     'aviator_dreamland': AviatorDreamlandScraper,
     'gnarwhal': GnarwhalScraper,

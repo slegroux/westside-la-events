@@ -242,6 +242,13 @@ EVENT_SOURCES = {
         'region': 'beyond',
         'note': 'Frogtown adventurous-music club (2478 Fletcher Dr). Events are read from the JSON-LD on the public DICE venue page (dice.fm/venue/zebulon-y8bv). Outside the Westside box, shown in the beyond tab'
     },
+    'harvelles': {
+        'name': "Harvelle's",
+        'url': 'https://santamonica.harvelles.com/',
+        'enabled': True,
+        'uses_api': False,
+        'note': "Harvelle's Santa Monica blues, jazz and funk club (1432 4th St). SeatEngine JSON-LD on santamonica.harvelles.com (falls back to harvelles.com); Long Beach events are dropped"
+    },
     'aviator_nation': {
         'name': 'Aviator Nation (Eventbrite)',
         'url': 'https://www.eventbrite.com/o/aviator-nation-77562713843',
