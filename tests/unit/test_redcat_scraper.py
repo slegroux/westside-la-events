@@ -161,8 +161,67 @@ def test_empty_or_unrecognised_listing(mock_geocoding_service, listing):
     ('FRI, 8 PM; SAT, 3 & 8 PM', [({4}, [(20, 0)]), ({5}, [(15, 0), (20, 0)])]),
     ('7:30 PM', [(None, [(19, 30)])]),
     ('SAT-MON, 12 PM', [({5, 6, 0}, [(12, 0)])]),
+    ('THU, 6-8 PM', [({3}, [(18, 0)])]),
+    ('SAT, 6:30-8 PM', [({5}, [(18, 30)])]),
+    ('SUN, 11 AM-1 PM', [({6}, [(11, 0)])]),
+    ('7:30 PM (DOORS 7 PM)', [(None, [(19, 30)])]),
+    ('FRI, 8 PM, DOORS 7 PM', [({4}, [(20, 0)])]),
     ('THU-SAT, 8', []),
     ('TBA', []),
 ])
 def test_time_grammar(text, expected):
     assert RedcatScraper._time_slots(text) == expected
+
+
+@pytest.mark.unit
+def test_door_time_is_not_a_second_show(mock_geocoding_service):
+    sat = _next_weekday(date.today() + timedelta(days=10), 5)
+    facts = {'DATE': _md(sat), 'TIME': 'SAT, 7:30 PM (DOORS 7 PM)'}
+
+    (e,) = _run(_listing(['doors']), {'doors': _event_page('Doors Show', facts)})
+
+    assert e.event_date == _at(sat, 19, 30)
+
+
+@pytest.mark.unit
+def test_time_range_is_one_show(mock_geocoding_service):
+    sat = _next_weekday(date.today() + timedelta(days=10), 5)
+    facts = {'DATE': _md(sat), 'TIME': 'SAT, 6-8 PM'}
+
+    (e,) = _run(_listing(['rng']), {'rng': _event_page('Range Show', facts)})
+
+    assert e.event_date == _at(sat, 18)
+
+
+@pytest.mark.unit
+def test_long_range_without_weekday_is_skipped(mock_geocoding_service):
+    start = date.today() + timedelta(days=10)
+    end = start + timedelta(days=50)
+    facts = {'DATE': f'{_md(start)} - {_md(end)}', 'TIME': '8 PM'}
+
+    assert _run(_listing(['long']), {'long': _event_page('Long Run', facts)}) == []
+
+
+@pytest.mark.unit
+def test_short_range_without_weekday_is_nightly(mock_geocoding_service):
+    start = date.today() + timedelta(days=10)
+    end = start + timedelta(days=2)
+    facts = {'DATE': f'{_md(start)} - {_md(end)}', 'TIME': '8 PM'}
+
+    events = _run(_listing(['short']), {'short': _event_page('Short Run', facts)})
+
+    assert [e.event_date for e in events] == [_at(start + timedelta(days=i), 20) for i in range(3)]
+
+
+@pytest.mark.unit
+def test_and_separates_dates(mock_geocoding_service):
+    # "DEC 4 AND 6" style: both days are read (the split is case-insensitive).
+    thu = _next_weekday(date.today() + timedelta(days=10), 3)
+    sat = thu + timedelta(days=2)
+    facts = {'DATE': f'{_md(thu)} and {sat.day}', 'TIME': 'THU, SAT, 8 PM'}
+    if sat.month != thu.month:
+        facts['DATE'] = f'{_md(thu)} and {_md(sat)}'
+
+    events = _run(_listing(['andy']), {'andy': _event_page('And Show', facts)})
+
+    assert [e.event_date for e in events] == [_at(thu, 20), _at(sat, 20)]

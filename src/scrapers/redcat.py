@@ -8,7 +8,9 @@ The site is Drupal with no JSON-LD and no iCal export, so the listing page
 only gives each event's link; the date and time live in the event page's
 facts list as free text, e.g. ``DATE: NOV 19-21`` / ``TIME: THU-SAT, 8 PM``.
 Performances are expanded only from that stated pattern: each day in the date
-range whose weekday is named in TIME gets one event per stated time. The
+range whose weekday is named in TIME gets one event per stated time. A time
+range ("6-8 PM") is one show at its first time; door times and parenthesised
+notes are ignored; a range over a week with no weekday in TIME is skipped. The
 pages carry no year, so it is inferred as the nearby year in which the range
 starts on a weekday named in TIME. Anything that doesn't parse cleanly is
 skipped and logged rather than guessed. Exhibitions (HOURS, no TIME) are not
@@ -34,6 +36,12 @@ _DATE_SEG = re.compile(
 _DAY_RANGE = re.compile(rf'{_DAY}\s*[-–]\s*{_DAY}')
 _DAY_ONE = re.compile(rf'\b{_DAY}\b')
 _TIME = re.compile(r'(\d{1,2})(?::(\d{2}))?\s*([AP]M)?')
+# "6-8 PM", "11 AM-1 PM": a time range is ONE show, starting at the first time.
+_TIME_RANGE = re.compile(
+    r'(\d{1,2}(?::\d{2})?)\s*([AP]M)?\s*[-–]\s*\d{1,2}(?::\d{2})?\s*([AP]M)'
+)
+# A date range with no weekday in TIME is only expanded nightly up to a week.
+_MAX_NIGHTLY_DAYS = 7
 
 # REDCAT's own genre labels -> site categories (first listed genre wins).
 _GENRE_CATEGORIES = {
@@ -133,7 +141,7 @@ class RedcatScraper(BaseScraper):
 
         starts = self._performances(date_text, time_text, now.date())
         if not starts:
-            self.log(f"  - skipping '{title}': could not read DATE '{date_text}' / TIME '{time_text}'")
+            self.log(f"  - skipping '{title}': could not read DATE '{date_text}' / TIME '{time_text}' (or an open-ended nightly range)")
             return []
 
         meta = soup.find('meta', attrs={'name': 'description'})
@@ -183,8 +191,11 @@ class RedcatScraper(BaseScraper):
     def _performances(cls, date_text: str, time_text: str, today: date) -> List[datetime]:
         """Every stated performance, or [] when DATE/TIME don't parse cleanly."""
         segments = []
-        for part in re.split(r'[&;,]|\band\b', date_text.upper()):
+        for part in re.split(r'[&;,]|\bAND\b', date_text.upper()):
             m = _DATE_SEG.search(part)
+            if not m and segments and re.fullmatch(r'\s*\d{1,2}\s*', part):
+                # "DEC 4 AND 6": a bare day continues the previous month.
+                m = _DATE_SEG.search(f'{_MONTHS[segments[-1][1][0]]} {part}')
             if not m:
                 if part.strip():
                     return []
@@ -209,7 +220,10 @@ class RedcatScraper(BaseScraper):
                 last = date(year if (em, ed) >= (sm, sd) else year + 1, em + 1, ed)
             except ValueError:
                 return []
-            for offset in range((last - first).days + 1):
+            span = (last - first).days + 1
+            if span > _MAX_NIGHTLY_DAYS and any(days is None for days, _ in slots):
+                return []  # open-ended nightly run: never invent every night
+            for offset in range(span):
                 day = first + timedelta(days=offset)
                 for days, times in slots:
                     if days is None or day.weekday() in days:
@@ -240,6 +254,8 @@ class RedcatScraper(BaseScraper):
         """
         slots = []
         for group in re.split(r'[;/]', text.upper()):
+            # Door times and parenthesised notes are not performances.
+            group = re.split(r'\bDOORS?\b', re.sub(r'\([^)]*\)', ' ', group))[0]
             if not group.strip():
                 continue
             days = set()
@@ -250,6 +266,7 @@ class RedcatScraper(BaseScraper):
             for m in _DAY_ONE.finditer(rest):
                 days.add(_WEEKDAYS.index(m.group(1)))
             rest = _DAY_ONE.sub(' ', rest)
+            rest = _TIME_RANGE.sub(lambda m: f'{m.group(1)} {m.group(2) or m.group(3)}', rest)
 
             tokens = _TIME.findall(rest)
             times: List[Tuple[int, int]] = []
