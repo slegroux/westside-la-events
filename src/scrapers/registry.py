@@ -60,6 +60,7 @@ from .skirball import SkirballScraper
 from .sm_farmers_market import SantaMonicaFarmersMarketScraper
 from .sounds_like_la import SoundsLikeLAScraper
 from .timeout import TimeoutScraper
+from .townhouse_venice import TownhouseVeniceScraper
 from .tripp import TrippScraper
 from .ucla import UCLAScraper
 from .ucla_botanical import UCLABotanicalScraper
@@ -79,6 +80,7 @@ from .winston_house import WinstonHouseScraper
 from .bungalow_sm import BungalowSMScraper
 from .unlikely_collaborators import UnlikelyCollaboratorsScraper
 from .venice_book_club import VeniceBookClubScraper
+from .zebulon import ZebulonScraper
 from .zinque import ZinqueScraper
 from .crashspace import CrashSpaceScraper
 from .anima_mundi import AnimaMundiScraper
@@ -116,6 +118,8 @@ SCRAPER_MAP: Dict[str, Type] = {
     'venice_west': VeniceWestScraper,
     'winston_house': WinstonHouseScraper,
     'westside_comedy': WestsideComedyScraper,
+    'townhouse_venice': TownhouseVeniceScraper,
+    'zebulon': ZebulonScraper,
     'aviator_nation': AviatorNationScraper,
     'aviator_dreamland': AviatorDreamlandScraper,
     'gnarwhal': GnarwhalScraper,

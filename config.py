@@ -227,6 +227,21 @@ EVENT_SOURCES = {
         'uses_api': False,  # Uses WordPress WFEA plugin for event display
         'note': 'Comedy shows on Santa Monica 3rd Street Promenade'
     },
+    'townhouse_venice': {
+        'name': 'Townhouse & Del Monte',
+        'url': 'https://www.townhousevenice.com',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Historic Venice bar (52 Windward Ave) with live jazz, DJ nights and comedy. The calendar is ticketed through DICE, so events are read from the JSON-LD on the public DICE venue page (dice.fm/venue/townhouse-venice-d8ve)'
+    },
+    'zebulon': {
+        'name': 'Zebulon',
+        'url': 'https://zebulon.la',
+        'enabled': True,
+        'uses_api': False,
+        'region': 'beyond',
+        'note': 'Frogtown adventurous-music club (2478 Fletcher Dr). Events are read from the JSON-LD on the public DICE venue page (dice.fm/venue/zebulon-y8bv). Outside the Westside box, shown in the beyond tab'
+    },
     'aviator_nation': {
         'name': 'Aviator Nation (Eventbrite)',
         'url': 'https://www.eventbrite.com/o/aviator-nation-77562713843',
