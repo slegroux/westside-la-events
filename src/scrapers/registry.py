@@ -5,6 +5,7 @@ from typing import Dict, List, Type
 
 import config
 
+from .academy_museum import AcademyMuseumScraper
 from .aero_theater import AeroTheaterScraper
 from .afdela import AFdelaScraper
 from .apero_francophone import AperoFrancophoneScraper
@@ -53,6 +54,7 @@ from .papille_gustative import PapilleGustativeScraper
 from .parks_ca import ParksCaliforniaScraper
 from .penmar import PenmarScraper
 from .raymond_kabbaz import RaymondKabbazScraper
+from .redcat import RedcatScraper
 from .recreation_cafe import RecreationCafeScraper
 from .resident_advisor import ResidentAdvisorScraper
 from .io_music_academy import IOMusicAcademyScraper
@@ -67,6 +69,7 @@ from .tripp import TrippScraper
 from .ucla import UCLAScraper
 from .ucla_botanical import UCLABotanicalScraper
 from .ucla_design import UCLADesignScraper
+from .ucla_film_archive import UCLAFilmArchiveScraper
 from .ucla_music import UCLAMusicScraper
 from .venice_beach import VeniceBeachScraper
 from .village_well import VillageWellScraper
@@ -117,6 +120,9 @@ SCRAPER_MAP: Dict[str, Type] = {
     'ucla_music': UCLAMusicScraper,
     'cap_ucla': CAPUCLAScraper,
     'lacma': LACMAScraper,
+    'ucla_film_archive': UCLAFilmArchiveScraper,
+    'redcat': RedcatScraper,
+    'academy_museum': AcademyMuseumScraper,
     'venice_beach': VeniceBeachScraper,
     'weho': WestHollywoodScraper,
     'culver_city': CulverCityScraper,

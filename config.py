@@ -215,6 +215,28 @@ EVENT_SOURCES = {
         'url': 'https://www.lacma.org/events',
         'enabled': True
     },
+    'ucla_film_archive': {
+        'name': 'UCLA Film & Television Archive',
+        'url': 'https://www.cinema.ucla.edu/events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Repertory screenings at the Billy Wilder Theater (Westwood). The list loads client-side, so the rendered listing pages are parsed (Playwright) and each event page supplies venue, price and description'
+    },
+    'redcat': {
+        'name': 'REDCAT',
+        'url': 'https://redcat.org/events',
+        'enabled': True,
+        'uses_api': False,
+        'region': 'beyond',
+        'note': 'CalArts experimental theater, dance, music and film (Disney Hall complex, downtown). Drupal HTML with no JSON-LD or iCal: performances are expanded from each event page\'s stated DATE and TIME rows. Outside the Westside box, shown in the beyond tab'
+    },
+    'academy_museum': {
+        'name': 'Academy Museum',
+        'url': 'https://www.academymuseum.org/en/calendar',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Academy Museum of Motion Pictures (Miracle Mile) screenings and programs, read from the Next.js flight payload embedded in the calendar page. Date-only (showtimes load client-side); date-range programs are skipped. Fragile: returns nothing if the payload shape changes'
+    },
     # Web-scrapable sources (no API key needed)
     'eventbrite': {
         'name': 'Eventbrite',
