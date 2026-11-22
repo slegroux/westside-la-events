@@ -189,6 +189,27 @@ EVENT_SOURCES = {
         'url': 'https://hammer.ucla.edu/events',
         'enabled': True
     },
+    'wende_museum': {
+        'name': 'Wende Museum',
+        'url': 'https://wendemuseum.org/programs',
+        'enabled': True,
+        'uses_api': True,
+        'note': 'Wende Museum (Culver City) films, talks, workshops, community programs; The Events Calendar REST API via the shared tribe_events parser'
+    },
+    'ucla_music': {
+        'name': 'UCLA School of Music',
+        'url': 'https://schoolofmusic.ucla.edu/events/',
+        'enabled': True,
+        'uses_api': True,
+        'note': 'Free public concerts at the UCLA Herb Alpert School of Music (Westwood); Events Calendar REST API via the shared tribe_events parser, masterclasses and non-public items dropped'
+    },
+    'cap_ucla': {
+        'name': 'CAP UCLA',
+        'url': 'https://cap.ucla.edu/calendar',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Center for the Art of Performance at UCLA (Royce Hall, The Nimoy; Westwood) music, dance, theater; HTML calendar, per-venue coordinates, K-12 matinees dropped'
+    },
     'lacma': {
         'name': 'LACMA',
         'url': 'https://www.lacma.org/events',

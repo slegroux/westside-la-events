@@ -17,6 +17,7 @@ from .beyond_baroque import BeyondBaroqueScraper
 from .boulevard_music import BoulevardMusicScraper
 from .broad_stage import BroadStageScraper
 from .brightside import BrightsideScraper
+from .cap_ucla import CAPUCLAScraper
 from .casual_creative import CasualCreativeScraper
 from .corner_door import CornerDoorScraper
 from .culver_city import CulverCityScraper
@@ -64,11 +65,13 @@ from .tripp import TrippScraper
 from .ucla import UCLAScraper
 from .ucla_botanical import UCLABotanicalScraper
 from .ucla_design import UCLADesignScraper
+from .ucla_music import UCLAMusicScraper
 from .venice_beach import VeniceBeachScraper
 from .village_well import VillageWellScraper
 from .venice_west import VeniceWestScraper
 from .victorian import VictorianScraper
 from .west_hollywood import WestHollywoodScraper
+from .wende_museum import WendeMuseumScraper
 from .westside_comedy import WestsideComedyScraper
 from .william_turner import WilliamTurnerScraper
 from .downtown_sm import DowntownSMScraper
@@ -108,6 +111,9 @@ SCRAPER_MAP: Dict[str, Type] = {
     'ucla': UCLAScraper,
     'ucla_design': UCLADesignScraper,
     'hammer': HammerScraper,
+    'wende_museum': WendeMuseumScraper,
+    'ucla_music': UCLAMusicScraper,
+    'cap_ucla': CAPUCLAScraper,
     'lacma': LACMAScraper,
     'venice_beach': VeniceBeachScraper,
     'weho': WestHollywoodScraper,
