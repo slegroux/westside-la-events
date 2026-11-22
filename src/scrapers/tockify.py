@@ -119,13 +119,25 @@ class TockifyScraper(BaseScraper):
         """Override to force a category; empty means classify from the text."""
         return ''
 
+    # A price only counts next to a pricing word ("$5 parking" is not a price):
+    # "Admission: $5", "$20 Admission", or a "$N" opening the text.
+    _AMOUNT = r'\$\s?(\d+(?:\.\d{1,2})?)'
+    _PRICE_WORD = r'(?:tickets?|admission|cover|suggested donation|general(?: admission)?|GA)'
+    _PRICE_RE = re.compile(
+        rf'\b{_PRICE_WORD}\s*(?:[:\-–—(]|is|are|at|only)?\s*{_AMOUNT}'
+        rf'|{_AMOUNT}\s*(?:\+\s*)?{_PRICE_WORD}\b'
+        rf'|^\s*{_AMOUNT}',
+        re.I,
+    )
+
     def _price(self, description: str):
         """(price, price_note) from a stated '$N' amount; unknown stays empty."""
-        m = re.search(r'\$\s?(\d+(?:\.\d{1,2})?)', description)
+        m = self._PRICE_RE.search(description)
         if not m:
             return None, ''
+        amount = m.group(1) or m.group(2) or m.group(3)
         note = 'Suggested donation' if re.search(r'suggested donation', description, re.I) else ''
-        return float(m.group(1)), note
+        return float(amount), note
 
     def _build_event(self, item: dict) -> Optional[Event]:
         content = item.get('content') or {}

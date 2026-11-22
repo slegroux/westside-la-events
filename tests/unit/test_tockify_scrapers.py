@@ -236,3 +236,17 @@ def test_world_stage_price_parse():
     assert (by_title['Jam'].price, by_title['Jam'].price_note) == (5.0, 'Suggested donation')
     assert (by_title['Show'].price, by_title['Show'].price_note) == (20.0, '')
     assert (by_title['Quiet'].price, by_title['Quiet'].price_note) == (None, '')
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('desc, expected', [
+    ('Live jazz. $5 parking in the lot behind the building.', None),
+    ('Free event. Parking is $10 at the garage.', None),
+    ('Tickets: $15 in advance. $5 parking.', 15.0),
+    ('Come early. $12 General admission.', 12.0),
+    ('Cover $8 at the door', 8.0),
+    ('$25 | Doors at 7', 25.0),
+])
+def test_price_needs_a_pricing_phrase(desc, expected):
+    events, _ = _run(WorldStageScraper(), [_item('Show', _future(), desc=desc)])
+    assert events[0].price == expected
