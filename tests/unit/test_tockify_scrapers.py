@@ -245,8 +245,21 @@ def test_world_stage_price_parse():
     ('Tickets: $15 in advance. $5 parking.', 15.0),
     ('Come early. $12 General admission.', 12.0),
     ('Cover $8 at the door', 8.0),
-    ('$25 | Doors at 7', 25.0),
+    ('$5 parking. Free show.', None),
 ])
 def test_price_needs_a_pricing_phrase(desc, expected):
     events, _ = _run(WorldStageScraper(), [_item('Show', _future(), desc=desc)])
     assert events[0].price == expected
+
+
+@pytest.mark.unit
+def test_explicit_free_sets_is_free_and_no_price():
+    when = _future()
+    free = _item('Free', when, uid='1', desc='$5 parking. Free show.')
+    paid = _item('Paid', when, uid='2', desc='Admission: $10. Free parking.')
+    unknown = _item('Unknown', when, uid='3', desc='$5 parking.')
+    events, _ = _run(WorldStageScraper(), [free, paid, unknown])
+    by_title = {e.title: e for e in events}
+    assert by_title['Free'].is_free and by_title['Free'].price is None
+    assert not by_title['Paid'].is_free and by_title['Paid'].price == 10.0
+    assert not by_title['Unknown'].is_free and by_title['Unknown'].price is None

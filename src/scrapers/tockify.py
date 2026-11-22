@@ -120,13 +120,17 @@ class TockifyScraper(BaseScraper):
         return ''
 
     # A price only counts next to a pricing word ("$5 parking" is not a price):
-    # "Admission: $5", "$20 Admission", or a "$N" opening the text.
+    # "Admission: $5" or "$20 Admission".
     _AMOUNT = r'\$\s?(\d+(?:\.\d{1,2})?)'
     _PRICE_WORD = r'(?:tickets?|admission|cover|suggested donation|general(?: admission)?|GA)'
     _PRICE_RE = re.compile(
         rf'\b{_PRICE_WORD}\s*(?:[:\-–—(]|is|are|at|only)?\s*{_AMOUNT}'
-        rf'|{_AMOUNT}\s*(?:\+\s*)?{_PRICE_WORD}\b'
-        rf'|^\s*{_AMOUNT}',
+        rf'|{_AMOUNT}\s*(?:\+\s*)?{_PRICE_WORD}\b',
+        re.I,
+    )
+    _FREE_RE = re.compile(
+        r'\bfree (?:admission|entry|event|show|concert|screening|to attend|to the public|of charge)\b'
+        r'|\badmission (?:is )?free\b|\bno cover\b',
         re.I,
     )
 
@@ -135,7 +139,7 @@ class TockifyScraper(BaseScraper):
         m = self._PRICE_RE.search(description)
         if not m:
             return None, ''
-        amount = m.group(1) or m.group(2) or m.group(3)
+        amount = m.group(1) or m.group(2)
         note = 'Suggested donation' if re.search(r'suggested donation', description, re.I) else ''
         return float(amount), note
 
@@ -178,6 +182,7 @@ class TockifyScraper(BaseScraper):
             url = f"{self.base_url}/detail/{eid.get('uid')}/{eid.get('tid')}"
 
         price, price_note = self._price(description)
+        is_free = price is None and bool(self._FREE_RE.search(description))
         return self.create_event(
             title=title,
             description=description,
@@ -189,6 +194,7 @@ class TockifyScraper(BaseScraper):
             category=self._category(title, description),
             price=price,
             price_note=price_note,
+            is_free=is_free,
             latitude=lat,
             longitude=lng,
         )

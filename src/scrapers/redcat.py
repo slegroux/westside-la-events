@@ -38,8 +38,10 @@ _DAY_ONE = re.compile(rf'\b{_DAY}\b')
 _TIME = re.compile(r'(\d{1,2})(?::(\d{2}))?\s*([AP]M)?')
 # "6-8 PM", "11 AM-1 PM": a time range is ONE show, starting at the first time.
 _TIME_RANGE = re.compile(
-    r'(\d{1,2}(?::\d{2})?)\s*([AP]M)?\s*[-–]\s*\d{1,2}(?::\d{2})?\s*([AP]M)'
+    r'(\d{1,2})((?::\d{2})?)\s*([AP]M)?\s*[-–]\s*(\d{1,2})(?::\d{2})?\s*([AP]M)'
 )
+# A new weekday clause starts at a comma followed by a weekday ("FRI 8 PM, SAT 3 PM").
+_CLAUSE_SPLIT = re.compile(r'[;/]|,(?=\s*(?:MON|TUE|WED|THU|FRI|SAT|SUN))')
 # A date range with no weekday in TIME is only expanded nightly up to a week.
 _MAX_NIGHTLY_DAYS = 7
 
@@ -214,12 +216,16 @@ class RedcatScraper(BaseScraper):
             return []
 
         found = set()
+        prev_end = None
         for (sm, sd), (em, ed) in segments:
+            if prev_end is not None and (sm, sd) < prev_end:
+                year += 1  # "DEC 30 AND JAN 2": the later segment is next year
             try:
                 first = date(year, sm + 1, sd)
                 last = date(year if (em, ed) >= (sm, sd) else year + 1, em + 1, ed)
             except ValueError:
                 return []
+            year, prev_end = last.year, (em, ed)
             span = (last - first).days + 1
             if span > _MAX_NIGHTLY_DAYS and any(days is None for days, _ in slots):
                 return []  # open-ended nightly run: never invent every night
@@ -248,16 +254,27 @@ class RedcatScraper(BaseScraper):
     def _time_slots(text: str) -> List[Tuple[Optional[set], List[Tuple[int, int]]]]:
         """[(weekday set or None for every day, [(hour, minute), ...])] from a TIME string.
 
-        Groups are separated by ';' ("FRI, 8 PM; SAT, 3 & 8 PM"). A group with
-        no weekday applies to every day. Returns [] if any group has no
-        readable time (e.g. no AM/PM).
+        Groups are separated by ';', '/' or a comma before a weekday ("FRI, 8 PM;
+        SAT, 3 & 8 PM", "FRI 8 PM, SAT 3 PM"); a weekday-only piece joins the
+        next one ("THU, SAT, 8 PM"). A group with no weekday applies to every
+        day. Returns [] if any group has no readable time (e.g. no AM/PM) or
+        mixes weekday clauses with separate times (never cross-multiplied).
         """
         slots = []
-        for group in re.split(r'[;/]', text.upper()):
+        pending = ''
+        for piece in _CLAUSE_SPLIT.split(text.upper()):
             # Door times and parenthesised notes are not performances.
-            group = re.split(r'\bDOORS?\b', re.sub(r'\([^)]*\)', ' ', group))[0]
-            if not group.strip():
+            piece = re.split(r'\bDOORS?\b', re.sub(r'\([^)]*\)', ' ', piece))[0]
+            if not piece.strip():
                 continue
+            if not re.search(r'\d', piece):
+                pending += piece + ' '  # weekdays only: the times follow
+                continue
+            group, pending = pending + piece, ''
+            digit = re.search(r'\d', group).start()
+            day_starts = [m.start() for m in re.finditer(_DAY, group)]
+            if any(d < digit for d in day_starts) and any(d > digit for d in day_starts):
+                return []  # "FRI 8 PM SAT 3 PM": clauses without a separator
             days = set()
             for m in _DAY_RANGE.finditer(group):
                 a, b = _WEEKDAYS.index(m.group(1)), _WEEKDAYS.index(m.group(2))
@@ -266,7 +283,13 @@ class RedcatScraper(BaseScraper):
             for m in _DAY_ONE.finditer(rest):
                 days.add(_WEEKDAYS.index(m.group(1)))
             rest = _DAY_ONE.sub(' ', rest)
-            rest = _TIME_RANGE.sub(lambda m: f'{m.group(1)} {m.group(2) or m.group(3)}', rest)
+            for m in _TIME_RANGE.finditer(rest):
+                # "11-1 PM" with no meridiem of its own is ambiguous (11 AM or PM).
+                if not m.group(3) and int(m.group(1)) % 12 > int(m.group(4)) % 12:
+                    return []
+            rest = _TIME_RANGE.sub(
+                lambda m: f'{m.group(1)}{m.group(2)} {m.group(3) or m.group(5)}', rest
+            )
 
             tokens = _TIME.findall(rest)
             times: List[Tuple[int, int]] = []
@@ -280,4 +303,4 @@ class RedcatScraper(BaseScraper):
             if not times:
                 return []
             slots.append((days or None, sorted(times)))
-        return slots
+        return [] if pending else slots

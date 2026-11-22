@@ -214,14 +214,52 @@ def test_short_range_without_weekday_is_nightly(mock_geocoding_service):
 
 
 @pytest.mark.unit
-def test_and_separates_dates(mock_geocoding_service):
-    # "DEC 4 AND 6" style: both days are read (the split is case-insensitive).
-    thu = _next_weekday(date.today() + timedelta(days=10), 3)
-    sat = thu + timedelta(days=2)
-    facts = {'DATE': f'{_md(thu)} and {sat.day}', 'TIME': 'THU, SAT, 8 PM'}
-    if sat.month != thu.month:
-        facts['DATE'] = f'{_md(thu)} and {_md(sat)}'
+def test_and_separates_dates():
+    # "DEC 4 AND 6": both days are read (the split is case-insensitive). Fixed today.
+    got = RedcatScraper._performances('DEC 4 and 6', 'FRI, SUN, 8 PM', date(2026, 11, 20))
 
-    events = _run(_listing(['andy']), {'andy': _event_page('And Show', facts)})
+    assert got == [datetime(2026, 12, 4, 20), datetime(2026, 12, 6, 20)]
 
-    assert [e.event_date for e in events] == [_at(thu, 20), _at(sat, 20)]
+
+@pytest.mark.unit
+@pytest.mark.parametrize('date_text', ['DEC 30 AND JAN 2', 'DEC 30 & JAN 2'])
+def test_new_year_rollover_between_segments(date_text):
+    got = RedcatScraper._performances(date_text, 'WED, SAT, 8 PM', date(2026, 12, 20))
+
+    assert got == [datetime(2026, 12, 30, 20), datetime(2027, 1, 2, 20)]
+
+
+@pytest.mark.unit
+def test_new_year_rollover_next_day():
+    got = RedcatScraper._performances('DEC 31 & JAN 1', 'THU, FRI, 8 PM', date(2026, 12, 20))
+
+    assert got == [datetime(2026, 12, 31, 20), datetime(2027, 1, 1, 20)]
+
+
+@pytest.mark.unit
+def test_comma_separated_weekday_clauses_keep_their_own_times():
+    # DEC 4-6 2026 is Fri-Sun.
+    got = RedcatScraper._performances('DEC 4-6', 'FRI & SAT 8 PM, SUN 2 PM', date(2026, 11, 20))
+    assert got == [datetime(2026, 12, 4, 20), datetime(2026, 12, 5, 20), datetime(2026, 12, 6, 14)]
+
+    got = RedcatScraper._performances('DEC 4-6', 'FRI 8 PM, SAT 3 & 8 PM', date(2026, 11, 20))
+    assert got == [datetime(2026, 12, 4, 20), datetime(2026, 12, 5, 15), datetime(2026, 12, 5, 20)]
+
+    got = RedcatScraper._performances('DEC 4-6', 'FRI-SUN, 8 PM', date(2026, 11, 20))
+    assert got == [datetime(2026, 12, d, 20) for d in (4, 5, 6)]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('text', ['FRI 8 PM SAT 3 PM', 'FRI 8 PM, SAT', 'SAT 8 PM, 3'])
+def test_ambiguous_clauses_are_skipped(text):
+    assert RedcatScraper._time_slots(text) == []
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('text, expected', [
+    ('SAT, 11-1 PM', []),
+    ('SAT, 12-2 PM', [({5}, [(12, 0)])]),
+    ('SAT, 11 AM-1 PM', [({5}, [(11, 0)])]),
+])
+def test_time_range_without_start_meridiem(text, expected):
+    assert RedcatScraper._time_slots(text) == expected
