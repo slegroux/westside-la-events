@@ -124,7 +124,9 @@ class HarvellesScraper(BaseScraper):
             venue_name=self.VENUE_NAME,
             address=self.VENUE_ADDRESS,
             event_date=start,
-            url=item.get('url') or self.base_url,
+            # A show without its own page gets a per-showtime fragment so
+            # URL-less shows don't all collapse onto the base URL.
+            url=item.get('url') or f"{self.base_url}#{start:%Y-%m-%dT%H:%M}",
             image_url=image,
             category='Music',
             latitude=self.VENUE_LAT,

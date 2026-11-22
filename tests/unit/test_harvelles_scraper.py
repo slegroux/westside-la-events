@@ -135,3 +135,16 @@ def test_empty_or_unrecognised_page_yields_nothing(mock_geocoding_service):
     assert _run({}) == []
     assert _run({SM_URL: '<html><body>Just a moment...</body></html>',
                  MAIN_URL: '<html></html>'}) == []
+
+
+@pytest.mark.unit
+def test_shows_without_their_own_url_get_a_fragment_each(mock_geocoding_service):
+    first, second = _show('Santa Monica', 1, 'Early Act', _future(5, 19)), _show('Santa Monica', 2, 'Late Act', _future(5, 22))
+    del first['url'], second['url']
+
+    events = _run({SM_URL: _page(('Santa Monica', [first, second]))})
+
+    assert [e.title for e in events] == ['Early Act', 'Late Act']
+    urls = [e.url for e in events]
+    assert len(set(urls)) == 2
+    assert all(u.startswith(HarvellesScraper().base_url + '#') for u in urls)
