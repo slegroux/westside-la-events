@@ -9,7 +9,7 @@ from src.scrapers.arcana_books import ArcanaBooksScraper
 
 
 @pytest.mark.unit
-def test_arcana_books_scraper_parses_upcoming_event(mock_geocoding_service):
+def test_arcana_books_scraper_parses_upcoming_event(mock_geocoding_service, monkeypatch):
     """Scraper should parse an upcoming event post into an Event."""
     target_date = datetime.now() + timedelta(days=7)
     date_text = target_date.strftime("%B %d, %Y, 6:00 PM")
@@ -31,7 +31,7 @@ def test_arcana_books_scraper_parses_upcoming_event(mock_geocoding_service):
     """
 
     scraper = ArcanaBooksScraper()
-    scraper.geocoding_service.geocode = lambda address: (34.0211, -118.3965)
+    monkeypatch.setattr(scraper.geocoding_service, 'geocode', lambda address: (34.0211, -118.3965))
     scraper.fetch_page = lambda url, retry=3: html
     events = scraper.scrape()
 
@@ -42,7 +42,7 @@ def test_arcana_books_scraper_parses_upcoming_event(mock_geocoding_service):
 
 
 @pytest.mark.unit
-def test_arcana_books_scraper_skips_past_event(mock_geocoding_service):
+def test_arcana_books_scraper_skips_past_event(mock_geocoding_service, monkeypatch):
     """Scraper should skip historical posts from the events category."""
     target_date = datetime.now() - timedelta(days=365)
     date_text = target_date.strftime("%B %d, %Y, 6:00 PM")
@@ -61,7 +61,7 @@ def test_arcana_books_scraper_skips_past_event(mock_geocoding_service):
     """
 
     scraper = ArcanaBooksScraper()
-    scraper.geocoding_service.geocode = lambda address: (34.0211, -118.3965)
+    monkeypatch.setattr(scraper.geocoding_service, 'geocode', lambda address: (34.0211, -118.3965))
     scraper.fetch_page = lambda url, retry=3: html
     events = scraper.scrape()
 

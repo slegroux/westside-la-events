@@ -376,7 +376,8 @@ class EventbriteScraper(BaseScraper):
         cursor = max(event.event_date.date(), today)
         cursor += timedelta(days=(weekday - cursor.weekday()) % 7)
 
-        horizon = today + timedelta(weeks=self.RECURRENCE_HORIZON_WEEKS)
+        # Exclusive: N weeks of nights from today, not N + 1 when today is one.
+        horizon = today + timedelta(weeks=self.RECURRENCE_HORIZON_WEEKS) - timedelta(days=1)
         last = min(series_end.date(), horizon)
 
         occurrences = []
