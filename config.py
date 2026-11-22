@@ -505,6 +505,34 @@ EVENT_SOURCES = {
         'uses_api': False,
         'note': 'Performing arts venue at SMC featuring theater, dance, music, and comedy'
     },
+    'the_wallis': {
+        'name': 'The Wallis',
+        'url': 'https://www.thewallis.org/season2627',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Beverly Hills performing arts center; season grid plus per-performance dates from each show page JSON-LD'
+    },
+    'sam_first': {
+        'name': 'Sam First',
+        'url': 'https://www.samfirstbar.com/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Westchester jazz club; Wix Events data embedded in the home page, plus event pages for the overflow'
+    },
+    'highways': {
+        'name': 'Highways Performance Space',
+        'url': 'https://www.highwaysperformance.org/',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Santa Monica experimental and queer performance space; Wix Events data embedded in the home page'
+    },
+    'pepperdine_arts': {
+        'name': 'Pepperdine Center for the Arts',
+        'url': 'https://arts.pepperdine.edu/events',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Malibu campus concerts, plays and dance; season table plus one page per show for venue and price'
+    },
     'nuart_theatre': {
         'name': 'Nuart Theatre',
         'url': 'https://www.landmarktheatres.com/los-angeles/nuart-theatre',

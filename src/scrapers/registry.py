@@ -55,6 +55,7 @@ from .old_town_music_hall import OldTownMusicHallScraper
 from .papille_gustative import PapilleGustativeScraper
 from .parks_ca import ParksCaliforniaScraper
 from .penmar import PenmarScraper
+from .pepperdine_arts import PepperdineArtsScraper
 from .raymond_kabbaz import RaymondKabbazScraper
 from .redcat import RedcatScraper
 from .recreation_cafe import RecreationCafeScraper
@@ -65,6 +66,7 @@ from .santamonica_events import SantaMonicaEventsScraper
 from .skirball import SkirballScraper
 from .sm_farmers_market import SantaMonicaFarmersMarketScraper
 from .sounds_like_la import SoundsLikeLAScraper
+from .the_wallis import TheWallisScraper
 from .timeout import TimeoutScraper
 from .tockify import PhilosophicalResearchSocietyScraper, WorldStageScraper
 from .tripp import TrippScraper
@@ -81,6 +83,7 @@ from .west_hollywood import WestHollywoodScraper
 from .wende_museum import WendeMuseumScraper
 from .westside_comedy import WestsideComedyScraper
 from .william_turner import WilliamTurnerScraper
+from .wix_events import HighwaysScraper, SamFirstScraper
 from .downtown_sm import DowntownSMScraper
 from .fairmont_miramar import FairmontMiramarScraper
 from .shore_hotel import ShoreHotelScraper
@@ -164,6 +167,10 @@ SCRAPER_MAP: Dict[str, Type] = {
     'skirball': SkirballScraper,
     'geffen_playhouse': GeffenPlayhouseScraper,
     'broad_stage': BroadStageScraper,
+    'the_wallis': TheWallisScraper,
+    'sam_first': SamFirstScraper,
+    'highways': HighwaysScraper,
+    'pepperdine_arts': PepperdineArtsScraper,
     'nuart_theatre': NuartTheatreScraper,
     'mccabes': McCabesScraper,
     'prs_la': PhilosophicalResearchSocietyScraper,
