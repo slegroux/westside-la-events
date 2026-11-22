@@ -6,7 +6,7 @@ from typing import Dict, List, Type
 import config
 
 from .academy_museum import AcademyMuseumScraper
-from .aero_theater import AeroTheaterScraper
+from .aero_theater import AeroTheaterScraper, EgyptianTheatreScraper, LosFeliz3Scraper
 from .afdela import AFdelaScraper
 from .apero_francophone import AperoFrancophoneScraper
 from .arcana_books import ArcanaBooksScraper
@@ -25,6 +25,7 @@ from .culver_city import CulverCityScraper
 from .culver_steps import CulverStepsScraper
 from .discover_la import DiscoverLAScraper
 from .eventbrite import EventbriteScraper
+from .filmbot import BrainDeadStudiosScraper, VidiotsScraper
 from .fowler_museum import FowlerMuseumScraper
 from .geffen_playhouse import GeffenPlayhouseScraper
 from .grateful_giraffes import GratefulGiraffesScraper
@@ -48,6 +49,7 @@ from .meetup import MeetupScraper
 from .monday_evening_concerts import MondayEveningConcertsScraper
 from .mudwtr import MudWtrScraper
 from .nerd_nite import NerdNiteScraper
+from .new_beverly import NewBeverlyScraper
 from .nuart_theatre import NuartTheatreScraper
 from .old_town_music_hall import OldTownMusicHallScraper
 from .papille_gustative import PapilleGustativeScraper
@@ -149,6 +151,11 @@ SCRAPER_MAP: Dict[str, Type] = {
     'beyond_baroque': BeyondBaroqueScraper,
     'apero_francophone': AperoFrancophoneScraper,
     'aero_theater': AeroTheaterScraper,
+    'egyptian_theatre': EgyptianTheatreScraper,
+    'los_feliz_3': LosFeliz3Scraper,
+    'vidiots': VidiotsScraper,
+    'brain_dead_studios': BrainDeadStudiosScraper,
+    'new_beverly': NewBeverlyScraper,
     'laemmle_monica': LaemmleMonicaScraper,
     'mudwtr': MudWtrScraper,
     'getty_center': GettyCenterScraper,
