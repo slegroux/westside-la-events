@@ -122,8 +122,10 @@ CATEGORIES = [
 EVENT_SOURCES = {
     'santa_monica': {
         'name': 'Santa Monica',
-        'url': 'https://www.smgov.net/events',
-        'enabled': False,  # smgov.net/events redirects to permit info; replaced by santamonica_events
+        'url': 'https://www.santamonica.gov/events',
+        'enabled': False,  # santamonica.gov's bot protection blocked live checks; see note
+        'uses_api': False,
+        'note': 'City of Santa Monica calendar (library programs, Annenberg Community Beach House, city programs). HTML cards paged via ?pagenum=N; start time comes from the card link stamp, venue from a capped number of detail pages (the site rate-limits with an interstitial, so we stop at the first one). Offline-tested and the grid parser was verified live on 3 pages, but after ~15 dev requests the site served its challenge page for 25+ min, so it is disabled until it is checked from the production IP. Replaces the dead smgov.net/events URL, now a permit page'
     },
     'santamonica_events': {
         'name': 'Visit Santa Monica',
