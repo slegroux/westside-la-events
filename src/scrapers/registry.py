@@ -68,6 +68,7 @@ from .ucla_botanical import UCLABotanicalScraper
 from .ucla_design import UCLADesignScraper
 from .venice_beach import VeniceBeachScraper
 from .village_well import VillageWellScraper
+from .vatmh import VATMHScraper
 from .venice_west import VeniceWestScraper
 from .victorian import VictorianScraper
 from .west_hollywood import WestHollywoodScraper
@@ -122,6 +123,7 @@ SCRAPER_MAP: Dict[str, Type] = {
     'townhouse_venice': TownhouseVeniceScraper,
     'zebulon': ZebulonScraper,
     'harvelles': HarvellesScraper,
+    'vatmh': VATMHScraper,
     'aviator_nation': AviatorNationScraper,
     'aviator_dreamland': AviatorDreamlandScraper,
     'gnarwhal': GnarwhalScraper,

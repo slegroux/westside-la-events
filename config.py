@@ -249,6 +249,13 @@ EVENT_SOURCES = {
         'uses_api': False,
         'note': "Harvelle's Santa Monica blues, jazz and funk club (1432 4th St). SeatEngine JSON-LD on santamonica.harvelles.com (falls back to harvelles.com); Long Beach events are dropped"
     },
+    'vatmh': {
+        'name': 'Villa Aurora & Thomas Mann House',
+        'url': 'https://www.vatmh.org/en/program/current.html',
+        'enabled': True,
+        'uses_api': False,
+        'note': 'Pacific Palisades German-exile residences: talks, screenings, open houses. HTML program list; only events at the two houses or other California venues are kept (Germany and invitation-only events dropped)'
+    },
     'aviator_nation': {
         'name': 'Aviator Nation (Eventbrite)',
         'url': 'https://www.eventbrite.com/o/aviator-nation-77562713843',

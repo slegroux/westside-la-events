@@ -135,6 +135,7 @@ class LogoScraper:
         'Townhouse & Del Monte': 'https://dice-media.imgix.net/attachments/2024-12-09/334163d4-e394-4536-843f-9c099fbc958a.jpg?rect=0%2C0%2C1470%2C1470&w=256',
         'Zebulon': 'https://dice-media.imgix.net/attachments/2021-03-18/9a27338f-1fc4-41be-8bfb-64ad9ab04f53.jpg?rect=0%2C8%2C386%2C386&w=256',
         "Harvelle's": 'https://files.seatengine.com/styles/logos/435/original/logo.png?1631247224',
+        'Villa Aurora & Thomas Mann House': 'https://www.vatmh.org/files/theme/img/vatmh-mob.svg',
         'Resident Advisor': 'https://ra.co/images/logos/ra-logo.svg',
         'The Venice West': 'https://cdn.prod.website-files.com/67520e05423749e937df7101/6758e7e1b4d718be007546e4_Venice-wht-500.png',
         'LAist': 'https://scpr.brightspotcdn.com/3d/90/a00620904650ba75eb573b46106b/laistlogo-black.svg',
