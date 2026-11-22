@@ -201,6 +201,9 @@ class PhilosophicalResearchSocietyScraper(TockifyScraper):
 class WorldStageScraper(TockifyScraper):
     """Concerts, jam sessions and workshops at The World Stage, Leimert Park."""
 
+    # Leimert Park sits just inside the coverage box's south-east corner, but
+    # it is a destination venue, not a Westside one: curate it into Beyond.
+    REGION = 'beyond'
     CALNAME = 'the.world.stage'
     VENUE_NAME = 'The World Stage'
     VENUE_ADDRESS = '4321 Degnan Blvd, Los Angeles, CA 90008'

@@ -192,10 +192,10 @@ def test_truncated_description_ends_on_a_word_boundary():
 
 
 @pytest.mark.unit
-def test_world_stage_is_in_the_default_region_with_venue_coords():
+def test_world_stage_is_curated_into_beyond_with_venue_coords():
     events, _ = _run(WorldStageScraper(), [_item('Show', _future())])
     e = events[0]
-    assert e.region == 'westside'
+    assert e.region == 'beyond'
     assert e.venue_name == 'The World Stage'
     assert e.address == '4321 Degnan Blvd, Los Angeles, CA 90008'
     assert (e.latitude, e.longitude) == (34.0053013, -118.3317536)

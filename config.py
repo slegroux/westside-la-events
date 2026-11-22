@@ -560,6 +560,7 @@ EVENT_SOURCES = {
         'url': 'https://tockify.com/the.world.stage',
         'enabled': True,
         'uses_api': True,
+        'region': 'beyond',
         'note': "Leimert Park jazz venue: concerts, jam sessions and workshops; Tockify JSON API, 60-day window, children's workshops skipped"
     },
     'monday_evening_concerts': {
