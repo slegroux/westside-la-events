@@ -33,7 +33,11 @@ class UCLAFilmArchiveScraper(BaseScraper):
     PAGE_URL = 'https://www.cinema.ucla.edu/events/?page={page}'
 
     MAX_PAGES = 5  # ten events a page; the live list is two pages
-    LISTING_BUDGET_SECONDS = 60  # stop paging after this; the runner kills a scraper at 120 s
+    # Stop paging once this much time is spent (checked before and after each
+    # render). Worst case is the budget plus one render (RENDER_TIMEOUT_MS plus
+    # browser start-up), well under the runner's 120 s kill.
+    LISTING_BUDGET_SECONDS = 40
+    RENDER_TIMEOUT_MS = 15000
     PAGE_SIZE = 10
     DESCRIPTION_LIMIT = 600
 
@@ -86,7 +90,7 @@ class UCLAFilmArchiveScraper(BaseScraper):
                 self.log("Listing time budget spent; stopping paging")
                 break
             url = self.EVENTS_URL if page == 1 else self.PAGE_URL.format(page=page)
-            html = self.fetch_page_js(url, wait_selector='li.list-item', timeout=20000)
+            html = self.fetch_page_js(url, wait_selector='li.list-item', timeout=self.RENDER_TIMEOUT_MS)
             if not html:
                 self.log(f"Failed to render listing page {page}")
                 break
@@ -95,6 +99,9 @@ class UCLAFilmArchiveScraper(BaseScraper):
             if page == 1:
                 total_pages = self._page_count(html)
             if len(page_cards) < self.PAGE_SIZE:
+                break
+            if time.monotonic() - started > self.LISTING_BUDGET_SECONDS:
+                self.log("Listing time budget spent; stopping paging")
                 break
             page += 1
         return cards

@@ -166,3 +166,32 @@ def test_undated_card_is_skipped(mock_geocoding_service):
     events, _ = _run({1: _listing(cards)})
 
     assert [e.title for e in events] == ['Dated']
+
+
+@pytest.mark.unit
+def test_listing_budget_is_checked_after_each_render(mock_geocoding_service, monkeypatch):
+    # Fake clock: every render takes 30 s, the budget is 40 s. The first render
+    # ends at 30 s (under budget), the second at 60 s (over): no third render.
+    clock = {'now': 0.0}
+    monkeypatch.setattr('src.scrapers.ucla_film_archive.time.monotonic', lambda: clock['now'])
+    pages = {
+        n: _listing([_card(f'p{n}-{i}-x', f'Film {n}-{i}', _when(n * 10 + i + 1)) for i in range(10)], pages=5)
+        for n in range(1, 6)
+    }
+    scraper = UCLAFilmArchiveScraper()
+    requested = []
+
+    def fetch_page_js(url, wait_selector=None, timeout=30000):
+        requested.append((url, timeout))
+        clock['now'] += 30
+        number = int(url.split('page=')[1].rstrip('/')) if 'page=' in url else 1
+        return pages[number]
+
+    scraper.fetch_page_js = fetch_page_js
+    scraper.fetch_page = lambda url, retry=3: None
+    scraper.prefetch_pages = lambda urls, max_concurrent=5: None
+    events = scraper.scrape()
+
+    assert len(requested) == 2
+    assert all(timeout == 15000 for _, timeout in requested)
+    assert len(events) == 20  # both rendered pages are still used
